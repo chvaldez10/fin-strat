@@ -4,7 +4,6 @@ import { useState } from "react";
 
 export default function SettingsPage() {
   const [notifications, setNotifications] = useState(true);
-  const [theme, setTheme] = useState("light");
 
   return (
     <div>
@@ -21,19 +20,6 @@ export default function SettingsPage() {
                 checked={notifications}
                 onChange={(e) => setNotifications(e.target.checked)}
               />
-            </div>
-            <div className="flex items-center justify-between">
-              <label htmlFor="theme">Theme</label>
-              <select
-                id="theme"
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                className="px-3 py-2 border border-border rounded-md"
-              >
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="system">System</option>
-              </select>
             </div>
           </div>
         </div>

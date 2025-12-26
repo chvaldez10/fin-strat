@@ -9,16 +9,10 @@ export default function HomePage() {
       </p>
       <div className="flex gap-4">
         <Link
-          href="/login"
+          href="/pricing"
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
         >
-          Login
-        </Link>
-        <Link
-          href="/pricing"
-          className="px-4 py-2 border border-border rounded-md hover:bg-accent"
-        >
-          View Pricing
+          Pricing
         </Link>
         <Link
           href="/dashboard"
