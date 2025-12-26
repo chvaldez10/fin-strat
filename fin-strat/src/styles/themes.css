@@ -1,0 +1,13 @@
+/* Theme-specific styles */
+:root {
+  --transition-theme: 0.2s ease-in-out;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+.light {
+  color-scheme: light;
+}
+
