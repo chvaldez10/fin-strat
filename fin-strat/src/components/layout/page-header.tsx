@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export function PageHeader() {
   const pathname = usePathname();
@@ -30,9 +31,9 @@ export function PageHeader() {
   });
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-4 bg-background">
       <SidebarTrigger />
-      <Breadcrumb>
+      <Breadcrumb className="flex-1">
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
@@ -56,6 +57,7 @@ export function PageHeader() {
           ))}
         </BreadcrumbList>
       </Breadcrumb>
+      <ThemeToggle />
     </header>
   );
 }
