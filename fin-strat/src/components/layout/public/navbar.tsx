@@ -1,9 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { siteConfig } from "@/config/site";
-import { publicNavGroups, publicNavItems } from "@/config/navigation";
+import {
+  publicNavGroups,
+  publicNavItems,
+  publicUserNav,
+} from "@/config/navigation";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
@@ -15,14 +21,16 @@ import {
 } from "@/components/ui/navigation-menu";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 
 export function PublicNavbar() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   return (
     <nav className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
       <div className="container mx-auto flex items-center justify-between gap-6 px-4 py-4">
@@ -90,9 +98,20 @@ export function PublicNavbar() {
           <Button asChild>
             <Link href="/dashboard">Get started</Link>
           </Button>
+          <Link
+            href={publicUserNav.href}
+            className="rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            aria-label={publicUserNav.title}
+          >
+            <Avatar>
+              <AvatarFallback className="text-xs font-semibold">
+                {publicUserNav.initials}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
         </div>
 
-        <Sheet>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
@@ -103,13 +122,16 @@ export function PublicNavbar() {
               <Menu className="size-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent className="w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-l-3xl p-0">
+          <SheetContent className="w-[min(28rem,100vw)]! max-w-none! overflow-hidden rounded-l-3xl p-0">
             <SheetHeader className="border-b border-border p-6 text-left">
               <SheetTitle className="text-3xl font-black tracking-tight">
                 {siteConfig.name}
               </SheetTitle>
+              <SheetDescription>
+                Browse navigation groups and quick links for the UI kit.
+              </SheetDescription>
             </SheetHeader>
-            <div className="space-y-8 p-6">
+            <div className="flex-1 space-y-8 overflow-y-auto p-6">
               {publicNavGroups.map((group) => (
                 <section key={group.title} className="space-y-4">
                   <div className="flex items-center justify-between gap-4">
@@ -125,56 +147,64 @@ export function PublicNavbar() {
                       const Icon = item.icon;
 
                       return (
-                        <SheetClose
+                        <Link
                           key={`${group.title}-${item.title}`}
-                          asChild
+                          href={item.href}
+                          className="grid grid-cols-[1fr_auto] gap-4 rounded-2xl border border-border p-4 transition-colors hover:bg-muted"
+                          onClick={() => setIsMobileMenuOpen(false)}
                         >
-                          <Link
-                            href={item.href}
-                            className="grid grid-cols-[1fr_auto] gap-4 rounded-2xl border border-border p-4 transition-colors hover:bg-muted"
-                          >
-                            <span>
-                              <span className="block text-lg font-medium">
-                                {item.title}
-                              </span>
-                              <span className="mt-1 block text-sm text-muted-foreground">
-                                {item.description}
-                              </span>
+                          <span>
+                            <span className="block text-lg font-medium">
+                              {item.title}
                             </span>
-                            <span className="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted text-muted-foreground">
-                              <Icon className="size-5" />
+                            <span className="mt-1 block text-sm text-muted-foreground">
+                              {item.description}
                             </span>
-                          </Link>
-                        </SheetClose>
+                          </span>
+                          <span className="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted text-muted-foreground">
+                            <Icon className="size-5" />
+                          </span>
+                        </Link>
                       );
                     })}
                   </div>
                 </section>
               ))}
             </div>
-            <div className="sticky bottom-0 border-t border-border bg-background p-6">
+            <div className="border-t border-border bg-background p-6">
               <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
                 Quick links
               </p>
               <div className="grid gap-1">
                 {publicNavItems.map((item) => (
-                  <SheetClose key={item.href} asChild>
-                    <Link
-                      href={item.href}
-                      className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      {item.title}
-                    </Link>
-                  </SheetClose>
-                ))}
-                <SheetClose asChild>
                   <Link
-                    href="/login"
+                    key={item.href}
+                    href={item.href}
                     className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    Preview form
+                    {item.title}
                   </Link>
-                </SheetClose>
+                ))}
+                <Link
+                  href="/login"
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Preview form
+                </Link>
+                <Link
+                  href={publicUserNav.href}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Avatar className="size-7">
+                    <AvatarFallback className="text-[0.65rem] font-semibold">
+                      {publicUserNav.initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  {publicUserNav.title}
+                </Link>
               </div>
             </div>
           </SheetContent>

@@ -47,6 +47,13 @@ export const publicNavItems: NavItem[] = [
   },
 ];
 
+export const publicUserNav = {
+  title: "User profile",
+  href: "/user/profile",
+  initials: "DS",
+  name: "Designer",
+} as const;
+
 export const publicNavGroups: PublicNavGroup[] = [
   {
     title: "Foundations",

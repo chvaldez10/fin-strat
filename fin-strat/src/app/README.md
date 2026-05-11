@@ -7,6 +7,7 @@ This folder owns routes and route-level behavior only.
 - Use route groups to separate shells:
   - `(public)` for marketing/public pages.
   - `(dashboard)` for dashboard pages.
+  - `(user)` for user-facing account and profile pages.
 - Keep root files such as `layout.tsx`, `providers.tsx`, `error.tsx`, and `globals.css` focused on app-wide behavior.
 - Route pages should be small compositions of layout components, patterns, and primitives.
 - Put loading and error UI in route files, but delegate reusable presentation to `components/patterns`.
