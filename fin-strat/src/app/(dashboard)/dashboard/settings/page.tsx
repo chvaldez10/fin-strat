@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FormSection } from "@/components/patterns";
 import { Button } from "@/components/ui/button";
 
 export default function SettingsPage() {
@@ -15,8 +16,7 @@ export default function SettingsPage() {
         </p>
       </div>
       <div className="max-w-2xl space-y-6">
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-xl font-semibold">Preferences</h2>
+        <FormSection title="Preferences">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label htmlFor="reduced-motion" className="text-foreground">
@@ -32,9 +32,8 @@ export default function SettingsPage() {
             </div>
             <Button>Save preferences</Button>
           </div>
-        </div>
+        </FormSection>
       </div>
     </div>
   );
 }
-

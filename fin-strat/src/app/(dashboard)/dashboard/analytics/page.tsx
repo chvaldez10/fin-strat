@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FormSection, SearchInput } from "@/components/patterns";
 
 export default function AnalyticsPage() {
   return (
@@ -11,29 +11,25 @@ export default function AnalyticsPage() {
         </p>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-2xl font-semibold">Action Group</h2>
-          <p className="mb-6 text-muted-foreground">
-            Button variants communicate priority while keeping interaction
-            states consistent.
-          </p>
+        <FormSection
+          title="Action Group"
+          description="Button variants communicate priority while keeping interaction states consistent."
+        >
           <div className="flex flex-wrap gap-3">
             <Button>Save changes</Button>
             <Button variant="secondary">Preview</Button>
             <Button variant="outline">Cancel</Button>
           </div>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-2xl font-semibold">Input Group</h2>
-          <p className="mb-6 text-muted-foreground">
-            Form controls share sizing, borders, focus rings, and disabled
-            states.
-          </p>
+        </FormSection>
+        <FormSection
+          title="Input Group"
+          description="Form controls share sizing, borders, focus rings, and disabled states."
+        >
           <div className="space-y-3">
-            <Input placeholder="Search components" />
+            <SearchInput placeholder="Search components" />
             <Button className="w-full">Search</Button>
           </div>
-        </div>
+        </FormSection>
       </div>
     </div>
   );

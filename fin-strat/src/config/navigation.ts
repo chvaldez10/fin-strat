@@ -1,5 +1,6 @@
 import {
   Blocks,
+  Home,
   LayoutDashboard,
   Settings,
   Sparkles,
@@ -19,7 +20,7 @@ export type DashboardNavItem = NavItem & {
 export const publicNavItems: NavItem[] = [
   {
     title: "Components",
-    href: "/pricing",
+    href: "/components",
   },
   {
     title: "Dashboard",
@@ -78,6 +79,14 @@ export const dashboardWorkspace = {
   href: "/dashboard",
   icon: Sparkles,
 } as const;
+
+export const dashboardUtilityItems: DashboardNavItem[] = [
+  {
+    title: "View site",
+    href: "/",
+    icon: Home,
+  },
+];
 
 export const dashboardUser = {
   name: "Designer",

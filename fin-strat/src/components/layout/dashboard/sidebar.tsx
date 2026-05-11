@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import {
   dashboardNavItems,
+  dashboardUtilityItems,
   dashboardUser,
   dashboardWorkspace,
 } from "@/config/navigation";
@@ -126,6 +127,20 @@ export function DashboardSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          {dashboardUtilityItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton asChild tooltip={item.title}>
+                  <Link href={item.href}>
+                    <Icon />
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="w-full">
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
