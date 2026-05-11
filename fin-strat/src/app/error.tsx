@@ -1,7 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 export default function Error({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -11,12 +12,9 @@ export default function Error({
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-4">Something went wrong!</h2>
-        <button
-          onClick={reset}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
-        >
+        <Button onClick={reset}>
           Try again
-        </button>
+        </Button>
       </div>
     </div>
   );

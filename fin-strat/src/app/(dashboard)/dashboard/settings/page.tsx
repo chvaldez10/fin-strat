@@ -1,29 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function SettingsPage() {
-  const [notifications, setNotifications] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   return (
-    <div>
-      <h1 className="text-4xl font-bold mb-8">Settings</h1>
-      <div className="space-y-6 max-w-2xl">
-        <div className="border border-border rounded-lg p-6 bg-card">
-          <h2 className="text-xl font-semibold mb-4">Preferences</h2>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-4xl font-bold tracking-tight">Settings</h1>
+        <p className="mt-2 text-muted-foreground">
+          A simple preferences surface for dashboard-style UI composition.
+        </p>
+      </div>
+      <div className="max-w-2xl space-y-6">
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="mb-4 text-xl font-semibold">Preferences</h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <label htmlFor="notifications" className="text-foreground">
-                Email Notifications
+              <label htmlFor="reduced-motion" className="text-foreground">
+                Reduce motion
               </label>
               <input
-                id="notifications"
+                id="reduced-motion"
                 type="checkbox"
-                checked={notifications}
-                onChange={(e) => setNotifications(e.target.checked)}
-                className="w-4 h-4 rounded border-border"
+                checked={reducedMotion}
+                onChange={(event) => setReducedMotion(event.target.checked)}
+                className="size-4 rounded border-border"
               />
             </div>
+            <Button>Save preferences</Button>
           </div>
         </div>
       </div>

@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import {
-  ChevronRight,
-  LayoutDashboard,
-  BarChart3,
-  Settings,
-  type LucideIcon,
-} from "lucide-react";
+  dashboardNavItems,
+  dashboardUser,
+  dashboardWorkspace,
+} from "@/config/navigation";
+import { siteConfig } from "@/config/site";
 import {
   Collapsible,
   CollapsibleContent,
@@ -30,58 +30,9 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 
-const navItems: {
-  title: string;
-  href: string;
-  icon: LucideIcon;
-  isActive?: boolean;
-  items?: {
-    title: string;
-    href: string;
-  }[];
-}[] = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    isActive: false,
-  },
-  {
-    title: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
-    isActive: false,
-    items: [
-      {
-        title: "Overview",
-        href: "/dashboard/analytics",
-      },
-      {
-        title: "Reports",
-        href: "/dashboard/analytics/reports",
-      },
-    ],
-  },
-  {
-    title: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-    isActive: false,
-    items: [
-      {
-        title: "General",
-        href: "/dashboard/settings",
-      },
-      {
-        title: "Account",
-        href: "/dashboard/settings/account",
-      },
-    ],
-  },
-];
-
-export function Sidebar() {
+export function DashboardSidebar() {
   const pathname = usePathname();
+  const WorkspaceIcon = dashboardWorkspace.icon;
 
   return (
     <SidebarPrimitive collapsible="icon">
@@ -89,13 +40,17 @@ export function Sidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href="/dashboard">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <span className="text-lg font-bold">FS</span>
+              <Link href={dashboardWorkspace.href}>
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <WorkspaceIcon className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Fin Strat</span>
-                  <span className="truncate text-xs">Financial Strategy</span>
+                  <span className="truncate font-semibold">
+                    {siteConfig.name}
+                  </span>
+                  <span className="truncate text-xs">
+                    {dashboardWorkspace.subtitle}
+                  </span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -106,11 +61,12 @@ export function Sidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarMenu>
-            {navItems.map((item) => {
+            {dashboardNavItems.map((item) => {
               const isActive =
-                pathname === item.href || pathname.startsWith(item.href + "/");
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const Icon = item.icon;
 
-              if (item.items && item.items.length > 0) {
+              if (item.items?.length) {
                 return (
                   <Collapsible
                     key={item.href}
@@ -124,7 +80,7 @@ export function Sidebar() {
                           tooltip={item.title}
                           isActive={isActive}
                         >
-                          <item.icon />
+                          <Icon />
                           <span>{item.title}</span>
                           <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
@@ -158,7 +114,7 @@ export function Sidebar() {
                     isActive={isActive}
                   >
                     <Link href={item.href}>
-                      <item.icon />
+                      <Icon />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -172,12 +128,16 @@ export function Sidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="w-full">
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <span className="text-xs font-semibold">U</span>
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <span className="text-xs font-semibold">
+                  {dashboardUser.initials}
+                </span>
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">User</span>
-                <span className="truncate text-xs">user@example.com</span>
+                <span className="truncate font-semibold">
+                  {dashboardUser.name}
+                </span>
+                <span className="truncate text-xs">{dashboardUser.email}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

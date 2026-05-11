@@ -1,5 +1,5 @@
-import { Sidebar } from "@/components/layout/sidebar";
-import { PageHeader } from "@/components/layout/page-header";
+import { DashboardPageHeader } from "@/components/layout/dashboard/page-header";
+import { DashboardSidebar } from "@/components/layout/dashboard/sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 export default function DashboardLayout({
@@ -10,9 +10,9 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
-        <Sidebar />
+        <DashboardSidebar />
         <SidebarInset>
-          <PageHeader />
+          <DashboardPageHeader />
           <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
             {children}
           </div>

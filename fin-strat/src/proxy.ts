@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  // Add any middleware logic here (auth, redirects, etc.)
+export function proxy() {
   return NextResponse.next();
 }
 
@@ -18,4 +16,3 @@ export const config = {
     "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };
-
