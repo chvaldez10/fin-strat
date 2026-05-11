@@ -9,6 +9,7 @@ Patterns are reusable product-facing compositions built from `components/ui`.
 - Loading states.
 - Search inputs.
 - Form sections.
+- Hero sections.
 - Future reusable app patterns such as filter bars, confirm dialogs, settings layouts, and data-table wrappers.
 
 ## Rules
