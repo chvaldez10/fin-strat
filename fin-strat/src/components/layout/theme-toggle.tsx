@@ -3,8 +3,13 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function ThemeToggle() {
+type ThemeToggleProps = {
+  className?: string;
+};
+
+export function ThemeToggle({ className }: ThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
@@ -12,7 +17,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      className="size-9"
+      className={cn("size-9", className)}
       onClick={() => setTheme(isDark ? "light" : "dark")}
       suppressHydrationWarning
     >
