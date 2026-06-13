@@ -23,28 +23,28 @@ const nodeStyles = {
     eyebrow: "Center account",
     className:
       "border-foreground bg-foreground text-background shadow-md ring-4 ring-foreground/10",
-    handleClassName: "!border-background !bg-foreground",
+    handleClassName: "border-background! bg-foreground!",
   },
   income: {
     icon: ArrowDownToLine,
     eyebrow: "Income",
     className:
       "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-50",
-    handleClassName: "!border-emerald-50 !bg-emerald-700",
+    handleClassName: "border-emerald-50! bg-emerald-700!",
   },
   expense: {
     icon: ArrowUpFromLine,
     eyebrow: "Expense",
     className:
       "border-rose-300 bg-rose-50 text-rose-950 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-50",
-    handleClassName: "!border-rose-50 !bg-rose-700",
+    handleClassName: "border-rose-50! bg-rose-700!",
   },
   account: {
     icon: Landmark,
     eyebrow: "Account",
     className:
       "border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-50",
-    handleClassName: "!border-sky-50 !bg-sky-700",
+    handleClassName: "border-sky-50! bg-sky-700!",
   },
   note: {
     icon: NotebookPen,
@@ -76,7 +76,7 @@ export const MoneyNode = memo(function MoneyNode({
         <Handle
           type="target"
           position={Position.Left}
-          className={cn("!size-3 !border-2", style.handleClassName)}
+          className={cn("size-3! border-2!", style.handleClassName)}
         />
       ) : null}
       <div className="flex items-start gap-3">
@@ -121,7 +121,7 @@ export const MoneyNode = memo(function MoneyNode({
         <Handle
           type="source"
           position={Position.Right}
-          className={cn("!size-3 !border-2", style.handleClassName)}
+          className={cn("size-3! border-2!", style.handleClassName)}
         />
       ) : null}
     </div>
