@@ -12,6 +12,7 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react";
+import { currentMockUser } from "@/features/auth/mock-session";
 
 export type NavItem = {
   title: string;
@@ -48,8 +49,8 @@ export const publicNavItems: NavItem[] = [
 export const publicUserNav = {
   title: "Profile",
   href: "/user/profile",
-  initials: "CH",
-  name: "Chris",
+  initials: currentMockUser.initials,
+  name: currentMockUser.name,
 } as const;
 
 export const publicNavGroups: PublicNavGroup[] = [
@@ -83,7 +84,7 @@ export const publicNavGroups: PublicNavGroup[] = [
     items: [
       {
         title: "Money",
-        href: "/dashboard/analytics",
+        href: "/dashboard/watchlist/money-flow",
         description: "Budget signals, subscriptions, and watchlist items.",
         icon: CircleDollarSign,
       },
@@ -157,6 +158,10 @@ export const dashboardNavItems: DashboardNavItem[] = [
         title: "Money and notes",
         href: "/dashboard/analytics",
       },
+      {
+        title: "Money flow",
+        href: "/dashboard/watchlist/money-flow",
+      },
     ],
   },
   {
@@ -187,8 +192,4 @@ export const dashboardUtilityItems: DashboardNavItem[] = [
   },
 ];
 
-export const dashboardUser = {
-  name: "Chris",
-  email: "personal dashboard",
-  initials: "CH",
-} as const;
+export const dashboardUser = currentMockUser;

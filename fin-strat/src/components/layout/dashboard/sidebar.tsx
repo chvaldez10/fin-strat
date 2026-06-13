@@ -64,7 +64,13 @@ export function DashboardSidebar() {
           <SidebarMenu>
             {dashboardNavItems.map((item) => {
               const isActive =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+                pathname === item.href ||
+                pathname.startsWith(`${item.href}/`) ||
+                item.items?.some(
+                  (subItem) =>
+                    pathname === subItem.href ||
+                    pathname.startsWith(`${subItem.href}/`)
+                );
               const Icon = item.icon;
 
               if (item.items?.length) {

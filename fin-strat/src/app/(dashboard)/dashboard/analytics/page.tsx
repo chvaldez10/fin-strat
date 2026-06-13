@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FormSection, SearchInput } from "@/components/patterns";
 
@@ -7,6 +8,12 @@ export default function AnalyticsPage() {
       title: "Subscriptions",
       detail: "Spotify, iCloud, gym, cloud storage",
       status: "Review by Jun 20",
+    },
+    {
+      title: "Money flow",
+      detail: "Map monthly income and expenses through Chequing",
+      status: "Open canvas",
+      href: "/dashboard/watchlist/money-flow",
     },
     {
       title: "Research",
@@ -63,9 +70,15 @@ export default function AnalyticsPage() {
                 {item.detail}
               </p>
             </div>
-            <span className="rounded-md bg-muted px-3 py-1 text-sm text-muted-foreground">
-              {item.status}
-            </span>
+            {item.href ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={item.href}>{item.status}</Link>
+              </Button>
+            ) : (
+              <span className="rounded-md bg-muted px-3 py-1 text-sm text-muted-foreground">
+                {item.status}
+              </span>
+            )}
           </div>
         ))}
       </div>
