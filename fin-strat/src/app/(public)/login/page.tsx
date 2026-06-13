@@ -9,33 +9,33 @@ export default function LoginPage() {
     <MarketingContainer>
       <Section className="flex min-h-[calc(100vh-9rem)] items-center justify-center">
         <FormSection
-          title="Form Example"
-          description="A neutral authentication layout built from shared primitives."
+          title="Quick Capture"
+          description="Save a thought, task, link, or money note before sorting it."
           className="w-full max-w-md"
         >
           <form className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2">
-                Email
+              <label htmlFor="title" className="block text-sm font-medium mb-2">
+                Title
               </label>
               <Input
-                id="email"
-                placeholder="name@example.com"
-                type="email"
+                id="title"
+                placeholder="Thing to remember"
+                type="text"
                 required
               />
             </div>
             <div>
               <label
-                htmlFor="password"
+                htmlFor="note"
                 className="block text-sm font-medium mb-2"
               >
-                Password
+                Note
               </label>
-              <Input id="password" type="password" required />
+              <Input id="note" placeholder="Add a little context" required />
             </div>
             <Button type="submit" className="w-full">
-              Continue
+              Save capture
             </Button>
           </form>
         </FormSection>

@@ -93,10 +93,10 @@ export function PublicNavbar() {
 
         <div className="hidden items-center gap-2 lg:flex">
           <Button asChild variant="ghost">
-            <Link href="/login">Preview form</Link>
+            <Link href="/login">Quick capture</Link>
           </Button>
           <Button asChild>
-            <Link href="/dashboard">Get started</Link>
+            <Link href="/dashboard">Open dashboard</Link>
           </Button>
           <Link
             href={publicUserNav.href}
@@ -128,7 +128,7 @@ export function PublicNavbar() {
                 {siteConfig.name}
               </SheetTitle>
               <SheetDescription>
-                Browse navigation groups and quick links for the UI kit.
+                Jump into the personal sections you check most often.
               </SheetDescription>
             </SheetHeader>
             <div className="flex-1 space-y-8 overflow-y-auto p-6">
@@ -191,7 +191,7 @@ export function PublicNavbar() {
                   className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Preview form
+                  Quick capture
                 </Link>
                 <Link
                   href={publicUserNav.href}

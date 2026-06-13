@@ -1,7 +1,7 @@
 export const siteConfig = {
-  name: "UI Kit Library",
-  shortName: "UI",
+  name: "Personal Dashboard",
+  shortName: "Dashboard",
   description:
-    "A reusable component system showcase for building polished Next.js interfaces.",
-  copyright: "UI Kit Library",
+    "A private dashboard for keeping tabs on the random things worth tracking.",
+  copyright: "Personal Dashboard",
 } as const;

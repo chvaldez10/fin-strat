@@ -1,6 +1,6 @@
 # Source Structure
 
-This project is a Next.js UI kit showcase. Keep the source tree organized by responsibility so the app can scale without mixing routing, reusable UI, and product examples.
+This project is a Next.js personal dashboard. Keep the source tree organized by responsibility so the app can scale without mixing routing, reusable UI, and personal tracking features.
 
 ## Folder Responsibilities
 

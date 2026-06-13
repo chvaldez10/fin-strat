@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import {
   BadgeCheck,
   Bell,
-  Layers3,
+  ListChecks,
   MapPin,
-  Palette,
+  NotebookPen,
   UserRound,
 } from "lucide-react";
 import { MarketingContainer } from "@/components/layout/public/marketing-container";
@@ -18,14 +18,14 @@ export const metadata: Metadata = {
 
 const profileStats = [
   {
-    label: "Saved patterns",
+    label: "Saved notes",
     value: "18",
-    icon: Layers3,
+    icon: NotebookPen,
   },
   {
-    label: "Theme presets",
+    label: "Active trackers",
     value: "4",
-    icon: Palette,
+    icon: ListChecks,
   },
   {
     label: "Notifications",
@@ -35,9 +35,9 @@ const profileStats = [
 ];
 
 const activityItems = [
-  "Created a compact hero variant",
-  "Saved dashboard sidebar pattern",
-  "Reviewed accessibility checklist",
+  "Added a receipt note for the bike tune-up",
+  "Checked off reading and movement habits",
+  "Saved travel insurance research for later",
 ];
 
 export default function UserProfilePage() {
@@ -47,27 +47,27 @@ export default function UserProfilePage() {
         <div className="rounded-3xl border border-border bg-card p-6 shadow-sm md:p-8">
           <div className="grid gap-8 lg:grid-cols-[auto_1fr_auto] lg:items-center">
             <Avatar className="size-24">
-              <AvatarFallback className="text-2xl font-bold">DS</AvatarFallback>
+              <AvatarFallback className="text-2xl font-bold">CH</AvatarFallback>
             </Avatar>
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-                  Designer Showcase
+                  Chris
                 </h1>
                 <BadgeCheck className="size-5 text-primary" />
               </div>
               <p className="mt-2 max-w-2xl text-muted-foreground">
-                A reusable user profile layout for account, activity, and
-                workspace preference surfaces.
+                Personal dashboard owner. Notes, reminders, and trackers live
+                here when they need somewhere calmer than memory.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
                   <UserRound className="size-4" />
-                  Product designer
+                  Personal workspace
                 </span>
                 <span className="inline-flex items-center gap-2">
                   <MapPin className="size-4" />
-                  Remote workspace
+                  Home base
                 </span>
               </div>
             </div>
@@ -119,10 +119,10 @@ export default function UserProfilePage() {
           </section>
 
           <section className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-xl font-semibold">Profile completeness</h2>
+            <h2 className="text-xl font-semibold">Weekly review</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Use this card pattern for onboarding, account setup, or workspace
-              readiness states.
+              A quick sense of how much of the week has been checked, sorted,
+              or filed away.
             </p>
             <div className="mt-6 h-3 rounded-full bg-muted">
               <div className="h-full w-3/4 rounded-full bg-primary" />

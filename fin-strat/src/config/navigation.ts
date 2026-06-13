@@ -1,17 +1,15 @@
 import {
-  Blocks,
-  BookOpen,
-  Component,
+  CalendarDays,
+  CircleDollarSign,
   Home,
-  Layers3,
   LayoutDashboard,
-  Palette,
-  PanelsTopLeft,
-  Rocket,
+  ListChecks,
+  NotebookPen,
   Search,
   Settings,
-  ShieldCheck,
+  Sparkle,
   Sparkles,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,8 +36,8 @@ export type PublicNavGroup = {
 
 export const publicNavItems: NavItem[] = [
   {
-    title: "Components",
-    href: "/components",
+    title: "Trackers",
+    href: "/trackers",
   },
   {
     title: "Dashboard",
@@ -48,84 +46,82 @@ export const publicNavItems: NavItem[] = [
 ];
 
 export const publicUserNav = {
-  title: "User profile",
+  title: "Profile",
   href: "/user/profile",
-  initials: "DS",
-  name: "Designer",
+  initials: "CH",
+  name: "Chris",
 } as const;
 
 export const publicNavGroups: PublicNavGroup[] = [
   {
-    title: "Foundations",
-    description: "Start with the design decisions that keep products aligned.",
+    title: "Track",
+    description: "A few places to keep an eye on the things that drift.",
     items: [
       {
-        title: "Design Tokens",
-        href: "/components",
-        description: "Color, spacing, radius, shadow, and motion standards.",
-        icon: Palette,
+        title: "Habits",
+        href: "/trackers",
+        description: "Small recurring routines, streaks, and check-ins.",
+        icon: ListChecks,
       },
       {
-        title: "Typography",
-        href: "/components",
-        description:
-          "Reusable type scales for headings, body copy, and labels.",
-        icon: BookOpen,
+        title: "Notes",
+        href: "/trackers",
+        description: "Loose thoughts, reminders, and personal references.",
+        icon: NotebookPen,
       },
       {
-        title: "Responsive Shells",
+        title: "Calendar",
         href: "/dashboard",
-        description: "Public and dashboard layouts built for real app growth.",
-        icon: PanelsTopLeft,
+        description: "Upcoming dates and things that need a little attention.",
+        icon: CalendarDays,
       },
     ],
   },
   {
-    title: "Components",
-    description: "Composable UI blocks powered by shadcn and Radix primitives.",
+    title: "Review",
+    description: "Quick scans for money, goals, and current curiosities.",
     items: [
       {
-        title: "Primitives",
-        href: "/components",
-        description: "Buttons, inputs, sheets, menus, and shared controls.",
-        icon: Component,
-      },
-      {
-        title: "App Patterns",
-        href: "/components",
-        description: "Empty, loading, error, form, and search patterns.",
-        icon: Layers3,
-      },
-      {
-        title: "Search & Filters",
+        title: "Money",
         href: "/dashboard/analytics",
-        description: "Product patterns for finding and refining content.",
+        description: "Budget signals, subscriptions, and watchlist items.",
+        icon: CircleDollarSign,
+      },
+      {
+        title: "Goals",
+        href: "/dashboard",
+        description: "Current priorities and progress worth nudging forward.",
+        icon: Target,
+      },
+      {
+        title: "Search",
+        href: "/dashboard/analytics",
+        description: "Find a saved thing without remembering where it lives.",
         icon: Search,
       },
     ],
   },
   {
-    title: "Resources",
-    description: "Reference flows for building polished product experiences.",
+    title: "Personalize",
+    description: "Keep the dashboard small, private, and tuned to you.",
     items: [
       {
-        title: "Dashboard Demo",
+        title: "Overview",
         href: "/dashboard",
-        description: "A scalable workspace shell with sidebar navigation.",
+        description: "The main daily scan for whatever matters right now.",
         icon: LayoutDashboard,
       },
       {
-        title: "Accessibility",
-        href: "/components",
-        description:
-          "Keyboard-friendly primitives and clear interaction states.",
-        icon: ShieldCheck,
+        title: "Settings",
+        href: "/dashboard/settings",
+        description: "Adjust sections, reminders, and quiet-mode preferences.",
+        icon: Settings,
       },
       {
-        title: "Launch Checklist",
+        title: "Quick Capture",
         href: "/login",
-        description: "Mock flows for validating forms and product surfaces.",
-        icon: Rocket,
+        description: "Drop in a thought before it disappears.",
+        icon: Sparkle,
       },
     ],
   },
@@ -153,12 +149,12 @@ export const dashboardNavItems: DashboardNavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Components",
+    title: "Watchlist",
     href: "/dashboard/analytics",
-    icon: Blocks,
+    icon: Search,
     items: [
       {
-        title: "Overview",
+        title: "Money and notes",
         href: "/dashboard/analytics",
       },
     ],
@@ -177,8 +173,8 @@ export const dashboardNavItems: DashboardNavItem[] = [
 ];
 
 export const dashboardWorkspace = {
-  title: "Component System",
-  subtitle: "Design primitives",
+  title: "Personal Dashboard",
+  subtitle: "Life signals",
   href: "/dashboard",
   icon: Sparkles,
 } as const;
@@ -192,7 +188,7 @@ export const dashboardUtilityItems: DashboardNavItem[] = [
 ];
 
 export const dashboardUser = {
-  name: "Designer",
-  email: "designer@example.com",
-  initials: "DS",
+  name: "Chris",
+  email: "personal dashboard",
+  initials: "CH",
 } as const;
