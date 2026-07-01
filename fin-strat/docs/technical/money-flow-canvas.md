@@ -7,8 +7,9 @@ This document describes the implemented money-flow canvas at
 [feature plan](../plans/money-flow-canvas.md) with the current architecture,
 data contracts, interaction behavior, persistence model, and extension points.
 
-The tool models a single monthly CAD scenario centered on a protected Chequing
-account. React Flow handles canvas interaction, while application-owned domain
+The tool models month-indexed CAD forecasts for multiple bank accounts. React
+Flow renders one selected month at a time, while a table view shows the
+complete forecast horizon for the selected account. Application-owned domain
 types remain independent from React Flow and future database providers.
 
 ## Architecture
@@ -33,7 +34,7 @@ The feature is organized into four layers:
      the domain model.
 
 4. **Presentation and interaction**
-   - `money-flow-workspace.tsx` owns the editor instance, persistence
+   - `components/workspace/money-flow-workspace.tsx` owns the editor instance, persistence
      boundaries, history, and commands.
    - Small components render nodes, edges, summary values, tools, inspector,
      and the node context menu.
@@ -46,18 +47,28 @@ The persisted root record is `MoneyFlowDocument`:
 type MoneyFlowDocument = {
   id: string;
   userId: string;
-  version: 2;
+  version: 4;
   currency: "CAD";
   scenario: {
     name: string;
-    startingBalanceCents: number;
+    startMonth: YearMonth;
+    forecastMonthCount: number;
   };
-  nodes: MoneyFlowNode[];
-  transfers: MoneyFlowTransfer[];
-  viewport: {
-    x: number;
-    y: number;
-    zoom: number;
+  accounts: Array<{
+    id: string;
+    institution: string;
+    name: string;
+    accountType: "chequing" | "savings";
+    openingBalanceCents: number;
+    centerNodeId: string;
+    nodes: MoneyFlowNode[];
+    transfers: MoneyFlowTransfer[];
+    viewport: { x: number; y: number; zoom: number };
+  }>;
+  view: {
+    selectedMonth: YearMonth;
+    selectedAccountId: string;
+    mode: "canvas" | "table";
   };
 };
 ```
@@ -85,32 +96,45 @@ amounts.
 ```ts
 type MoneyFlowTransfer = {
   id: string;
+  linkedTransferId?: string;
+  counterpartyAccountId?: string;
   sourceNodeId: string;
   targetNodeId: string;
-  monthlyAmountCents: number;
+  baseMonthlyAmountCents: number;
+  startMonth: YearMonth;
+  endMonth?: YearMonth;
+  monthOverrides?: Partial<Record<YearMonth, number | null>>;
   label?: string;
 };
 ```
 
 Amounts belong to transfers because the same account may participate in
-multiple flows with different values.
+multiple flows with different values. The base amount recurs monthly while the
+transfer is active. A month override replaces that month's amount; `null`
+disables the transfer for that month.
 
-### Chequing Balance
+### Account Balances
 
-The editable starting balance remains on `scenario.startingBalanceCents`,
-rather than React Flow node data. The Chequing node receives starting and
-projected balances as derived display fields.
+Each tracked bank account is an independent workspace. It owns its opening
+balance, center chequing node, graph, scheduled transfers, and viewport.
+Opening balances can be edited only for the first forecast month. Later
+opening balances are derived from the previous month.
 
 The current calculation is:
 
 ```text
-projected balance =
-  starting balance
+month ending balance =
+  month opening balance
   + transfers directly into Chequing
   - transfers directly out of Chequing
+
+next month account opening balance = prior month account ending balance
 ```
 
-Transfers between secondary accounts remain visible but are not counted again.
+Account-to-account transfers are stored as linked flows in two workspaces: an
+outgoing flow in the source and an incoming flow in the destination. The
+optional `linkedTransferId` and `counterpartyAccountId` preserve that relation
+for future atomic server mutations.
 
 ## User Ownership And Persistence
 
@@ -134,8 +158,11 @@ personal-dashboard:money-flow:{userId}
 The local repository is created for one user and rejects attempts to save a
 document owned by another user.
 
-Version 2 migrates the previous unscoped version 1 record once, assigning it to
-the current mock user and removing the legacy key.
+Version 4 migrates version 3 by moving its opening balance, graph, transfers,
+and viewport into a Scotiabank workspace, then adds a separate CIBC workspace.
+The repository also recognizes the partial shared-graph version 4 shape and
+separates it without treating bank nodes as account workspaces. Earlier
+versions are first upgraded to the monthly schedule model.
 
 The repository boundary is:
 
@@ -178,6 +205,8 @@ The workspace commits persistence only at semantic boundaries:
 - Undo or redo.
 - Viewport move end.
 - Demo reset.
+- Selected month or Canvas/Table view change.
+- Selected account change, after snapshotting the outgoing workspace.
 
 Undo and redo store complete domain document snapshots and retain at most 50
 entries. Live pointer movement is never added to history.
@@ -195,6 +224,11 @@ The editor uses direct manipulation rather than persistent tool modes:
 - Dragging a node handle creates a transfer.
 - Shift-click supports multi-selection through React Flow.
 - Escape clears selection and closes transient UI.
+
+Month navigation is bounded to the scenario forecast horizon. The account
+selector replaces the complete graph and viewport, so the canvas renders only
+one account workspace for one selected month. The table uses the same selected
+workspace and calculation output to show its complete forecast horizon.
 
 The toolbar provides node creation, duplicate, delete, undo/redo, fit view,
 zoom, and reset.
@@ -214,8 +248,9 @@ A transfer is rejected when:
 - A transfer already exists for the same source and target.
 - Either endpoint no longer exists.
 
-New transfers default to `$100.00` per month and can be edited in the
-inspector.
+New transfers default to `$100.00` per month beginning in the selected month.
+The inspector edits the recurring amount, active month range, and optional
+selected-month override.
 
 ## Styling
 
@@ -259,6 +294,8 @@ npm run build
 
 Manual interaction testing should cover:
 
+- Switching between distinct Scotiabank and CIBC canvases and tables.
+- Restoring each account's node positions and viewport after switching.
 - Editing and persisting the Chequing starting balance.
 - Correct projected balance after changing transfer amounts.
 - Left-click selection and node dragging.

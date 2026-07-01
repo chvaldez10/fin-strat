@@ -16,7 +16,8 @@ performance guidance throughout the implementation.
   workspace full-height beneath them.
 - Add a top summary bar showing starting balance, monthly inflow, monthly
   outflow, and projected month-end balance.
-- Place Chequing in the center as a draggable but non-deletable anchor.
+- Add an account selector that switches between independent account
+  workspaces. Each workspace owns its graph, balance forecast, and viewport.
 - Provide a left tool dock with select, pan, income, expense, account, note,
   connector, duplicate, delete, undo/redo, fit view, zoom, and reset demo.
 - Support dragging node types from the dock onto the canvas.
@@ -32,8 +33,13 @@ performance guidance throughout the implementation.
 - Boxes represent `chequing`, `income`, `expense`, `account`, or `note`.
 - Connectors represent monthly movement and own `monthlyAmountCents`, an
   optional label, source, and target.
-- Calculate the Chequing summary as:
-  `starting balance + direct incoming flows - direct outgoing flows`.
+- Calculate each tracked account month as:
+  `opening balance + direct incoming flows - direct outgoing flows`.
+- Carry each month-end balance forward as the next month's opening balance.
+- Represent account-to-account movement as linked outgoing and incoming flows
+  in the respective account workspaces.
+- Give transfers a recurring monthly amount, active month range, and optional
+  month-specific amount overrides.
 - Keep secondary paths visible without double-counting money already
   transferred out of Chequing.
 - Reject self-connections, note connections, duplicate source-target
@@ -42,8 +48,9 @@ performance guidance throughout the implementation.
 - Seed mock data for paycheque, side income, rent, utilities, groceries,
   savings, and investing.
 - Persist a versioned, user-owned `MoneyFlowDocument` containing its document
-  ID, user ID, nodes, edges, viewport, currency, and scenario data in
-  user-scoped `localStorage`.
+  ID, user ID, forecast range, selected account, view mode, account
+  workspaces, currency, and scenario data in user-scoped
+  `localStorage`.
 - Autosave only after semantic actions such as drag-end, connect, edit, delete,
   undo/redo, or viewport move-end.
 - Recover from corrupt or incompatible local data by loading the demo graph and
@@ -75,6 +82,8 @@ performance guidance throughout the implementation.
 
 - Add `Money flow` beneath Watchlist and point the existing public Money link
   to it.
+- Add month navigation that renders one selected month on the canvas and a
+  table view that compares the complete forecast horizon.
 - Unit-test totals, cents arithmetic, multi-step paths, invalid connections,
   negative balances, and local-storage recovery.
 - Interaction-test drag/drop, connection creation, inspector editing,
@@ -89,7 +98,7 @@ performance guidance throughout the implementation.
 
 ## Assumptions
 
-- Currency is CAD and the first version models one monthly period only.
+- Currency is CAD and the forecast starts with 12 monthly periods.
 - Amounts live on connectors, not boxes.
 - No authentication, collaboration, import/export, automatic bank feeds, or
   Convex integration is included.

@@ -13,6 +13,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { MoneyCanvasEdge, MoneyCanvasNode } from "../canvas-types";
+import { formatYearMonth } from "../months";
+import type { YearMonth } from "../types";
 
 export type SelectedMoneyElement =
   | { type: "node"; item: MoneyCanvasNode }
@@ -21,7 +23,9 @@ export type SelectedMoneyElement =
 
 type MoneyInspectorProps = {
   selected: SelectedMoneyElement;
-  startingBalanceCents: number;
+  openingBalancesByNodeId: Record<string, number>;
+  selectedMonth: YearMonth;
+  isFirstMonth: boolean;
   onClose: () => void;
   onSaveNode: (
     id: string,
@@ -33,13 +37,21 @@ type MoneyInspectorProps = {
   ) => void;
   onSaveEdge: (
     id: string,
-    values: { label: string; monthlyAmountCents: number }
+    values: {
+      label: string;
+      baseMonthlyAmountCents: number;
+      monthOverrideCents: number | null;
+      startMonth: YearMonth;
+      endMonth?: YearMonth;
+    }
   ) => void;
 };
 
 export function MoneyInspector({
   selected,
-  startingBalanceCents,
+  openingBalancesByNodeId,
+  selectedMonth,
+  isFirstMonth,
   onClose,
   onSaveNode,
   onSaveEdge,
@@ -55,13 +67,15 @@ export function MoneyInspector({
       <NodeInspector
         key={selected.item.id}
         node={selected.item}
-        startingBalanceCents={startingBalanceCents}
+        startingBalanceCents={openingBalancesByNodeId[selected.item.id] ?? 0}
+        isFirstMonth={isFirstMonth}
         onSave={onSaveNode}
       />
     ) : (
       <EdgeInspector
         key={selected.item.id}
         edge={selected.item}
+        selectedMonth={selectedMonth}
         onSave={onSaveEdge}
       />
     );
@@ -113,10 +127,12 @@ export function MoneyInspector({
 function NodeInspector({
   node,
   startingBalanceCents,
+  isFirstMonth,
   onSave,
 }: {
   node: MoneyCanvasNode;
   startingBalanceCents: number;
+  isFirstMonth: boolean;
   onSave: MoneyInspectorProps["onSaveNode"];
 }) {
   const [label, setLabel] = useState(node.data.label);
@@ -137,6 +153,7 @@ function NodeInspector({
           note: note.trim(),
           startingBalanceCents:
             node.data.kind === "chequing" &&
+            isFirstMonth &&
             Number.isFinite(parsedStartingBalance)
               ? Math.round(parsedStartingBalance * 100)
               : undefined,
@@ -159,9 +176,15 @@ function NodeInspector({
               inputMode="decimal"
               value={startingBalance}
               onChange={(event) => setStartingBalance(event.target.value)}
+              disabled={!isFirstMonth}
               className="pl-9"
             />
           </div>
+          {!isFirstMonth ? (
+            <p className="text-xs text-muted-foreground">
+              Carried forward from the previous month.
+            </p>
+          ) : null}
         </Field>
       ) : null}
       <Field label="Note" htmlFor="node-note">
@@ -183,43 +206,94 @@ function NodeInspector({
 
 function EdgeInspector({
   edge,
+  selectedMonth,
   onSave,
 }: {
   edge: MoneyCanvasEdge;
+  selectedMonth: YearMonth;
   onSave: MoneyInspectorProps["onSaveEdge"];
 }) {
   const [label, setLabel] = useState(edge.data?.label ?? "");
-  const [amount, setAmount] = useState(
-    ((edge.data?.monthlyAmountCents ?? 0) / 100).toString()
+  const [baseAmount, setBaseAmount] = useState(
+    ((edge.data?.baseMonthlyAmountCents ?? 0) / 100).toString()
   );
+  const existingOverride = edge.data?.monthOverrides?.[selectedMonth];
+  const [monthOverride, setMonthOverride] = useState(
+    typeof existingOverride === "number" ? (existingOverride / 100).toString() : ""
+  );
+  const [startMonth, setStartMonth] = useState(edge.data?.startMonth ?? selectedMonth);
+  const [endMonth, setEndMonth] = useState(edge.data?.endMonth ?? "");
 
   return (
     <form
       className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault();
-        const parsedAmount = Number.parseFloat(amount);
+        const parsedBaseAmount = Number.parseFloat(baseAmount);
+        const parsedOverride = Number.parseFloat(monthOverride);
 
         onSave(edge.id, {
           label: label.trim(),
-          monthlyAmountCents: Number.isFinite(parsedAmount)
-            ? Math.max(0, Math.round(parsedAmount * 100))
+          baseMonthlyAmountCents: Number.isFinite(parsedBaseAmount)
+            ? Math.max(0, Math.round(parsedBaseAmount * 100))
             : 0,
+          monthOverrideCents:
+            monthOverride.trim() === ""
+              ? null
+              : Number.isFinite(parsedOverride)
+                ? Math.max(0, Math.round(parsedOverride * 100))
+                : null,
+          startMonth,
+          endMonth: endMonth ? (endMonth as YearMonth) : undefined,
         });
       }}
     >
-      <Field label="Monthly amount" htmlFor="edge-amount">
+      <Field label="Recurring monthly amount" htmlFor="edge-amount">
         <div className="relative">
           <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="edge-amount"
             inputMode="decimal"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            value={baseAmount}
+            onChange={(event) => setBaseAmount(event.target.value)}
             className="pl-9"
           />
         </div>
       </Field>
+      <Field
+        label={`${formatYearMonth(selectedMonth)} override`}
+        htmlFor="edge-month-override"
+      >
+        <div className="relative">
+          <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="edge-month-override"
+            inputMode="decimal"
+            value={monthOverride}
+            onChange={(event) => setMonthOverride(event.target.value)}
+            className="pl-9"
+            placeholder="Use recurring amount"
+          />
+        </div>
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Starts" htmlFor="edge-start-month">
+          <Input
+            id="edge-start-month"
+            type="month"
+            value={startMonth}
+            onChange={(event) => setStartMonth(event.target.value as YearMonth)}
+          />
+        </Field>
+        <Field label="Ends" htmlFor="edge-end-month">
+          <Input
+            id="edge-end-month"
+            type="month"
+            value={endMonth}
+            onChange={(event) => setEndMonth(event.target.value)}
+          />
+        </Field>
+      </div>
       <Field label="Label" htmlFor="edge-label">
         <Input
           id="edge-label"

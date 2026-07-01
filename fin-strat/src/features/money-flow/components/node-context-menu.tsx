@@ -89,7 +89,7 @@ export function NodeContextMenu({
       </ContextAction>
       {isProtected ? (
         <p className="px-2 py-1.5 text-xs leading-4 text-muted-foreground">
-          Chequing is the protected center account.
+          The workspace chequing box cannot be duplicated or deleted.
         </p>
       ) : null}
     </div>

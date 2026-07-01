@@ -1,5 +1,5 @@
 import type {
-  MoneyFlowDocument,
+  MoneyFlowAccountWorkspace,
   MoneyFlowNode,
   MoneyFlowTransfer,
 } from "./types";
@@ -14,15 +14,15 @@ export type ConnectionValidation =
   | { valid: false; reason: string };
 
 export function validateConnection(
-  document: MoneyFlowDocument,
+  workspace: MoneyFlowAccountWorkspace,
   candidate: ConnectionCandidate
 ): ConnectionValidation {
   if (candidate.sourceNodeId === candidate.targetNodeId) {
     return { valid: false, reason: "A box cannot connect to itself." };
   }
 
-  const source = findNode(document.nodes, candidate.sourceNodeId);
-  const target = findNode(document.nodes, candidate.targetNodeId);
+  const source = findNode(workspace.nodes, candidate.sourceNodeId);
+  const target = findNode(workspace.nodes, candidate.targetNodeId);
 
   if (!source || !target) {
     return { valid: false, reason: "Both boxes must exist." };
@@ -41,7 +41,7 @@ export function validateConnection(
   }
 
   if (
-    document.transfers.some(
+    workspace.transfers.some(
       (transfer) =>
         transfer.sourceNodeId === candidate.sourceNodeId &&
         transfer.targetNodeId === candidate.targetNodeId

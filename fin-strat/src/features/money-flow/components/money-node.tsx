@@ -20,7 +20,7 @@ import type { MoneyCanvasNode } from "../canvas-types";
 const nodeStyles = {
   chequing: {
     icon: WalletCards,
-    eyebrow: "Center account",
+    eyebrow: "Tracked account",
     className:
       "border-foreground bg-foreground text-background shadow-md ring-4 ring-foreground/10",
     handleClassName: "border-background! bg-foreground!",

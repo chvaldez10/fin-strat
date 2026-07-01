@@ -19,33 +19,42 @@ import {
 } from "@xyflow/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getCurrentMockUser } from "@/features/auth/mock-session";
-import { calculateMoneyFlowTotals } from "../calculations";
 import {
+  calculateMoneyFlowTotals,
+  getTransferAmountForMonth,
+} from "../../calculations";
+import {
+  totalsForCenterNode,
   toCanvasEdges,
   toCanvasNodes,
-  toMoneyFlowDocument,
+  updateAccountWorkspaceFromCanvas,
   type MoneyCanvasEdge,
   type MoneyCanvasNode,
-} from "../canvas-types";
-import { createDemoMoneyFlowDocument } from "../mock-data";
-import { createLocalMoneyFlowRepository } from "../repository";
+} from "../../canvas-types";
+import { createDemoMoneyFlowDocument } from "../../mock-data";
+import { addMonths, monthsBetween } from "../../months";
+import { createLocalMoneyFlowRepository } from "../../repository";
 import type {
   MoneyFlowDocument,
+  MoneyFlowAccountWorkspace,
+  MoneyFlowViewMode,
   MoneyNodeKind,
-} from "../types";
-import { validateConnection } from "../validation";
-import { MoneyEdge } from "./money-edge";
+  YearMonth,
+} from "../../types";
+import { validateConnection } from "../../validation";
+import { MoneyEdge } from "../money-edge";
 import {
   MoneyInspector,
   type SelectedMoneyElement,
-} from "./money-inspector";
-import { MoneyNode } from "./money-node";
+} from "../money-inspector";
+import { MoneyNode } from "../money-node";
 import {
   NodeContextMenu,
   type NodeContextMenuState,
-} from "./node-context-menu";
-import { MoneySummary } from "./money-summary";
-import { ToolDock } from "./tool-dock";
+} from "../node-context-menu";
+import { MoneySummary } from "../money-summary";
+import { ToolDock } from "../tool-dock";
+import { CashFlowTable } from "../cash-flow-table";
 
 const SNAP_GRID: [number, number] = [16, 16];
 const HISTORY_LIMIT = 50;
@@ -74,6 +83,26 @@ type HistoryState = {
   canRedo: boolean;
 };
 
+function getAccountWorkspace(
+  document: MoneyFlowDocument,
+  accountId = document.view.selectedAccountId
+): MoneyFlowAccountWorkspace {
+  return (
+    document.accounts.find((account) => account.id === accountId) ??
+    document.accounts[0]
+  );
+}
+
+function getCanvasNodes(
+  document: MoneyFlowDocument,
+  accountId: string,
+  month: YearMonth
+) {
+  const account = getAccountWorkspace(document, accountId);
+  const totals = calculateMoneyFlowTotals(document, month, account.id);
+  return toCanvasNodes(account.nodes, totalsForCenterNode(account, totals));
+}
+
 export function MoneyFlowWorkspace() {
   const [currentUser] = useState(() => getCurrentMockUser());
   const [initialDocument] = useState(() =>
@@ -91,7 +120,21 @@ export function MoneyFlowWorkspace() {
   const redoRef = useRef<MoneyFlowDocument[]>([]);
   const dragStartDocumentRef = useRef<MoneyFlowDocument | null>(null);
   const [totals, setTotals] = useState(() =>
-    calculateMoneyFlowTotals(initialDocument)
+    calculateMoneyFlowTotals(
+      initialDocument,
+      initialDocument.view.selectedMonth,
+      initialDocument.view.selectedAccountId
+    )
+  );
+  const [activeDocument, setActiveDocument] = useState(initialDocument);
+  const [selectedMonth, setSelectedMonth] = useState(
+    initialDocument.view.selectedMonth
+  );
+  const [viewMode, setViewMode] = useState<MoneyFlowViewMode>(
+    initialDocument.view.mode
+  );
+  const [selectedAccountId, setSelectedAccountId] = useState(
+    initialDocument.view.selectedAccountId
   );
   const [selected, setSelected] = useState<SelectedMoneyElement>(null);
   const [nodeContextMenu, setNodeContextMenu] =
@@ -115,8 +158,9 @@ export function MoneyFlowWorkspace() {
       return documentRef.current;
     }
 
-    return toMoneyFlowDocument(
+    return updateAccountWorkspaceFromCanvas(
       documentRef.current,
+      documentRef.current.view.selectedAccountId,
       instance.getNodes(),
       instance.getEdges(),
       instance.getViewport()
@@ -128,11 +172,19 @@ export function MoneyFlowWorkspace() {
       const document = readDocument();
       documentRef.current = document;
       repository.save(document);
+      setActiveDocument(document);
 
       if (recalculate) {
-        const nextTotals = calculateMoneyFlowTotals(document);
+        const accountId = document.view.selectedAccountId;
+        const month = document.view.selectedMonth;
+        const nextTotals = calculateMoneyFlowTotals(
+          document,
+          month,
+          accountId
+        );
         setTotals(nextTotals);
-        instanceRef.current?.updateNodeData("account-chequing", {
+        const account = getAccountWorkspace(document, accountId);
+        instanceRef.current?.updateNodeData(account.centerNodeId, {
           startingBalanceCents: nextTotals.startingBalanceCents,
           projectedBalanceCents: nextTotals.projectedBalanceCents,
         });
@@ -168,13 +220,26 @@ export function MoneyFlowWorkspace() {
         return;
       }
 
-      const nextTotals = calculateMoneyFlowTotals(document);
-      instance.setNodes(toCanvasNodes(document.nodes, nextTotals));
-      instance.setEdges(toCanvasEdges(document.transfers));
-      void instance.setViewport(document.viewport);
+      const nextTotals = calculateMoneyFlowTotals(
+        document,
+        document.view.selectedMonth,
+        document.view.selectedAccountId
+      );
+      const account = getAccountWorkspace(document);
+      instance.setNodes(
+        getCanvasNodes(document, account.id, document.view.selectedMonth)
+      );
+      instance.setEdges(
+        toCanvasEdges(account.transfers, document.view.selectedMonth)
+      );
+      void instance.setViewport(account.viewport);
       documentRef.current = document;
       repository.save(document);
       setTotals(nextTotals);
+      setActiveDocument(document);
+      setSelectedMonth(document.view.selectedMonth);
+      setSelectedAccountId(document.view.selectedAccountId);
+      setViewMode(document.view.mode);
       setSelected(null);
     },
     [repository]
@@ -184,12 +249,29 @@ export function MoneyFlowWorkspace() {
     (instance: ReactFlowInstance<MoneyCanvasNode, MoneyCanvasEdge>) => {
       instanceRef.current = instance;
       const savedDocument = repository.load();
-      const savedTotals = calculateMoneyFlowTotals(savedDocument);
+      const savedTotals = calculateMoneyFlowTotals(
+        savedDocument,
+        savedDocument.view.selectedMonth,
+        savedDocument.view.selectedAccountId
+      );
       documentRef.current = savedDocument;
-      instance.setNodes(toCanvasNodes(savedDocument.nodes, savedTotals));
-      instance.setEdges(toCanvasEdges(savedDocument.transfers));
-      void instance.setViewport(savedDocument.viewport);
+      const account = getAccountWorkspace(savedDocument);
+      instance.setNodes(
+        getCanvasNodes(
+          savedDocument,
+          account.id,
+          savedDocument.view.selectedMonth
+        )
+      );
+      instance.setEdges(
+        toCanvasEdges(account.transfers, savedDocument.view.selectedMonth)
+      );
+      void instance.setViewport(account.viewport);
       setTotals(savedTotals);
+      setActiveDocument(savedDocument);
+      setSelectedMonth(savedDocument.view.selectedMonth);
+      setSelectedAccountId(savedDocument.view.selectedAccountId);
+      setViewMode(savedDocument.view.mode);
     },
     [repository]
   );
@@ -285,7 +367,7 @@ export function MoneyFlowWorkspace() {
       }
 
       const before = readDocument();
-      const validation = validateConnection(before, {
+      const validation = validateConnection(getAccountWorkspace(before), {
         sourceNodeId: connection.source,
         targetNodeId: connection.target,
       });
@@ -302,12 +384,14 @@ export function MoneyFlowWorkspace() {
         target: connection.target,
         data: {
           monthlyAmountCents: 10000,
+          baseMonthlyAmountCents: 10000,
+          startMonth: selectedMonth,
         },
         markerEnd: defaultEdgeOptions.markerEnd,
       });
       finishMutation(before);
     },
-    [finishMutation, readDocument]
+    [finishMutation, readDocument, selectedMonth]
   );
 
   const handleSelectionChange = useCallback(
@@ -439,10 +523,15 @@ export function MoneyFlowWorkspace() {
       if (typeof values.startingBalanceCents === "number") {
         documentRef.current = {
           ...before,
-          scenario: {
-            ...before.scenario,
-            startingBalanceCents: values.startingBalanceCents,
-          },
+          accounts: before.accounts.map((account) =>
+            account.id === selectedAccountId && account.centerNodeId === id
+              ? {
+                  ...account,
+                  name: values.label,
+                  openingBalanceCents: values.startingBalanceCents!,
+                }
+              : account
+          ),
         };
       }
       instance.updateNodeData(id, {
@@ -451,13 +540,19 @@ export function MoneyFlowWorkspace() {
       });
       finishMutation(before);
     },
-    [finishMutation, readDocument]
+    [finishMutation, readDocument, selectedAccountId]
   );
 
   const saveEdge = useCallback(
     (
       id: string,
-      values: { label: string; monthlyAmountCents: number }
+      values: {
+        label: string;
+        baseMonthlyAmountCents: number;
+        monthOverrideCents: number | null;
+        startMonth: YearMonth;
+        endMonth?: YearMonth;
+      }
     ) => {
       const instance = instanceRef.current;
 
@@ -466,13 +561,45 @@ export function MoneyFlowWorkspace() {
       }
 
       const before = readDocument();
+      const edge = instance.getEdge(id);
+
+      if (!edge?.data) {
+        return;
+      }
+
+      const monthOverrides = { ...edge.data.monthOverrides };
+
+      if (values.monthOverrideCents === null) {
+        delete monthOverrides[selectedMonth];
+      } else {
+        monthOverrides[selectedMonth] = values.monthOverrideCents;
+      }
+
+      const updatedTransfer = {
+        id,
+        sourceNodeId: edge.source,
+        targetNodeId: edge.target,
+        baseMonthlyAmountCents: values.baseMonthlyAmountCents,
+        startMonth: values.startMonth,
+        endMonth: values.endMonth,
+        monthOverrides,
+        label: values.label || undefined,
+      };
+
       instance.updateEdgeData(id, {
         label: values.label || undefined,
-        monthlyAmountCents: values.monthlyAmountCents,
+        baseMonthlyAmountCents: values.baseMonthlyAmountCents,
+        startMonth: values.startMonth,
+        endMonth: values.endMonth,
+        monthOverrides,
+        monthlyAmountCents: getTransferAmountForMonth(
+          updatedTransfer,
+          selectedMonth
+        ),
       });
       finishMutation(before);
     },
-    [finishMutation, readDocument]
+    [finishMutation, readDocument, selectedMonth]
   );
 
   const undo = useCallback(() => {
@@ -513,6 +640,106 @@ export function MoneyFlowWorkspace() {
     pushUndo(before);
     restoreDocument(document);
   }, [pushUndo, readDocument, repository, restoreDocument]);
+
+  const changeMonth = useCallback(
+    (month: YearMonth) => {
+      const currentDocument = instanceRef.current
+        ? readDocument()
+        : documentRef.current;
+      const document: MoneyFlowDocument = {
+        ...currentDocument,
+        view: {
+          ...currentDocument.view,
+          selectedMonth: month,
+        },
+      };
+      const nextTotals = calculateMoneyFlowTotals(
+        document,
+        month,
+        selectedAccountId
+      );
+
+      documentRef.current = document;
+      repository.save(document);
+      setActiveDocument(document);
+      setSelectedMonth(month);
+      setTotals(nextTotals);
+      clearSelection();
+      instanceRef.current?.setNodes(
+        getCanvasNodes(document, selectedAccountId, month)
+      );
+      instanceRef.current?.setEdges(
+        toCanvasEdges(
+          getAccountWorkspace(document, selectedAccountId).transfers,
+          month
+        )
+      );
+    },
+    [clearSelection, readDocument, repository, selectedAccountId]
+  );
+
+  const changeAccount = useCallback(
+    (accountId: string) => {
+      const currentDocument = instanceRef.current
+        ? readDocument()
+        : documentRef.current;
+      const document: MoneyFlowDocument = {
+        ...currentDocument,
+        view: {
+          ...currentDocument.view,
+          selectedAccountId: accountId,
+        },
+      };
+      const account = getAccountWorkspace(document, accountId);
+
+      documentRef.current = document;
+      repository.save(document);
+      setActiveDocument(document);
+      setSelectedAccountId(accountId);
+      setTotals(calculateMoneyFlowTotals(document, selectedMonth, accountId));
+      clearSelection();
+      setNodeContextMenu(null);
+      instanceRef.current?.setNodes(
+        getCanvasNodes(document, account.id, selectedMonth)
+      );
+      instanceRef.current?.setEdges(
+        toCanvasEdges(account.transfers, selectedMonth)
+      );
+      void instanceRef.current?.setViewport(account.viewport);
+    },
+    [clearSelection, readDocument, repository, selectedMonth]
+  );
+
+  const changeViewMode = useCallback(
+    (mode: MoneyFlowViewMode) => {
+      if (mode === viewMode) {
+        return;
+      }
+
+      const currentDocument = instanceRef.current
+        ? readDocument()
+        : documentRef.current;
+      const document: MoneyFlowDocument = {
+        ...currentDocument,
+        view: {
+          ...currentDocument.view,
+          mode,
+        },
+      };
+
+      documentRef.current = document;
+      repository.save(document);
+      setActiveDocument(document);
+      setViewMode(mode);
+      setSelected(null);
+      setNodeContextMenu(null);
+
+      if (mode === "table") {
+        instanceRef.current = null;
+      }
+    },
+    [readDocument, repository, viewMode]
+  );
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -556,33 +783,69 @@ export function MoneyFlowWorkspace() {
   const canDelete =
     selected?.type === "edge" ||
     (selected?.type === "node" && selected.item.data.kind !== "chequing");
+  const selectedMonthIndex = monthsBetween(
+    activeDocument.scenario.startMonth,
+    selectedMonth
+  );
+  const canGoPrevious = selectedMonthIndex > 0;
+  const canGoNext =
+    selectedMonthIndex < activeDocument.scenario.forecastMonthCount - 1;
 
   return (
     <TooltipProvider>
       <div
         ref={canvasRef}
-        className="flex h-[calc(100dvh-4rem)] min-h-[42rem] flex-col overflow-hidden bg-background outline-none"
+        className="flex h-[calc(100dvh-4rem)] min-h-[42rem] min-w-0 max-w-full flex-col overflow-hidden bg-background outline-none"
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onContextMenu={(event) => event.preventDefault()}
       >
-        <MoneySummary totals={totals} />
-        <div
-          ref={flowAreaRef}
-          className="relative min-h-0 flex-1"
-          onDrop={handleDrop}
-          onDragOver={(event) => {
-            event.preventDefault();
-            event.dataTransfer.dropEffect = "move";
-          }}
-        >
+        <MoneySummary
+          totals={totals}
+          month={selectedMonth}
+          viewMode={viewMode}
+          accounts={activeDocument.accounts}
+          selectedAccountId={selectedAccountId}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPreviousMonth={() => changeMonth(addMonths(selectedMonth, -1))}
+          onNextMonth={() => changeMonth(addMonths(selectedMonth, 1))}
+          onViewModeChange={changeViewMode}
+          onAccountChange={changeAccount}
+        />
+        {viewMode === "table" ? (
+          <div className="min-h-0 flex-1">
+            <CashFlowTable
+              document={activeDocument}
+              selectedMonth={selectedMonth}
+              selectedAccountId={selectedAccountId}
+            />
+          </div>
+        ) : (
+          <div
+            ref={flowAreaRef}
+            className="relative min-h-0 flex-1"
+            onDrop={handleDrop}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }}
+          >
           <ReactFlow<MoneyCanvasNode, MoneyCanvasEdge>
             defaultNodes={toCanvasNodes(
-              initialDocument.nodes,
-              calculateMoneyFlowTotals(initialDocument)
+              getAccountWorkspace(activeDocument, selectedAccountId).nodes,
+              totalsForCenterNode(
+                getAccountWorkspace(activeDocument, selectedAccountId),
+                totals
+              )
             )}
-            defaultEdges={toCanvasEdges(initialDocument.transfers)}
-            defaultViewport={initialDocument.viewport}
+            defaultEdges={toCanvasEdges(
+              getAccountWorkspace(activeDocument, selectedAccountId).transfers,
+              selectedMonth
+            )}
+            defaultViewport={
+              getAccountWorkspace(activeDocument, selectedAccountId).viewport
+            }
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultEdgeOptions={defaultEdgeOptions}
@@ -641,10 +904,15 @@ export function MoneyFlowWorkspace() {
               }
             }}
             onMoveEnd={(_, viewport: Viewport) => {
-              documentRef.current = {
-                ...readDocument(),
-                viewport,
-              };
+              const document = readDocument();
+              const accountId = document.view.selectedAccountId;
+              documentRef.current = updateAccountWorkspaceFromCanvas(
+                document,
+                accountId,
+                instanceRef.current?.getNodes() ?? [],
+                instanceRef.current?.getEdges() ?? [],
+                viewport
+              );
               repository.save(documentRef.current);
             }}
             onMoveStart={() => setNodeContextMenu(null)}
@@ -653,7 +921,7 @@ export function MoneyFlowWorkspace() {
                 return false;
               }
 
-              return validateConnection(readDocument(), {
+              return validateConnection(getAccountWorkspace(readDocument()), {
                 sourceNodeId: connection.source,
                 targetNodeId: connection.target,
               }).valid;
@@ -707,7 +975,15 @@ export function MoneyFlowWorkspace() {
 
           <MoneyInspector
             selected={selected}
-            startingBalanceCents={totals.startingBalanceCents}
+            openingBalancesByNodeId={{
+              [getAccountWorkspace(activeDocument, selectedAccountId)
+                .centerNodeId]: getAccountWorkspace(
+                activeDocument,
+                selectedAccountId
+              ).openingBalanceCents,
+            }}
+            selectedMonth={selectedMonth}
+            isFirstMonth={selectedMonthIndex === 0}
             onClose={clearSelection}
             onSaveNode={saveNode}
             onSaveEdge={saveEdge}
@@ -722,7 +998,8 @@ export function MoneyFlowWorkspace() {
               }
             />
           ) : null}
-        </div>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );

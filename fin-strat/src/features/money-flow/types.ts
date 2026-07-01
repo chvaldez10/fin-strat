@@ -1,8 +1,10 @@
 import type { UserId } from "@/features/auth/types";
 
-export const MONEY_FLOW_DOCUMENT_VERSION = 2 as const;
+export const MONEY_FLOW_DOCUMENT_VERSION = 4 as const;
 
 export type MoneyFlowCurrency = "CAD";
+export type YearMonth = `${number}-${number}`;
+export type MoneyFlowViewMode = "canvas" | "table";
 
 export type MoneyNodeKind =
   | "chequing"
@@ -32,15 +34,39 @@ export type MoneyFlowNode = {
 
 export type MoneyFlowTransfer = {
   id: string;
+  linkedTransferId?: string;
+  counterpartyAccountId?: string;
   sourceNodeId: string;
   targetNodeId: string;
-  monthlyAmountCents: number;
+  baseMonthlyAmountCents: number;
+  startMonth: YearMonth;
+  endMonth?: YearMonth;
+  monthOverrides?: Partial<Record<YearMonth, number | null>>;
   label?: string;
 };
 
 export type MoneyFlowScenario = {
   name: string;
-  startingBalanceCents: number;
+  startMonth: YearMonth;
+  forecastMonthCount: number;
+};
+
+export type MoneyFlowAccountWorkspace = {
+  id: string;
+  institution: string;
+  name: string;
+  accountType: "chequing" | "savings";
+  openingBalanceCents: number;
+  centerNodeId: string;
+  nodes: MoneyFlowNode[];
+  transfers: MoneyFlowTransfer[];
+  viewport: MoneyFlowViewport;
+};
+
+export type MoneyFlowView = {
+  selectedMonth: YearMonth;
+  selectedAccountId: string;
+  mode: MoneyFlowViewMode;
 };
 
 export type MoneyFlowDocument = {
@@ -49,16 +75,20 @@ export type MoneyFlowDocument = {
   version: typeof MONEY_FLOW_DOCUMENT_VERSION;
   currency: MoneyFlowCurrency;
   scenario: MoneyFlowScenario;
-  nodes: MoneyFlowNode[];
-  transfers: MoneyFlowTransfer[];
-  viewport: MoneyFlowViewport;
+  accounts: MoneyFlowAccountWorkspace[];
+  view: MoneyFlowView;
 };
 
 export type MoneyFlowTotals = {
+  month: YearMonth;
   startingBalanceCents: number;
   monthlyInflowCents: number;
   monthlyOutflowCents: number;
   projectedBalanceCents: number;
+};
+
+export type MoneyFlowMonthResult = MoneyFlowTotals & {
+  transferAmounts: Record<string, number>;
 };
 
 export type MoneyFlowRepository = {

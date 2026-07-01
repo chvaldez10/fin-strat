@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { dashboardNavItems } from "@/config/navigation";
@@ -34,16 +35,48 @@ export function DashboardPageHeader() {
   const pathSegments = pathname.split("/").filter(Boolean);
   const dashboardSegments =
     pathSegments[0] === "dashboard" ? pathSegments.slice(1) : pathSegments;
+  const parentNavItem = dashboardNavItems.find((item) =>
+    item.items?.some((subItem) => subItem.href === pathname)
+  );
+  const currentNavItem = parentNavItem?.items?.find(
+    (subItem) => subItem.href === pathname
+  );
+  const exactNavItem = dashboardNavItems.find(
+    (item) => item.href === pathname
+  );
+  const breadcrumbs = parentNavItem && currentNavItem
+    ? [
+        {
+          href: parentNavItem.href,
+          label: parentNavItem.title,
+          isLast: false,
+        },
+        {
+          href: currentNavItem.href,
+          label: currentNavItem.title,
+          isLast: true,
+        },
+      ]
+    : exactNavItem
+      ? [
+          {
+            href: exactNavItem.href,
+            label: exactNavItem.title,
+            isLast: true,
+          },
+        ]
+      : dashboardSegments.map((segment, index) => {
+          const candidateHref = `/dashboard/${dashboardSegments
+            .slice(0, index + 1)
+            .join("/")}`;
+          const registeredLabel = labelByHref.get(candidateHref);
 
-  const breadcrumbs = dashboardSegments.map((segment, index) => {
-    const href = `/dashboard/${dashboardSegments.slice(0, index + 1).join("/")}`;
-
-    return {
-      href,
-      label: labelByHref.get(href) ?? formatSegment(segment),
-      isLast: index === dashboardSegments.length - 1,
-    };
-  });
+          return {
+            href: registeredLabel ? candidateHref : undefined,
+            label: registeredLabel ?? formatSegment(segment),
+            isLast: index === dashboardSegments.length - 1,
+          };
+        });
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background px-4">
@@ -60,10 +93,10 @@ export function DashboardPageHeader() {
             )}
           </BreadcrumbItem>
           {breadcrumbs.map((crumb) => (
-            <div key={crumb.href} className="flex items-center gap-1.5">
+            <Fragment key={`${crumb.label}-${crumb.href ?? "text"}`}>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                {crumb.isLast ? (
+                {crumb.isLast || !crumb.href ? (
                   <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
@@ -71,7 +104,7 @@ export function DashboardPageHeader() {
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
-            </div>
+            </Fragment>
           ))}
         </BreadcrumbList>
       </Breadcrumb>
