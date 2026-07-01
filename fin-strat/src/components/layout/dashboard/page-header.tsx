@@ -36,7 +36,9 @@ export function DashboardPageHeader() {
   const dashboardSegments =
     pathSegments[0] === "dashboard" ? pathSegments.slice(1) : pathSegments;
   const parentNavItem = dashboardNavItems.find((item) =>
-    item.items?.some((subItem) => subItem.href === pathname)
+    item.items?.some(
+      (subItem) => subItem.href === pathname && subItem.href !== item.href
+    )
   );
   const currentNavItem = parentNavItem?.items?.find(
     (subItem) => subItem.href === pathname

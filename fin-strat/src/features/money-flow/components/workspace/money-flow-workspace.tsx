@@ -24,9 +24,7 @@ import {
   getTransferAmountForMonth,
 } from "../../calculations";
 import {
-  totalsForCenterNode,
   toCanvasEdges,
-  toCanvasNodes,
   updateAccountWorkspaceFromCanvas,
   type MoneyCanvasEdge,
   type MoneyCanvasNode,
@@ -36,7 +34,6 @@ import { addMonths, monthsBetween } from "../../months";
 import { createLocalMoneyFlowRepository } from "../../repository";
 import type {
   MoneyFlowDocument,
-  MoneyFlowAccountWorkspace,
   MoneyFlowViewMode,
   MoneyNodeKind,
   YearMonth,
@@ -55,9 +52,9 @@ import {
 import { MoneySummary } from "../money-summary";
 import { ToolDock } from "../tool-dock";
 import { CashFlowTable } from "../cash-flow-table";
+import { getAccountWorkspace, getCanvasNodes } from "./workspace-document";
 
 const SNAP_GRID: [number, number] = [16, 16];
-const HISTORY_LIMIT = 50;
 const nodeTypes = {
   chequing: MoneyNode,
   income: MoneyNode,
@@ -78,31 +75,6 @@ const defaultEdgeOptions = {
   },
 };
 
-type HistoryState = {
-  canUndo: boolean;
-  canRedo: boolean;
-};
-
-function getAccountWorkspace(
-  document: MoneyFlowDocument,
-  accountId = document.view.selectedAccountId
-): MoneyFlowAccountWorkspace {
-  return (
-    document.accounts.find((account) => account.id === accountId) ??
-    document.accounts[0]
-  );
-}
-
-function getCanvasNodes(
-  document: MoneyFlowDocument,
-  accountId: string,
-  month: YearMonth
-) {
-  const account = getAccountWorkspace(document, accountId);
-  const totals = calculateMoneyFlowTotals(document, month, account.id);
-  return toCanvasNodes(account.nodes, totalsForCenterNode(account, totals));
-}
-
 export function MoneyFlowWorkspace() {
   const [currentUser] = useState(() => getCurrentMockUser());
   const [initialDocument] = useState(() =>
@@ -116,9 +88,6 @@ export function MoneyFlowWorkspace() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const flowAreaRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef(initialDocument);
-  const undoRef = useRef<MoneyFlowDocument[]>([]);
-  const redoRef = useRef<MoneyFlowDocument[]>([]);
-  const dragStartDocumentRef = useRef<MoneyFlowDocument | null>(null);
   const [totals, setTotals] = useState(() =>
     calculateMoneyFlowTotals(
       initialDocument,
@@ -139,18 +108,6 @@ export function MoneyFlowWorkspace() {
   const [selected, setSelected] = useState<SelectedMoneyElement>(null);
   const [nodeContextMenu, setNodeContextMenu] =
     useState<NodeContextMenuState | null>(null);
-  const [historyState, setHistoryState] = useState<HistoryState>({
-    canUndo: false,
-    canRedo: false,
-  });
-
-  const updateHistoryState = useCallback(() => {
-    setHistoryState({
-      canUndo: undoRef.current.length > 0,
-      canRedo: redoRef.current.length > 0,
-    });
-  }, []);
-
   const readDocument = useCallback(() => {
     const instance = instanceRef.current;
 
@@ -195,44 +152,30 @@ export function MoneyFlowWorkspace() {
     [readDocument, repository]
   );
 
-  const pushUndo = useCallback(
-    (document: MoneyFlowDocument) => {
-      undoRef.current = [...undoRef.current, document].slice(-HISTORY_LIMIT);
-      redoRef.current = [];
-      updateHistoryState();
-    },
-    [updateHistoryState]
-  );
-
-  const finishMutation = useCallback(
-    (before: MoneyFlowDocument) => {
-      pushUndo(before);
-      window.requestAnimationFrame(() => persistDocument());
-    },
-    [persistDocument, pushUndo]
-  );
+  const finishMutation = useCallback(() => {
+    // React Flow applies imperative node/edge updater functions through its
+    // store. Read the canvas on the next frame so persistence sees the result.
+    window.requestAnimationFrame(() => persistDocument());
+  }, [persistDocument]);
 
   const restoreDocument = useCallback(
     (document: MoneyFlowDocument) => {
       const instance = instanceRef.current;
-
-      if (!instance) {
-        return;
-      }
-
       const nextTotals = calculateMoneyFlowTotals(
         document,
         document.view.selectedMonth,
         document.view.selectedAccountId
       );
       const account = getAccountWorkspace(document);
-      instance.setNodes(
-        getCanvasNodes(document, account.id, document.view.selectedMonth)
-      );
-      instance.setEdges(
-        toCanvasEdges(account.transfers, document.view.selectedMonth)
-      );
-      void instance.setViewport(account.viewport);
+      if (instance) {
+        instance.setNodes(
+          getCanvasNodes(document, account.id, document.view.selectedMonth)
+        );
+        instance.setEdges(
+          toCanvasEdges(account.transfers, document.view.selectedMonth)
+        );
+        void instance.setViewport(account.viewport);
+      }
       documentRef.current = document;
       repository.save(document);
       setTotals(nextTotals);
@@ -288,7 +231,6 @@ export function MoneyFlowWorkspace() {
         return;
       }
 
-      const before = readDocument();
       const bounds = canvas.getBoundingClientRect();
       const nodePosition =
         position ??
@@ -317,7 +259,7 @@ export function MoneyFlowWorkspace() {
       };
 
       instance.addNodes(node);
-      finishMutation(before);
+      finishMutation();
       window.requestAnimationFrame(() => {
         instance.setNodes((nodes) =>
           nodes.map((item) => ({
@@ -327,7 +269,7 @@ export function MoneyFlowWorkspace() {
         );
       });
     },
-    [finishMutation, readDocument]
+    [finishMutation]
   );
 
   const handleDrop = useCallback(
@@ -366,8 +308,8 @@ export function MoneyFlowWorkspace() {
         return;
       }
 
-      const before = readDocument();
-      const validation = validateConnection(getAccountWorkspace(before), {
+      const document = readDocument();
+      const validation = validateConnection(getAccountWorkspace(document), {
         sourceNodeId: connection.source,
         targetNodeId: connection.target,
       });
@@ -389,32 +331,9 @@ export function MoneyFlowWorkspace() {
         },
         markerEnd: defaultEdgeOptions.markerEnd,
       });
-      finishMutation(before);
+      finishMutation();
     },
     [finishMutation, readDocument, selectedMonth]
-  );
-
-  const handleSelectionChange = useCallback(
-    ({
-      nodes,
-      edges,
-    }: {
-      nodes: MoneyCanvasNode[];
-      edges: MoneyCanvasEdge[];
-    }) => {
-      if (nodes.length === 1 && edges.length === 0) {
-        setSelected({ type: "node", item: nodes[0] });
-        return;
-      }
-
-      if (edges.length === 1 && nodes.length === 0) {
-        setSelected({ type: "edge", item: edges[0] });
-        return;
-      }
-
-      setSelected(null);
-    },
-    []
   );
 
   const clearSelection = useCallback(() => {
@@ -436,7 +355,6 @@ export function MoneyFlowWorkspace() {
       return;
     }
 
-    const before = readDocument();
     const id = `${source.data.kind}-${crypto.randomUUID()}`;
     const duplicate: MoneyCanvasNode = {
       ...source,
@@ -457,8 +375,9 @@ export function MoneyFlowWorkspace() {
       ...nodes.map((node) => ({ ...node, selected: false })),
       duplicate,
     ]);
-    finishMutation(before);
-  }, [finishMutation, readDocument]);
+    setSelected({ type: "node", item: duplicate });
+    finishMutation();
+  }, [finishMutation]);
 
   const deleteElement = useCallback((target: SelectedMoneyElement) => {
     const instance = instanceRef.current;
@@ -473,8 +392,6 @@ export function MoneyFlowWorkspace() {
     ) {
       return;
     }
-
-    const before = readDocument();
 
     if (target.type === "node") {
       const nodeId = target.item.id;
@@ -491,8 +408,8 @@ export function MoneyFlowWorkspace() {
     }
 
     setSelected(null);
-    finishMutation(before);
-  }, [finishMutation, readDocument]);
+    finishMutation();
+  }, [finishMutation]);
 
   const duplicateSelection = useCallback(() => {
     if (selected?.type === "node") {
@@ -519,11 +436,11 @@ export function MoneyFlowWorkspace() {
         return;
       }
 
-      const before = readDocument();
+      const currentDocument = readDocument();
       if (typeof values.startingBalanceCents === "number") {
         documentRef.current = {
-          ...before,
-          accounts: before.accounts.map((account) =>
+          ...currentDocument,
+          accounts: currentDocument.accounts.map((account) =>
             account.id === selectedAccountId && account.centerNodeId === id
               ? {
                   ...account,
@@ -538,7 +455,7 @@ export function MoneyFlowWorkspace() {
         label: values.label,
         note: values.note || undefined,
       });
-      finishMutation(before);
+      finishMutation();
     },
     [finishMutation, readDocument, selectedAccountId]
   );
@@ -560,7 +477,6 @@ export function MoneyFlowWorkspace() {
         return;
       }
 
-      const before = readDocument();
       const edge = instance.getEdge(id);
 
       if (!edge?.data) {
@@ -597,55 +513,25 @@ export function MoneyFlowWorkspace() {
           selectedMonth
         ),
       });
-      finishMutation(before);
+      finishMutation();
     },
-    [finishMutation, readDocument, selectedMonth]
+    [finishMutation, selectedMonth]
   );
-
-  const undo = useCallback(() => {
-    const previous = undoRef.current.at(-1);
-
-    if (!previous) {
-      return;
-    }
-
-    const current = readDocument();
-    undoRef.current = undoRef.current.slice(0, -1);
-    redoRef.current = [...redoRef.current, current].slice(-HISTORY_LIMIT);
-    restoreDocument(previous);
-    updateHistoryState();
-  }, [readDocument, restoreDocument, updateHistoryState]);
-
-  const redo = useCallback(() => {
-    const next = redoRef.current.at(-1);
-
-    if (!next) {
-      return;
-    }
-
-    const current = readDocument();
-    redoRef.current = redoRef.current.slice(0, -1);
-    undoRef.current = [...undoRef.current, current].slice(-HISTORY_LIMIT);
-    restoreDocument(next);
-    updateHistoryState();
-  }, [readDocument, restoreDocument, updateHistoryState]);
 
   const reset = useCallback(() => {
     if (!window.confirm("Reset this canvas to the demo money flow?")) {
       return;
     }
 
-    const before = readDocument();
     const document = repository.reset();
-    pushUndo(before);
     restoreDocument(document);
-  }, [pushUndo, readDocument, repository, restoreDocument]);
+  }, [repository, restoreDocument]);
 
   const changeMonth = useCallback(
     (month: YearMonth) => {
-      const currentDocument = instanceRef.current
-        ? readDocument()
-        : documentRef.current;
+      // Month navigation only changes the projection. Canvas mutations are
+      // already persisted at their semantic action boundaries.
+      const currentDocument = documentRef.current;
       const document: MoneyFlowDocument = {
         ...currentDocument,
         view: {
@@ -675,7 +561,7 @@ export function MoneyFlowWorkspace() {
         )
       );
     },
-    [clearSelection, readDocument, repository, selectedAccountId]
+    [clearSelection, repository, selectedAccountId]
   );
 
   const changeAccount = useCallback(
@@ -755,17 +641,7 @@ export function MoneyFlowWorkspace() {
 
       const commandKey = event.ctrlKey || event.metaKey;
 
-      if (commandKey && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
-      } else if (commandKey && event.key.toLowerCase() === "y") {
-        event.preventDefault();
-        redo();
-      } else if (commandKey && event.key.toLowerCase() === "d") {
+      if (commandKey && event.key.toLowerCase() === "d") {
         event.preventDefault();
         duplicateSelection();
       } else if (event.key === "Delete" || event.key === "Backspace") {
@@ -775,7 +651,7 @@ export function MoneyFlowWorkspace() {
         clearSelection();
       }
     },
-    [clearSelection, deleteSelection, duplicateSelection, redo, undo]
+    [clearSelection, deleteSelection, duplicateSelection]
   );
 
   const canDuplicate =
@@ -795,7 +671,7 @@ export function MoneyFlowWorkspace() {
     <TooltipProvider>
       <div
         ref={canvasRef}
-        className="flex h-[calc(100dvh-4rem)] min-h-[42rem] min-w-0 max-w-full flex-col overflow-hidden bg-background outline-none"
+        className="flex h-[calc(100dvh-4rem)] min-h-[36rem] w-full min-w-0 max-w-full flex-col overflow-hidden bg-background outline-none md:min-h-[42rem]"
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onContextMenu={(event) => event.preventDefault()}
@@ -824,7 +700,7 @@ export function MoneyFlowWorkspace() {
         ) : (
           <div
             ref={flowAreaRef}
-            className="relative min-h-0 flex-1"
+            className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden"
             onDrop={handleDrop}
             onDragOver={(event) => {
               event.preventDefault();
@@ -832,12 +708,10 @@ export function MoneyFlowWorkspace() {
             }}
           >
           <ReactFlow<MoneyCanvasNode, MoneyCanvasEdge>
-            defaultNodes={toCanvasNodes(
-              getAccountWorkspace(activeDocument, selectedAccountId).nodes,
-              totalsForCenterNode(
-                getAccountWorkspace(activeDocument, selectedAccountId),
-                totals
-              )
+            defaultNodes={getCanvasNodes(
+              activeDocument,
+              selectedAccountId,
+              selectedMonth
             )}
             defaultEdges={toCanvasEdges(
               getAccountWorkspace(activeDocument, selectedAccountId).transfers,
@@ -851,7 +725,14 @@ export function MoneyFlowWorkspace() {
             defaultEdgeOptions={defaultEdgeOptions}
             onInit={handleInit}
             onConnect={handleConnect}
-            onSelectionChange={handleSelectionChange}
+            onNodeClick={(_, node) => {
+              setNodeContextMenu(null);
+              setSelected({ type: "node", item: node });
+            }}
+            onEdgeClick={(_, edge) => {
+              setNodeContextMenu(null);
+              setSelected({ type: "edge", item: edge });
+            }}
             onPaneClick={() => {
               setNodeContextMenu(null);
               clearSelection();
@@ -893,15 +774,10 @@ export function MoneyFlowWorkspace() {
             }}
             onNodeDragStart={() => {
               setNodeContextMenu(null);
-              dragStartDocumentRef.current = readDocument();
+              setSelected(null);
             }}
             onNodeDragStop={() => {
-              const before = dragStartDocumentRef.current;
-              dragStartDocumentRef.current = null;
-
-              if (before) {
-                finishMutation(before);
-              }
+              finishMutation();
             }}
             onMoveEnd={(_, viewport: Viewport) => {
               const document = readDocument();
@@ -953,13 +829,9 @@ export function MoneyFlowWorkspace() {
           <ToolDock
             canDuplicateSelection={canDuplicate}
             canDeleteSelection={canDelete}
-            canUndo={historyState.canUndo}
-            canRedo={historyState.canRedo}
             onAddNode={createNode}
             onDuplicate={duplicateSelection}
             onDelete={deleteSelection}
-            onUndo={undo}
-            onRedo={redo}
             onFitView={() =>
               void instanceRef.current?.fitView({
                 padding: 0.18,

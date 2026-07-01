@@ -16,7 +16,10 @@ export function FormSection({
 }: FormSectionProps) {
   return (
     <section
-      className={cn("rounded-lg border border-border bg-card p-6", className)}
+      className={cn(
+        "min-w-0 max-w-full rounded-lg border border-border bg-card p-4 sm:p-6",
+        className
+      )}
     >
       <div className="mb-6">
         <h2 className="text-xl font-semibold">{title}</h2>

@@ -112,12 +112,17 @@ export function updateAccountWorkspaceFromCanvas(
                 sourceNodeId: edge.source,
                 targetNodeId: edge.target,
                 baseMonthlyAmountCents:
-                  edge.data?.baseMonthlyAmountCents ?? 0,
+                  edge.data?.baseMonthlyAmountCents ??
+                  existing?.baseMonthlyAmountCents ??
+                  0,
                 startMonth:
-                  edge.data?.startMonth ?? document.scenario.startMonth,
-                endMonth: edge.data?.endMonth,
-                monthOverrides: edge.data?.monthOverrides,
-                label: edge.data?.label,
+                  edge.data?.startMonth ??
+                  existing?.startMonth ??
+                  document.scenario.startMonth,
+                endMonth: edge.data?.endMonth ?? existing?.endMonth,
+                monthOverrides:
+                  edge.data?.monthOverrides ?? existing?.monthOverrides,
+                label: edge.data?.label ?? existing?.label,
               };
             }),
             viewport,

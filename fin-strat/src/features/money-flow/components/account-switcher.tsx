@@ -34,7 +34,7 @@ export function AccountSwitcher({
         <Button
           type="button"
           variant="outline"
-          className="h-10 w-56 justify-between gap-2 px-2.5 sm:w-64"
+          className="h-10 w-full min-w-0 justify-between gap-2 px-2.5 sm:w-64"
           aria-label="Switch bank account"
         >
           <AccountMark institution={selectedAccount?.institution} />
@@ -47,7 +47,7 @@ export function AccountSwitcher({
       <DropdownMenuContent
         align="start"
         sideOffset={6}
-        className="w-(--radix-dropdown-menu-trigger-width) min-w-64 p-1.5"
+        className="w-(--radix-dropdown-menu-trigger-width) min-w-56 max-w-[calc(100vw-1rem)] p-1.5"
       >
         <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
           Bank accounts

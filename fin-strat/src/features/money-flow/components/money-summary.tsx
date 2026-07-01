@@ -84,13 +84,15 @@ export const MoneySummary = memo(function MoneySummary({
 
   return (
     <header className="shrink-0 border-b border-border bg-background">
-      <div className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2 md:px-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <AccountSwitcher
-            accounts={accounts}
-            selectedAccountId={selectedAccountId}
-            onAccountChange={onAccountChange}
-          />
+      <div className="grid min-h-14 min-w-0 gap-2 border-b border-border px-3 py-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 md:px-4">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 sm:flex sm:flex-wrap sm:gap-2">
+          <div className="col-span-3 min-w-0 sm:col-span-1">
+            <AccountSwitcher
+              accounts={accounts}
+              selectedAccountId={selectedAccountId}
+              onAccountChange={onAccountChange}
+            />
+          </div>
           <Button
             type="button"
             variant="ghost"
@@ -101,7 +103,7 @@ export const MoneySummary = memo(function MoneySummary({
           >
             <ChevronLeft />
           </Button>
-          <div className="min-w-36 text-center">
+          <div className="min-w-0 text-center sm:min-w-36">
             <p className="text-sm font-semibold">{formatYearMonth(month)}</p>
             <p className="text-xs text-muted-foreground">
               {selectedAccount?.institution ?? "Account"} forecast
@@ -119,11 +121,12 @@ export const MoneySummary = memo(function MoneySummary({
           </Button>
         </div>
 
-        <div className="flex items-center rounded-md border border-border p-0.5">
+        <div className="flex min-w-0 items-center rounded-md border border-border p-0.5 sm:w-auto">
           <Button
             type="button"
             variant={viewMode === "canvas" ? "secondary" : "ghost"}
             size="sm"
+            className="flex-1 sm:flex-none"
             onClick={() => onViewModeChange("canvas")}
           >
             <Workflow />
@@ -133,6 +136,7 @@ export const MoneySummary = memo(function MoneySummary({
             type="button"
             variant={viewMode === "table" ? "secondary" : "ghost"}
             size="sm"
+            className="flex-1 sm:flex-none"
             onClick={() => onViewModeChange("table")}
           >
             <Table2 />
@@ -141,14 +145,14 @@ export const MoneySummary = memo(function MoneySummary({
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4">
         {items.map((item) => {
           const Icon = item.icon;
 
           return (
             <div
               key={item.label}
-              className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 sm:border-r xl:border-b-0"
+              className="flex min-w-0 items-center gap-2 border-b border-border px-3 py-2.5 even:border-l sm:gap-3 sm:px-4 sm:py-3 xl:border-b-0 xl:border-l-0 xl:border-r"
             >
               <Icon className="size-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0">
@@ -157,7 +161,7 @@ export const MoneySummary = memo(function MoneySummary({
                 </p>
                 <p
                   className={cn(
-                    "mt-0.5 truncate text-lg font-semibold",
+                    "mt-0.5 truncate text-base font-semibold sm:text-lg",
                     item.valueClassName
                   )}
                 >

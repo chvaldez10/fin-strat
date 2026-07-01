@@ -96,7 +96,7 @@ export const publicNavGroups: PublicNavGroup[] = [
       },
       {
         title: "Search",
-        href: "/dashboard/analytics",
+        href: "/dashboard/watchlist",
         description: "Find a saved thing without remembering where it lives.",
         icon: Search,
       },
@@ -151,12 +151,12 @@ export const dashboardNavItems: DashboardNavItem[] = [
   },
   {
     title: "Watchlist",
-    href: "/dashboard/analytics",
+    href: "/dashboard/watchlist",
     icon: Search,
     items: [
       {
-        title: "Money and notes",
-        href: "/dashboard/analytics",
+        title: "Overview",
+        href: "/dashboard/watchlist",
       },
       {
         title: "Money flow",

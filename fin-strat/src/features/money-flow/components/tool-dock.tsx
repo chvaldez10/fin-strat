@@ -7,10 +7,8 @@ import {
   Focus,
   Landmark,
   NotebookPen,
-  Redo2,
   RotateCcw,
   Trash2,
-  Undo2,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -26,13 +24,9 @@ import type { MoneyNodeKind } from "../types";
 type ToolDockProps = {
   canDuplicateSelection: boolean;
   canDeleteSelection: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
   onAddNode: (kind: Exclude<MoneyNodeKind, "chequing">) => void;
   onDuplicate: () => void;
   onDelete: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
   onFitView: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -49,13 +43,9 @@ const nodeTools = [
 export function ToolDock({
   canDuplicateSelection,
   canDeleteSelection,
-  canUndo,
-  canRedo,
   onAddNode,
   onDuplicate,
   onDelete,
-  onUndo,
-  onRedo,
   onFitView,
   onZoomIn,
   onZoomOut,
@@ -101,13 +91,6 @@ export function ToolDock({
       >
         <Trash2 />
       </ToolButton>
-      <ToolButton label="Undo" disabled={!canUndo} onClick={onUndo}>
-        <Undo2 />
-      </ToolButton>
-      <ToolButton label="Redo" disabled={!canRedo} onClick={onRedo}>
-        <Redo2 />
-      </ToolButton>
-
       <Divider />
 
       <ToolButton label="Fit view" onClick={onFitView}>

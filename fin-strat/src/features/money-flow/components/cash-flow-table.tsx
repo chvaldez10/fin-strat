@@ -38,18 +38,18 @@ export function CashFlowTable({
   );
 
   return (
-    <div className="h-full w-full min-w-0 max-w-full overflow-auto bg-muted/20 p-3 md:p-5">
-      <div className="w-max min-w-full overflow-hidden rounded-md border border-border bg-background">
+    <div className="h-full w-full min-w-0 max-w-full overscroll-x-contain overflow-auto bg-muted/20 p-2 sm:p-3 md:p-5">
+      <div className="inline-block min-w-full max-w-none overflow-hidden rounded-md border border-border bg-background align-top">
         <table className="w-full min-w-max border-collapse text-sm">
           <thead>
             <tr className="bg-muted/60">
-              <th className="sticky left-0 z-20 min-w-56 border-b border-r border-border bg-muted px-4 py-3 text-left font-semibold">
+              <th className="sticky left-0 z-20 min-w-36 border-b border-r border-border bg-muted px-2 py-3 text-left font-semibold sm:min-w-56 sm:px-4">
                 {selectedAccount?.name ?? "Cash flow"}
               </th>
               {forecast.map((month) => (
                 <th
                   key={month.month}
-                  className={`min-w-36 border-b border-r border-border px-4 py-3 text-right font-semibold last:border-r-0 ${
+                  className={`min-w-28 border-b border-r border-border px-2 py-3 text-right font-semibold last:border-r-0 sm:min-w-36 sm:px-4 ${
                     month.month === selectedMonth ? "bg-accent" : ""
                   }`}
                 >
@@ -128,7 +128,7 @@ export function CashFlowTable({
 function SectionRow({ label, monthCount }: { label: string; monthCount: number }) {
   return (
     <tr className="bg-muted/30">
-      <th className="sticky left-0 z-10 border-b border-r border-border bg-muted/90 px-4 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <th className="sticky left-0 z-10 border-b border-r border-border bg-muted/90 px-2 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:px-4">
         {label}
       </th>
       <td colSpan={monthCount} className="border-b border-border" />
@@ -178,7 +178,7 @@ function BalanceRow({
   return (
     <tr className={strong ? "bg-foreground text-background" : undefined}>
       <th
-        className={`sticky left-0 z-10 border-b border-r border-border px-4 py-2.5 text-left ${
+        className={`sticky left-0 z-10 max-w-36 truncate border-b border-r border-border px-2 py-2.5 text-left sm:max-w-56 sm:px-4 ${
           strong ? "bg-foreground" : "bg-background"
         } ${emphasized ? "font-semibold" : "font-normal"}`}
       >
@@ -187,7 +187,7 @@ function BalanceRow({
       {values.map((value, index) => (
         <td
           key={index}
-          className={`border-b border-r border-border px-4 py-2.5 text-right tabular-nums last:border-r-0 ${
+          className={`border-b border-r border-border px-2 py-2.5 text-right tabular-nums last:border-r-0 sm:px-4 ${
             emphasized ? "font-semibold" : ""
           } ${
             !strong && tone === "positive"

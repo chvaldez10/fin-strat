@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function MoneyFlowPage() {
   return (
-    <div className="-m-4 min-w-0 max-w-full md:-m-6">
+    <div className="-m-4 min-w-0 overflow-hidden md:-m-6">
       <h1 className="sr-only">Interactive money flow</h1>
       <MoneyFlowWorkspace />
     </div>
