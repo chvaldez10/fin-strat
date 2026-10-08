@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type FormSectionProps = {
-  title: string;
-  description?: string;
+type FormSectionProps = Omit<ComponentProps<"section">, "title"> & {
+  title: ReactNode;
+  description?: ReactNode;
   children: ReactNode;
   className?: string;
 };
@@ -13,6 +13,7 @@ export function FormSection({
   description,
   children,
   className,
+  ...props
 }: FormSectionProps) {
   return (
     <section
@@ -20,6 +21,7 @@ export function FormSection({
         "min-w-0 max-w-full rounded-lg border border-border bg-card p-4 sm:p-6",
         className
       )}
+      {...props}
     >
       <div className="mb-6">
         <h2 className="text-xl font-semibold">{title}</h2>

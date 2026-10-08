@@ -18,3 +18,8 @@ Patterns are reusable compositions built from `components/ui`, intended for use 
 - Prefer patterns when two or more pages need the same structure.
 - Keep patterns independent from route groups and feature-specific data.
 - Do not duplicate layout shell concerns here; use `components/layout` for shell infrastructure.
+
+Patterns forward native props, refs, and `data-testid` to their root element.
+`SearchInput` forwards them to the input instead. Consumers provide its accessible
+name with a label or `aria-label`. Loading states announce their label and hide
+decorative skeletons from assistive technology.

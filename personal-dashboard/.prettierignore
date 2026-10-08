@@ -1,4 +1,5 @@
 .next
 node_modules
+.test-output
 pnpm-lock.yaml
 *.plan.md

@@ -34,7 +34,7 @@ export function AccountSwitcher({
         <Button
           type="button"
           variant="outline"
-          className="h-10 w-full min-w-0 justify-between gap-2 px-2.5 sm:w-64"
+          className="h-11 w-full min-w-0 justify-between gap-2 px-2.5 sm:w-64 md:h-10"
           aria-label="Switch bank account"
         >
           <AccountMark institution={selectedAccount?.institution} />

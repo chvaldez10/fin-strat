@@ -14,3 +14,9 @@ This folder contains low-level shadcn/Radix-style primitives.
 - Do not hardcode routes or navigation labels.
 - Keep styling aligned with `globals.css` CSS variables and `lib/design/tokens.ts`.
 - Wrap primitives in `components/patterns/` when building product-facing UI patterns.
+
+`Button` defaults to `type="button"`; form submit controls must explicitly use
+`type="submit"`. With `asChild`, it preserves the child's native element behavior.
+Button sizes use comfortable mobile targets and compact desktop dimensions;
+consumers may override them with `className`. Native props, refs, and test IDs
+are forwarded to the rendered control.

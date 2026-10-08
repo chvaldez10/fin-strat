@@ -45,45 +45,47 @@ export function DashboardPageHeader() {
   );
   const exactNavItem = dashboardNavItems.find((item) => item.href === pathname);
   const breadcrumbs =
-    parentNavItem && currentNavItem
-      ? [
-          {
-            href: parentNavItem.href,
-            label: parentNavItem.title,
-            isLast: false,
-          },
-          {
-            href: currentNavItem.href,
-            label: currentNavItem.title,
-            isLast: true,
-          },
-        ]
-      : exactNavItem
+    dashboardSegments.length === 0
+      ? []
+      : parentNavItem && currentNavItem
         ? [
             {
-              href: exactNavItem.href,
-              label: exactNavItem.title,
+              href: parentNavItem.href,
+              label: parentNavItem.title,
+              isLast: false,
+            },
+            {
+              href: currentNavItem.href,
+              label: currentNavItem.title,
               isLast: true,
             },
           ]
-        : dashboardSegments.map((segment, index) => {
-            const candidateHref = `/dashboard/${dashboardSegments
-              .slice(0, index + 1)
-              .join("/")}`;
-            const registeredLabel = labelByHref.get(candidateHref);
+        : exactNavItem
+          ? [
+              {
+                href: exactNavItem.href,
+                label: exactNavItem.title,
+                isLast: true,
+              },
+            ]
+          : dashboardSegments.map((segment, index) => {
+              const candidateHref = `/dashboard/${dashboardSegments
+                .slice(0, index + 1)
+                .join("/")}`;
+              const registeredLabel = labelByHref.get(candidateHref);
 
-            return {
-              href: registeredLabel ? candidateHref : undefined,
-              label: registeredLabel ?? formatSegment(segment),
-              isLast: index === dashboardSegments.length - 1,
-            };
-          });
+              return {
+                href: registeredLabel ? candidateHref : undefined,
+                label: registeredLabel ?? formatSegment(segment),
+                isLast: index === dashboardSegments.length - 1,
+              };
+            });
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background px-4">
       <SidebarTrigger />
-      <Breadcrumb className="flex-1">
-        <BreadcrumbList>
+      <Breadcrumb className="min-w-0 flex-1">
+        <BreadcrumbList className="flex-nowrap">
           <BreadcrumbItem>
             {breadcrumbs.length === 0 ? (
               <BreadcrumbPage>Overview</BreadcrumbPage>
@@ -96,9 +98,11 @@ export function DashboardPageHeader() {
           {breadcrumbs.map((crumb) => (
             <Fragment key={`${crumb.label}-${crumb.href ?? "text"}`}>
               <BreadcrumbSeparator />
-              <BreadcrumbItem>
+              <BreadcrumbItem className="min-w-0">
                 {crumb.isLast || !crumb.href ? (
-                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="truncate">
+                    {crumb.label}
+                  </BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
                     <Link href={crumb.href}>{crumb.label}</Link>

@@ -18,9 +18,16 @@ type ThemeContextValue = {
 
 const THEME_CHANGE_EVENT = "personal-dashboard:theme-change";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
+let sessionTheme: Theme | null = null;
 
 function getThemeSnapshot(): Theme {
-  const storedTheme = window.localStorage.getItem("theme");
+  if (sessionTheme) return sessionTheme;
+  let storedTheme: string | null = null;
+  try {
+    storedTheme = window.localStorage.getItem("theme");
+  } catch {
+    /* Follow the system preference when storage is unavailable. */
+  }
 
   if (storedTheme === "light" || storedTheme === "dark") {
     return storedTheme;
@@ -38,7 +45,8 @@ function getServerThemeSnapshot(): Theme {
 function subscribeToTheme(onStoreChange: () => void) {
   const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
   const handleStorage = (event: StorageEvent) => {
-    if (event.key === "theme") {
+    if (event.key === "theme" || event.key === null) {
+      sessionTheme = null;
       onStoreChange();
     }
   };
@@ -60,7 +68,12 @@ function applyTheme(theme: Theme) {
 }
 
 function setStoredTheme(theme: Theme) {
-  window.localStorage.setItem("theme", theme);
+  sessionTheme = theme;
+  try {
+    window.localStorage.setItem("theme", theme);
+  } catch {
+    /* Theme changes remain usable for this session. */
+  }
   applyTheme(theme);
   window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
 }

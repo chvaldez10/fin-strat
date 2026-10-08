@@ -46,7 +46,8 @@ The route owns metadata and full-bleed page layout only. Feature code lives in
 - `mock-data.ts`: deterministic account workspace fixtures.
 - `repository.ts`: user-scoped localStorage adapter only.
 - `persistence/document-codec.ts`: runtime decoding, structural validation,
-  legacy migrations, and narrowly scoped data repair.
+  legacy migrations, and validation of migrated records. Valid current records
+  are loaded unchanged, including intentionally zeroed transfers.
 
 The codec accepts `unknown` and is the only path from untrusted stored JSON to
 `MoneyFlowDocument`.
@@ -217,8 +218,19 @@ personal-dashboard:money-flow:{userId}
 ```
 
 `repository.ts` rejects cross-user saves. `document-codec.ts` supports legacy
-versions 1-3 and the temporary shared-graph version 4 shape. Invalid records
-fall back to demo data.
+versions 1-3 and the temporary shared-graph version 4 shape. Missing records
+start with demo data. Invalid or unreadable saved records are preserved, with
+editing blocked until loading succeeds. Current records are never rewritten
+just to restore demo amounts.
+
+Amounts must be safe integer cents, and input accepts at most two decimal
+places without truncation. Stored forecast lengths are bounded to 1-1200 months
+to prevent untrusted data from creating unbounded forecast arrays. Migrations
+are validated and persisted before removing their original storage key.
+
+Failed saves show a retry action while retaining the current in-memory document,
+including when switching between canvas and table. Leaving or reloading the page
+before a successful save can still lose those unsaved edits.
 
 The current `MoneyFlowRepository` is synchronous because localStorage is
 synchronous. It is not intended to disguise network I/O. Convex integration
@@ -230,11 +242,13 @@ than pretending the existing methods are asynchronous drop-in replacements.
 - One mock user and local browser persistence.
 - No server authentication or authorization.
 - No collaboration or conflict resolution.
-- Linked account transfers are not edited atomically.
+- Linked transfer edits and deletions update both account records in one local
+  document save; there are no server transactions or multi-device guarantees.
 - No import from bank transactions.
 - Undo/redo is not exposed; dormant implementation logic is isolated in the
   workspace folder.
-- Automated domain and interaction tests are not yet configured.
+- Domain and persistence regressions run with `pnpm test`. Automated browser
+  interaction tests are not yet part of the project test command.
 
 ## Extension Rules
 
@@ -253,6 +267,7 @@ Current automated checks:
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm test
 pnpm build
 ```
 

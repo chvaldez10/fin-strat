@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { Check, NotebookPen, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentMockUser } from "@/features/auth/mock-session";
 
-const MAX_LENGTH = 500;
-
-type WatchlistCapture = {
-  id: string;
-  text: string;
-  createdAt: string;
-};
+import { MAX_CAPTURE_LENGTH, saveWatchlistCapture } from "../captures";
 
 export function WatchlistQuickCapture() {
   const [text, setText] = useState("");
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputId = useId();
+  const statusId = `${inputId}-status`;
   const trimmedText = text.trim();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -23,18 +20,20 @@ export function WatchlistQuickCapture() {
     if (!trimmedText) return;
 
     const user = getCurrentMockUser();
-    const storageKey = `personal-dashboard:watchlist-captures:${user.id}`;
-    const existingCaptures = readCaptures(storageKey);
-    const capture: WatchlistCapture = {
-      id: crypto.randomUUID(),
-      text: trimmedText,
-      createdAt: new Date().toISOString(),
-    };
-
-    window.localStorage.setItem(
-      storageKey,
-      JSON.stringify([capture, ...existingCaptures])
-    );
+    try {
+      saveWatchlistCapture(window.localStorage, user.id, {
+        id: crypto.randomUUID(),
+        text: trimmedText,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      setSaved(false);
+      setError(
+        "Couldn't save your note. Your text is still here; check browser storage and try again."
+      );
+      return;
+    }
+    setError(null);
     setText("");
     setSaved(true);
   }
@@ -53,23 +52,32 @@ export function WatchlistQuickCapture() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 sm:p-5">
-        <label htmlFor="watchlist-capture" className="sr-only">
+      <form
+        onSubmit={handleSubmit}
+        data-testid="watchlist-quick-capture"
+        className="p-4 sm:p-5"
+      >
+        <label htmlFor={inputId} className="sr-only">
           New watchlist note
         </label>
         <textarea
-          id="watchlist-capture"
+          id={inputId}
+          aria-describedby={statusId}
+          data-testid="watchlist-capture-input"
           value={text}
-          maxLength={MAX_LENGTH}
+          maxLength={MAX_CAPTURE_LENGTH}
           onChange={(event) => {
             setText(event.target.value);
             setSaved(false);
           }}
-          className="min-h-32 w-full resize-y rounded-md border border-input bg-background px-3 py-3 text-sm leading-6 outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="min-h-32 w-full resize-y rounded-md border border-input bg-background px-3 py-3 text-base leading-6 outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
           placeholder="What do you want to remember?"
         />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <div
+            id={statusId}
+            className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground"
+          >
             {saved ? (
               <>
                 <Check className="size-3.5 text-emerald-600" />
@@ -77,7 +85,7 @@ export function WatchlistQuickCapture() {
               </>
             ) : (
               <span>
-                {text.length} / {MAX_LENGTH}
+                {text.length} / {MAX_CAPTURE_LENGTH}
               </span>
             )}
           </div>
@@ -86,18 +94,12 @@ export function WatchlistQuickCapture() {
             Save note
           </Button>
         </div>
+        {error ? (
+          <p role="alert" className="mt-3 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
       </form>
     </section>
   );
-}
-
-function readCaptures(storageKey: string): WatchlistCapture[] {
-  try {
-    const value: unknown = JSON.parse(
-      window.localStorage.getItem(storageKey) ?? "[]"
-    );
-    return Array.isArray(value) ? (value as WatchlistCapture[]) : [];
-  } catch {
-    return [];
-  }
 }

@@ -47,7 +47,10 @@ export default function TrackersPage() {
         <div className="mx-auto mt-8 max-w-5xl">
           <FormSection title="Find something">
             <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-              <SearchInput placeholder="Search trackers" />
+              <SearchInput
+                aria-label="Search trackers"
+                placeholder="Search trackers"
+              />
               <Button>Search</Button>
             </div>
           </FormSection>

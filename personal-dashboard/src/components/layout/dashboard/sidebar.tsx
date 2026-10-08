@@ -29,10 +29,13 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+  const closeMobileNavigation = () => setOpenMobile(false);
   const WorkspaceIcon = dashboardWorkspace.icon;
 
   return (
@@ -41,7 +44,10 @@ export function DashboardSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href={dashboardWorkspace.href}>
+              <Link
+                href={dashboardWorkspace.href}
+                onClick={closeMobileNavigation}
+              >
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <WorkspaceIcon className="size-4" />
                 </div>
@@ -65,7 +71,8 @@ export function DashboardSidebar() {
             {dashboardNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
-                pathname.startsWith(`${item.href}/`) ||
+                (item.href !== "/dashboard" &&
+                  pathname.startsWith(`${item.href}/`)) ||
                 item.items?.some(
                   (subItem) =>
                     pathname === subItem.href ||
@@ -100,7 +107,15 @@ export function DashboardSidebar() {
                                 asChild
                                 isActive={pathname === subItem.href}
                               >
-                                <Link href={subItem.href}>
+                                <Link
+                                  href={subItem.href}
+                                  onClick={closeMobileNavigation}
+                                  aria-current={
+                                    pathname === subItem.href
+                                      ? "page"
+                                      : undefined
+                                  }
+                                >
                                   <span>{subItem.title}</span>
                                 </Link>
                               </SidebarMenuSubButton>
@@ -120,7 +135,11 @@ export function DashboardSidebar() {
                     tooltip={item.title}
                     isActive={isActive}
                   >
-                    <Link href={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={closeMobileNavigation}
+                      aria-current={pathname === item.href ? "page" : undefined}
+                    >
                       <Icon />
                       <span>{item.title}</span>
                     </Link>
@@ -139,7 +158,7 @@ export function DashboardSidebar() {
             return (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton asChild tooltip={item.title}>
-                  <Link href={item.href}>
+                  <Link href={item.href} onClick={closeMobileNavigation}>
                     <Icon />
                     <span>{item.title}</span>
                   </Link>
@@ -148,18 +167,22 @@ export function DashboardSidebar() {
             );
           })}
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="w-full">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <span className="text-xs font-semibold">
-                  {dashboardUser.initials}
-                </span>
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">
-                  {dashboardUser.name}
-                </span>
-                <span className="truncate text-xs">{dashboardUser.email}</span>
-              </div>
+            <SidebarMenuButton size="lg" asChild className="w-full">
+              <Link href="/user/profile" onClick={closeMobileNavigation}>
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <span className="text-xs font-semibold">
+                    {dashboardUser.initials}
+                  </span>
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">
+                    {dashboardUser.name}
+                  </span>
+                  <span className="truncate text-xs">
+                    {dashboardUser.email}
+                  </span>
+                </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

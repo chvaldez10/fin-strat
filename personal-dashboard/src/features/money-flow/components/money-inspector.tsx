@@ -13,7 +13,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { MoneyCanvasEdge, MoneyCanvasNode } from "../canvas-types";
-import { formatYearMonth } from "../months";
+import { formatYearMonth, isYearMonth, monthsBetween } from "../months";
+import { parseMoneyCents } from "../amounts";
 import type { YearMonth } from "../types";
 
 export type SelectedMoneyElement =
@@ -65,7 +66,7 @@ export function MoneyInspector({
   const content =
     selected.type === "node" ? (
       <NodeInspector
-        key={selected.item.id}
+        key={`${selected.item.id}:${selectedMonth}`}
         node={selected.item}
         startingBalanceCents={openingBalancesByNodeId[selected.item.id] ?? 0}
         isFirstMonth={isFirstMonth}
@@ -73,7 +74,7 @@ export function MoneyInspector({
       />
     ) : (
       <EdgeInspector
-        key={selected.item.id}
+        key={`${selected.item.id}:${selectedMonth}`}
         edge={selected.item}
         selectedMonth={selectedMonth}
         onSave={onSaveEdge}
@@ -83,7 +84,11 @@ export function MoneyInspector({
   if (isMobile) {
     return (
       <Sheet open onOpenChange={(open) => !open && onClose()}>
-        <SheetContent side="bottom" className="max-h-[76vh] overflow-y-auto">
+        <SheetContent
+          side="bottom"
+          data-testid="money-flow-inspector"
+          className="max-h-[85dvh] overflow-y-auto pb-[env(safe-area-inset-bottom)]"
+        >
           <SheetHeader>
             <SheetTitle>
               {selected.type === "node" ? "Edit box" : "Edit money flow"}
@@ -99,7 +104,11 @@ export function MoneyInspector({
   }
 
   return (
-    <aside className="absolute inset-y-3 right-3 z-20 w-72 overflow-y-auto rounded-md border border-border bg-background shadow-md">
+    <aside
+      aria-label="Money flow inspector"
+      data-testid="money-flow-inspector"
+      className="absolute inset-y-3 right-3 z-20 w-72 overflow-y-auto rounded-md border border-border bg-background shadow-md"
+    >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
           <p className="font-semibold">
@@ -140,13 +149,27 @@ function NodeInspector({
   const [startingBalance, setStartingBalance] = useState(
     (startingBalanceCents / 100).toString()
   );
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <form
       className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault();
-        const parsedStartingBalance = Number.parseFloat(startingBalance);
+        const parsedStartingBalance = parseMoneyCents(startingBalance, {
+          allowNegative: true,
+        });
+        if (
+          node.data.kind === "chequing" &&
+          isFirstMonth &&
+          parsedStartingBalance === null
+        ) {
+          setError(
+            "Enter a valid starting balance with no more than two decimal places."
+          );
+          return;
+        }
+        setError(null);
 
         onSave(node.id, {
           label: label.trim() || "Untitled",
@@ -154,8 +177,8 @@ function NodeInspector({
           startingBalanceCents:
             node.data.kind === "chequing" &&
             isFirstMonth &&
-            Number.isFinite(parsedStartingBalance)
-              ? Math.round(parsedStartingBalance * 100)
+            parsedStartingBalance !== null
+              ? parsedStartingBalance
               : undefined,
         });
       }}
@@ -177,6 +200,8 @@ function NodeInspector({
               value={startingBalance}
               onChange={(event) => setStartingBalance(event.target.value)}
               disabled={!isFirstMonth}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "starting-balance-error" : undefined}
               className="pl-9"
             />
           </div>
@@ -192,10 +217,19 @@ function NodeInspector({
           id="node-note"
           value={note}
           onChange={(event) => setNote(event.target.value)}
-          className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
           placeholder="Optional context"
         />
       </Field>
+      {error ? (
+        <p
+          id="starting-balance-error"
+          role="alert"
+          className="text-sm text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
       <Button type="submit" className="w-full">
         <Save />
         Save box
@@ -227,26 +261,43 @@ function EdgeInspector({
     edge.data?.startMonth ?? selectedMonth
   );
   const [endMonth, setEndMonth] = useState(edge.data?.endMonth ?? "");
+  const [errors, setErrors] = useState<
+    Partial<Record<"amount" | "override" | "start" | "end", string>>
+  >({});
 
   return (
     <form
       className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault();
-        const parsedBaseAmount = Number.parseFloat(baseAmount);
-        const parsedOverride = Number.parseFloat(monthOverride);
+        const parsedBaseAmount = parseMoneyCents(baseAmount);
+        const parsedOverride =
+          monthOverride.trim() === "" ? null : parseMoneyCents(monthOverride);
+        const nextErrors: typeof errors = {};
+        if (parsedBaseAmount === null)
+          nextErrors.amount =
+            "Enter a non-negative amount with no more than two decimal places.";
+        if (monthOverride.trim() !== "" && parsedOverride === null)
+          nextErrors.override =
+            "Enter a valid override or leave it empty to use the recurring amount.";
+        if (!isYearMonth(startMonth))
+          nextErrors.start = "Choose a valid start month.";
+        if (
+          endMonth &&
+          (!isYearMonth(endMonth) ||
+            (isYearMonth(startMonth) &&
+              monthsBetween(startMonth, endMonth) < 0))
+        )
+          nextErrors.end =
+            "The end month must be the same as or later than the start month.";
+        setErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0 || parsedBaseAmount === null)
+          return;
 
         onSave(edge.id, {
           label: label.trim(),
-          baseMonthlyAmountCents: Number.isFinite(parsedBaseAmount)
-            ? Math.max(0, Math.round(parsedBaseAmount * 100))
-            : 0,
-          monthOverrideCents:
-            monthOverride.trim() === ""
-              ? null
-              : Number.isFinite(parsedOverride)
-                ? Math.max(0, Math.round(parsedOverride * 100))
-                : null,
+          baseMonthlyAmountCents: parsedBaseAmount,
+          monthOverrideCents: parsedOverride,
           startMonth,
           endMonth: endMonth ? (endMonth as YearMonth) : undefined,
         });
@@ -257,6 +308,8 @@ function EdgeInspector({
           <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="edge-amount"
+            aria-invalid={errors.amount ? true : undefined}
+            aria-describedby={errors.amount ? "edge-amount-error" : undefined}
             inputMode="decimal"
             value={baseAmount}
             onChange={(event) => setBaseAmount(event.target.value)}
@@ -272,6 +325,10 @@ function EdgeInspector({
           <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="edge-month-override"
+            aria-invalid={errors.override ? true : undefined}
+            aria-describedby={
+              errors.override ? "edge-override-error" : undefined
+            }
             inputMode="decimal"
             value={monthOverride}
             onChange={(event) => setMonthOverride(event.target.value)}
@@ -284,6 +341,8 @@ function EdgeInspector({
         <Field label="Starts" htmlFor="edge-start-month">
           <Input
             id="edge-start-month"
+            aria-invalid={errors.start ? true : undefined}
+            aria-describedby={errors.start ? "edge-start-error" : undefined}
             type="month"
             value={startMonth}
             onChange={(event) => setStartMonth(event.target.value as YearMonth)}
@@ -292,6 +351,8 @@ function EdgeInspector({
         <Field label="Ends" htmlFor="edge-end-month">
           <Input
             id="edge-end-month"
+            aria-invalid={errors.end ? true : undefined}
+            aria-describedby={errors.end ? "edge-end-error" : undefined}
             type="month"
             value={endMonth}
             onChange={(event) => setEndMonth(event.target.value)}
@@ -306,6 +367,17 @@ function EdgeInspector({
           placeholder="Optional, e.g. automatic transfer"
         />
       </Field>
+      <div aria-live="polite" className="space-y-1">
+        {Object.entries(errors).map(([field, message]) => (
+          <p
+            key={field}
+            id={`edge-${field}-error`}
+            className="text-sm text-destructive"
+          >
+            {message}
+          </p>
+        ))}
+      </div>
       <Button type="submit" className="w-full">
         <Save />
         Save money flow

@@ -17,12 +17,12 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
     <Button
       variant="ghost"
       size="icon"
-      className={cn("size-9", className)}
+      className={cn("size-11 md:size-9", className)}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      data-testid="theme-toggle"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      suppressHydrationWarning
     >
       {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-      <span className="sr-only">Toggle theme</span>
     </Button>
   );
 }

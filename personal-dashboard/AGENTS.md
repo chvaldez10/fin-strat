@@ -22,7 +22,7 @@ This project is a personal dashboard. Build its features with composability, reu
 ## Commands and reference implementations
 
 - Run commands from this directory with Node.js 24+ and the pinned pnpm 11 version. Install locally with `pnpm install`; develop with `pnpm dev`. Use `pnpm install --frozen-lockfile` for CI, deployment, or an explicit lockfile consistency check.
-- For code changes, use `pnpm lint` and `pnpm typecheck`. Use `pnpm build` for framework, dependency, or rendering changes and `pnpm format:check` for formatting. For docs-only work, check the changed documents. No automated test script is currently configured; do not invent a passing test command.
+- For code changes, use `pnpm lint` and `pnpm typecheck`. Run `pnpm test` for finance parsing, persistence/migration, or watchlist storage changes. Use `pnpm build` for framework, dependency, or rendering changes and `pnpm format:check` for formatting. For docs-only work, check the changed documents.
 - Follow `src/components/ui/button.tsx` for primitive composition and variants, `src/components/patterns/` for reusable compositions, and `src/features/money-flow/` for domain code separated from UI and persistence.
 
 ## Data and generated files

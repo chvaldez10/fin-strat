@@ -43,14 +43,22 @@ export function CashFlowTable({
     <div className="h-full w-full min-w-0 max-w-full overscroll-x-contain overflow-auto bg-muted/20 p-2 sm:p-3 md:p-5">
       <div className="inline-block min-w-full max-w-none overflow-hidden rounded-md border border-border bg-background align-top">
         <table className="w-full min-w-max border-collapse text-sm">
+          <caption className="sr-only">
+            Monthly cash-flow forecast for{" "}
+            {selectedAccount?.name ?? "the selected account"}
+          </caption>
           <thead>
             <tr className="bg-muted/60">
-              <th className="sticky left-0 z-20 min-w-36 border-b border-r border-border bg-muted px-2 py-3 text-left font-semibold sm:min-w-56 sm:px-4">
+              <th
+                scope="col"
+                className="sticky left-0 z-20 min-w-36 border-b border-r border-border bg-muted px-2 py-3 text-left font-semibold sm:min-w-56 sm:px-4"
+              >
                 {selectedAccount?.name ?? "Cash flow"}
               </th>
               {forecast.map((month) => (
                 <th
                   key={month.month}
+                  scope="col"
                   className={`min-w-28 border-b border-r border-border px-2 py-3 text-right font-semibold last:border-r-0 sm:min-w-36 sm:px-4 ${
                     month.month === selectedMonth ? "bg-accent" : ""
                   }`}
@@ -136,7 +144,10 @@ function SectionRow({
 }) {
   return (
     <tr className="bg-muted/30">
-      <th className="sticky left-0 z-10 border-b border-r border-border bg-muted/90 px-2 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:px-4">
+      <th
+        scope="row"
+        className="sticky left-0 z-10 border-b border-r border-border bg-muted/90 px-2 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:px-4"
+      >
         {label}
       </th>
       <td
@@ -190,6 +201,7 @@ function BalanceRow({
   return (
     <tr className={strong ? "bg-foreground text-background" : undefined}>
       <th
+        scope="row"
         className={`sticky left-0 z-10 max-w-36 truncate border-b border-r border-border px-2 py-2.5 text-left sm:max-w-56 sm:px-4 ${
           strong ? "bg-foreground" : "bg-background"
         } ${emphasized ? "font-semibold" : "font-normal"}`}

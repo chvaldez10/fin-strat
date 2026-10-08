@@ -52,6 +52,7 @@ const nodeStyles = {
 } as const;
 
 export const MoneyNode = memo(function MoneyNode({
+  id,
   data,
   selected,
 }: NodeProps<MoneyCanvasNode>) {
@@ -62,6 +63,7 @@ export const MoneyNode = memo(function MoneyNode({
 
   return (
     <div
+      data-testid={`money-flow-node-${id}`}
       className={cn(
         "w-52 rounded-md border p-3 transition-[border-color,box-shadow]",
         style.className,

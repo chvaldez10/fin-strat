@@ -2,10 +2,10 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type DragEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import {
   Background,
@@ -18,6 +18,7 @@ import {
   type Viewport,
 } from "@xyflow/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { getCurrentMockUser } from "@/features/auth/mock-session";
 import {
   calculateMoneyFlowTotals,
@@ -32,6 +33,7 @@ import {
 import { createDemoMoneyFlowDocument } from "../../mock-data";
 import { addMonths, monthsBetween } from "../../months";
 import { createLocalMoneyFlowRepository } from "../../repository";
+import { removeTransfers, updateTransfer } from "../../transfers";
 import type {
   MoneyFlowDocument,
   MoneyFlowViewMode,
@@ -83,6 +85,9 @@ export function MoneyFlowWorkspace() {
   const instanceRef =
     useRef<ReactFlowInstance<MoneyCanvasNode, MoneyCanvasEdge>>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const hasLoadedDocument = useRef(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const flowAreaRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef(initialDocument);
   const [totals, setTotals] = useState(() =>
@@ -105,6 +110,21 @@ export function MoneyFlowWorkspace() {
   const [selected, setSelected] = useState<SelectedMoneyElement>(null);
   const [nodeContextMenu, setNodeContextMenu] =
     useState<NodeContextMenuState | null>(null);
+  const closeNodeContextMenu = useCallback(() => setNodeContextMenu(null), []);
+  const saveDocument = useCallback(
+    (document: MoneyFlowDocument) => {
+      if (!hasLoadedDocument.current) return;
+      try {
+        repository.save(document);
+        setSaveError(null);
+      } catch {
+        setSaveError(
+          "Changes are still on this screen but couldn't be saved. Keep this page open and retry saving."
+        );
+      }
+    },
+    [repository]
+  );
   const readDocument = useCallback(() => {
     const instance = instanceRef.current;
 
@@ -125,7 +145,7 @@ export function MoneyFlowWorkspace() {
     (recalculate = true) => {
       const document = readDocument();
       documentRef.current = document;
-      repository.save(document);
+      saveDocument(document);
       setActiveDocument(document);
 
       if (recalculate) {
@@ -142,7 +162,7 @@ export function MoneyFlowWorkspace() {
 
       return document;
     },
-    [readDocument, repository]
+    [readDocument, saveDocument]
   );
 
   const finishMutation = useCallback(() => {
@@ -170,7 +190,7 @@ export function MoneyFlowWorkspace() {
         void instance.setViewport(account.viewport);
       }
       documentRef.current = document;
-      repository.save(document);
+      saveDocument(document);
       setTotals(nextTotals);
       setActiveDocument(document);
       setSelectedMonth(document.view.selectedMonth);
@@ -178,13 +198,27 @@ export function MoneyFlowWorkspace() {
       setViewMode(document.view.mode);
       setSelected(null);
     },
-    [repository]
+    [saveDocument]
   );
 
   const handleInit = useCallback(
     (instance: ReactFlowInstance<MoneyCanvasNode, MoneyCanvasEdge>) => {
       instanceRef.current = instance;
-      const savedDocument = repository.load();
+      let savedDocument: MoneyFlowDocument;
+      try {
+        savedDocument = hasLoadedDocument.current
+          ? documentRef.current
+          : repository.load();
+        hasLoadedDocument.current = true;
+        setLoadError(null);
+      } catch (error) {
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Saved finance data couldn't be loaded. Retry before editing."
+        );
+        return;
+      }
       const savedTotals = calculateMoneyFlowTotals(
         savedDocument,
         savedDocument.view.selectedMonth,
@@ -387,6 +421,18 @@ export function MoneyFlowWorkspace() {
         return;
       }
 
+      const document = readDocument();
+      const accountId = document.view.selectedAccountId;
+      const removedIds = getAccountWorkspace(document)
+        .transfers.filter((transfer) =>
+          target.type === "edge"
+            ? transfer.id === target.item.id
+            : transfer.sourceNodeId === target.item.id ||
+              transfer.targetNodeId === target.item.id
+        )
+        .map((transfer) => transfer.id);
+      documentRef.current = removeTransfers(document, accountId, removedIds);
+
       if (target.type === "node") {
         const nodeId = target.item.id;
         instance.setNodes((nodes) =>
@@ -406,7 +452,7 @@ export function MoneyFlowWorkspace() {
       setSelected(null);
       finishMutation();
     },
-    [finishMutation]
+    [finishMutation, readDocument]
   );
 
   const duplicateSelection = useCallback(() => {
@@ -500,6 +546,14 @@ export function MoneyFlowWorkspace() {
         label: values.label || undefined,
       };
 
+      const document = readDocument();
+      documentRef.current = updateTransfer(
+        document,
+        document.view.selectedAccountId,
+        id,
+        updatedTransfer
+      );
+
       instance.updateEdgeData(id, {
         label: values.label || undefined,
         baseMonthlyAmountCents: values.baseMonthlyAmountCents,
@@ -513,7 +567,7 @@ export function MoneyFlowWorkspace() {
       });
       finishMutation();
     },
-    [finishMutation, selectedMonth]
+    [finishMutation, readDocument, selectedMonth]
   );
 
   const reset = useCallback(() => {
@@ -521,9 +575,9 @@ export function MoneyFlowWorkspace() {
       return;
     }
 
-    const document = repository.reset();
+    const document = createDemoMoneyFlowDocument(currentUser.id);
     restoreDocument(document);
-  }, [repository, restoreDocument]);
+  }, [currentUser.id, restoreDocument]);
 
   const changeMonth = useCallback(
     (month: YearMonth) => {
@@ -544,7 +598,7 @@ export function MoneyFlowWorkspace() {
       );
 
       documentRef.current = document;
-      repository.save(document);
+      saveDocument(document);
       setActiveDocument(document);
       setSelectedMonth(month);
       setTotals(nextTotals);
@@ -559,7 +613,7 @@ export function MoneyFlowWorkspace() {
         )
       );
     },
-    [clearSelection, repository, selectedAccountId]
+    [clearSelection, saveDocument, selectedAccountId]
   );
 
   const changeAccount = useCallback(
@@ -577,7 +631,7 @@ export function MoneyFlowWorkspace() {
       const account = getAccountWorkspace(document, accountId);
 
       documentRef.current = document;
-      repository.save(document);
+      saveDocument(document);
       setActiveDocument(document);
       setSelectedAccountId(accountId);
       setTotals(calculateMoneyFlowTotals(document, selectedMonth, accountId));
@@ -591,7 +645,7 @@ export function MoneyFlowWorkspace() {
       );
       void instanceRef.current?.setViewport(account.viewport);
     },
-    [clearSelection, readDocument, repository, selectedMonth]
+    [clearSelection, readDocument, saveDocument, selectedMonth]
   );
 
   const changeViewMode = useCallback(
@@ -612,7 +666,7 @@ export function MoneyFlowWorkspace() {
       };
 
       documentRef.current = document;
-      repository.save(document);
+      saveDocument(document);
       setActiveDocument(document);
       setViewMode(mode);
       setSelected(null);
@@ -622,16 +676,23 @@ export function MoneyFlowWorkspace() {
         instanceRef.current = null;
       }
     },
-    [readDocument, repository, viewMode]
+    [readDocument, saveDocument, viewMode]
   );
 
   const handleKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
+      if (!(target instanceof HTMLElement)) return;
+      if (
+        event.defaultPrevented ||
+        loadError ||
+        !canvasRef.current?.contains(target)
+      )
+        return;
       const isEditing =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable;
+        target.closest(
+          "input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='menu']"
+        ) !== null;
 
       if (isEditing) {
         return;
@@ -639,18 +700,33 @@ export function MoneyFlowWorkspace() {
 
       const commandKey = event.ctrlKey || event.metaKey;
 
-      if (commandKey && event.key.toLowerCase() === "d") {
+      if (
+        commandKey &&
+        event.key.toLowerCase() === "d" &&
+        selected?.type === "node" &&
+        selected.item.data.kind !== "chequing"
+      ) {
         event.preventDefault();
         duplicateSelection();
-      } else if (event.key === "Delete" || event.key === "Backspace") {
+      } else if (
+        !commandKey &&
+        !event.altKey &&
+        selected &&
+        (event.key === "Delete" || event.key === "Backspace")
+      ) {
         event.preventDefault();
         deleteSelection();
       } else if (event.key === "Escape") {
         clearSelection();
       }
     },
-    [clearSelection, deleteSelection, duplicateSelection]
+    [clearSelection, deleteSelection, duplicateSelection, loadError, selected]
   );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   const canDuplicate =
     selected?.type === "node" && selected.item.data.kind !== "chequing";
@@ -667,214 +743,253 @@ export function MoneyFlowWorkspace() {
 
   return (
     <TooltipProvider>
-      {/* The canvas wrapper takes focus so its selection shortcuts work. */}
-      {/* oxlint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
       <div
         ref={canvasRef}
-        className="flex h-[calc(100dvh-4rem)] min-h-[36rem] w-full min-w-0 max-w-full flex-col overflow-hidden bg-background outline-none md:min-h-[42rem]"
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
-        onContextMenu={(event) => event.preventDefault()}
+        data-testid="money-flow-workspace"
+        className="flex h-[calc(100dvh-4rem)] min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden bg-background"
       >
-        <MoneySummary
-          totals={totals}
-          month={selectedMonth}
-          viewMode={viewMode}
-          accounts={activeDocument.accounts}
-          selectedAccountId={selectedAccountId}
-          canGoPrevious={canGoPrevious}
-          canGoNext={canGoNext}
-          onPreviousMonth={() => changeMonth(addMonths(selectedMonth, -1))}
-          onNextMonth={() => changeMonth(addMonths(selectedMonth, 1))}
-          onViewModeChange={changeViewMode}
-          onAccountChange={changeAccount}
-        />
-        {viewMode === "table" ? (
-          <div className="min-h-0 flex-1">
-            <CashFlowTable
-              document={activeDocument}
-              selectedMonth={selectedMonth}
-              selectedAccountId={selectedAccountId}
-            />
-          </div>
-        ) : (
+        {loadError || saveError ? (
           <div
-            ref={flowAreaRef}
-            className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden"
-            onDrop={handleDrop}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "move";
-            }}
+            role="alert"
+            className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-3 py-2 text-sm"
           >
-            <ReactFlow<MoneyCanvasNode, MoneyCanvasEdge>
-              defaultNodes={getCanvasNodes(
-                activeDocument,
-                selectedAccountId,
-                selectedMonth
-              )}
-              defaultEdges={toCanvasEdges(
-                getAccountWorkspace(activeDocument, selectedAccountId)
-                  .transfers,
-                selectedMonth
-              )}
-              defaultViewport={
-                getAccountWorkspace(activeDocument, selectedAccountId).viewport
+            <p className="min-w-0 flex-1 text-destructive">
+              {loadError ?? saveError}
+            </p>
+            <Button
+              size="sm"
+              onClick={() =>
+                loadError
+                  ? instanceRef.current && handleInit(instanceRef.current)
+                  : persistDocument(false)
               }
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              defaultEdgeOptions={defaultEdgeOptions}
-              onInit={handleInit}
-              onConnect={handleConnect}
-              onNodeClick={(_, node) => {
-                setNodeContextMenu(null);
-                setSelected({ type: "node", item: node });
-              }}
-              onEdgeClick={(_, edge) => {
-                setNodeContextMenu(null);
-                setSelected({ type: "edge", item: edge });
-              }}
-              onPaneClick={() => {
-                setNodeContextMenu(null);
-                clearSelection();
-              }}
-              onNodeContextMenu={(event, node) => {
-                event.preventDefault();
-                const bounds = flowAreaRef.current?.getBoundingClientRect();
-
-                if (!bounds) {
-                  return;
-                }
-
-                const menuWidth = 176;
-                const menuHeight = node.data.kind === "chequing" ? 142 : 102;
-                const x = Math.min(
-                  event.clientX - bounds.left,
-                  bounds.width - menuWidth - 8
-                );
-                const y = Math.min(
-                  event.clientY - bounds.top,
-                  bounds.height - menuHeight - 8
-                );
-
-                instanceRef.current?.setNodes((nodes) =>
-                  nodes.map((item) => ({
-                    ...item,
-                    selected: item.id === node.id,
-                  }))
-                );
-                instanceRef.current?.setEdges((edges) =>
-                  edges.map((edge) => ({ ...edge, selected: false }))
-                );
-                setSelected({ type: "node", item: node });
-                setNodeContextMenu({
-                  node,
-                  x: Math.max(8, x),
-                  y: Math.max(8, y),
-                });
-              }}
-              onNodeDragStart={() => {
-                setNodeContextMenu(null);
-                setSelected(null);
-              }}
-              onNodeDragStop={() => {
-                finishMutation();
-              }}
-              onMoveEnd={(_, viewport: Viewport) => {
-                const document = readDocument();
-                const accountId = document.view.selectedAccountId;
-                documentRef.current = updateAccountWorkspaceFromCanvas(
-                  document,
-                  accountId,
-                  instanceRef.current?.getNodes() ?? [],
-                  instanceRef.current?.getEdges() ?? [],
-                  viewport
-                );
-                repository.save(documentRef.current);
-              }}
-              onMoveStart={() => setNodeContextMenu(null)}
-              isValidConnection={(connection) => {
-                if (!connection.source || !connection.target) {
-                  return false;
-                }
-
-                return validateConnection(getAccountWorkspace(readDocument()), {
-                  sourceNodeId: connection.source,
-                  targetNodeId: connection.target,
-                }).valid;
-              }}
-              snapToGrid
-              snapGrid={SNAP_GRID}
-              connectionLineType={ConnectionLineType.Step}
-              onlyRenderVisibleElements
-              nodesDraggable
-              nodesConnectable
-              elementsSelectable
-              selectionOnDrag={false}
-              panOnDrag={[2]}
-              panActivationKeyCode="Space"
-              multiSelectionKeyCode="Shift"
-              deleteKeyCode={null}
-              minZoom={0.3}
-              maxZoom={2}
-              proOptions={{ hideAttribution: false }}
             >
-              <Background
-                variant={BackgroundVariant.Lines}
-                gap={16}
-                size={1}
-                color="var(--border)"
-              />
-            </ReactFlow>
-
-            <ToolDock
-              canDuplicateSelection={canDuplicate}
-              canDeleteSelection={canDelete}
-              onAddNode={createNode}
-              onDuplicate={duplicateSelection}
-              onDelete={deleteSelection}
-              onFitView={() =>
-                void instanceRef.current?.fitView({
-                  padding: 0.18,
-                  duration: 220,
-                })
-              }
-              onZoomIn={() =>
-                void instanceRef.current?.zoomIn({ duration: 160 })
-              }
-              onZoomOut={() =>
-                void instanceRef.current?.zoomOut({ duration: 160 })
-              }
-              onReset={reset}
-            />
-
-            <MoneyInspector
-              selected={selected}
-              openingBalancesByNodeId={{
-                [getAccountWorkspace(activeDocument, selectedAccountId)
-                  .centerNodeId]: getAccountWorkspace(
-                  activeDocument,
-                  selectedAccountId
-                ).openingBalanceCents,
-              }}
-              selectedMonth={selectedMonth}
-              isFirstMonth={selectedMonthIndex === 0}
-              onClose={clearSelection}
-              onSaveNode={saveNode}
-              onSaveEdge={saveEdge}
-            />
-            {nodeContextMenu ? (
-              <NodeContextMenu
-                menu={nodeContextMenu}
-                onClose={() => setNodeContextMenu(null)}
-                onDuplicate={duplicateNode}
-                onDelete={(node) => deleteElement({ type: "node", item: node })}
-              />
-            ) : null}
+              {loadError ? "Retry loading" : "Retry save"}
+            </Button>
           </div>
-        )}
+        ) : null}
+        <div className="contents" inert={!!loadError}>
+          <MoneySummary
+            totals={totals}
+            month={selectedMonth}
+            viewMode={viewMode}
+            accounts={activeDocument.accounts}
+            selectedAccountId={selectedAccountId}
+            canGoPrevious={canGoPrevious}
+            canGoNext={canGoNext}
+            onPreviousMonth={() => changeMonth(addMonths(selectedMonth, -1))}
+            onNextMonth={() => changeMonth(addMonths(selectedMonth, 1))}
+            onViewModeChange={changeViewMode}
+            onAccountChange={changeAccount}
+          />
+          {viewMode === "table" ? (
+            <div className="min-h-0 flex-1">
+              <CashFlowTable
+                document={activeDocument}
+                selectedMonth={selectedMonth}
+                selectedAccountId={selectedAccountId}
+              />
+            </div>
+          ) : (
+            <div
+              ref={flowAreaRef}
+              className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden"
+              onDrop={handleDrop}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+            >
+              <ReactFlow<MoneyCanvasNode, MoneyCanvasEdge>
+                defaultNodes={getCanvasNodes(
+                  activeDocument,
+                  selectedAccountId,
+                  selectedMonth
+                )}
+                defaultEdges={toCanvasEdges(
+                  getAccountWorkspace(activeDocument, selectedAccountId)
+                    .transfers,
+                  selectedMonth
+                )}
+                defaultViewport={
+                  getAccountWorkspace(activeDocument, selectedAccountId)
+                    .viewport
+                }
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                defaultEdgeOptions={defaultEdgeOptions}
+                onInit={handleInit}
+                onConnect={handleConnect}
+                onNodeClick={(_, node) => {
+                  setNodeContextMenu(null);
+                  setSelected({ type: "node", item: node });
+                }}
+                onEdgeClick={(_, edge) => {
+                  setNodeContextMenu(null);
+                  setSelected({ type: "edge", item: edge });
+                }}
+                onPaneClick={() => {
+                  setNodeContextMenu(null);
+                  clearSelection();
+                }}
+                onNodeContextMenu={(event, node) => {
+                  event.preventDefault();
+                  const bounds = flowAreaRef.current?.getBoundingClientRect();
+
+                  if (!bounds) {
+                    return;
+                  }
+
+                  const menuWidth = 176;
+                  const menuHeight = node.data.kind === "chequing" ? 142 : 102;
+                  const x = Math.min(
+                    event.clientX - bounds.left,
+                    bounds.width - menuWidth - 8
+                  );
+                  const y = Math.min(
+                    event.clientY - bounds.top,
+                    bounds.height - menuHeight - 8
+                  );
+
+                  instanceRef.current?.setNodes((nodes) =>
+                    nodes.map((item) => ({
+                      ...item,
+                      selected: item.id === node.id,
+                    }))
+                  );
+                  instanceRef.current?.setEdges((edges) =>
+                    edges.map((edge) => ({ ...edge, selected: false }))
+                  );
+                  setSelected({ type: "node", item: node });
+                  setNodeContextMenu({
+                    node,
+                    x: Math.max(8, x),
+                    y: Math.max(8, y),
+                  });
+                }}
+                onNodeDragStart={() => {
+                  setNodeContextMenu(null);
+                  setSelected(null);
+                }}
+                onNodeDragStop={() => {
+                  finishMutation();
+                }}
+                onMoveEnd={(_, viewport: Viewport) => {
+                  const document = readDocument();
+                  const accountId = document.view.selectedAccountId;
+                  documentRef.current = updateAccountWorkspaceFromCanvas(
+                    document,
+                    accountId,
+                    instanceRef.current?.getNodes() ?? [],
+                    instanceRef.current?.getEdges() ?? [],
+                    viewport
+                  );
+                  saveDocument(documentRef.current);
+                }}
+                onMoveStart={() => setNodeContextMenu(null)}
+                isValidConnection={(connection) => {
+                  if (!connection.source || !connection.target) {
+                    return false;
+                  }
+
+                  return validateConnection(
+                    getAccountWorkspace(readDocument()),
+                    {
+                      sourceNodeId: connection.source,
+                      targetNodeId: connection.target,
+                    }
+                  ).valid;
+                }}
+                snapToGrid
+                snapGrid={SNAP_GRID}
+                connectionLineType={ConnectionLineType.Step}
+                onlyRenderVisibleElements
+                nodesDraggable
+                nodesConnectable
+                elementsSelectable
+                selectionOnDrag={false}
+                panOnDrag={[2]}
+                panActivationKeyCode="Space"
+                multiSelectionKeyCode="Shift"
+                deleteKeyCode={null}
+                minZoom={0.3}
+                maxZoom={2}
+                proOptions={{ hideAttribution: false }}
+              >
+                <Background
+                  variant={BackgroundVariant.Lines}
+                  gap={16}
+                  size={1}
+                  color="var(--border)"
+                />
+              </ReactFlow>
+
+              <ToolDock
+                canDuplicateSelection={canDuplicate}
+                canDeleteSelection={canDelete}
+                onAddNode={createNode}
+                onDuplicate={duplicateSelection}
+                onDelete={deleteSelection}
+                onFitView={() =>
+                  void instanceRef.current?.fitView({
+                    padding: 0.18,
+                    duration: window.matchMedia(
+                      "(prefers-reduced-motion: reduce)"
+                    ).matches
+                      ? 0
+                      : 220,
+                  })
+                }
+                onZoomIn={() =>
+                  void instanceRef.current?.zoomIn({
+                    duration: window.matchMedia(
+                      "(prefers-reduced-motion: reduce)"
+                    ).matches
+                      ? 0
+                      : 160,
+                  })
+                }
+                onZoomOut={() =>
+                  void instanceRef.current?.zoomOut({
+                    duration: window.matchMedia(
+                      "(prefers-reduced-motion: reduce)"
+                    ).matches
+                      ? 0
+                      : 160,
+                  })
+                }
+                onReset={reset}
+              />
+
+              <MoneyInspector
+                selected={selected}
+                openingBalancesByNodeId={{
+                  [getAccountWorkspace(activeDocument, selectedAccountId)
+                    .centerNodeId]: getAccountWorkspace(
+                    activeDocument,
+                    selectedAccountId
+                  ).openingBalanceCents,
+                }}
+                selectedMonth={selectedMonth}
+                isFirstMonth={selectedMonthIndex === 0}
+                onClose={clearSelection}
+                onSaveNode={saveNode}
+                onSaveEdge={saveEdge}
+              />
+              {nodeContextMenu ? (
+                <NodeContextMenu
+                  menu={nodeContextMenu}
+                  onClose={closeNodeContextMenu}
+                  onDuplicate={duplicateNode}
+                  onDelete={(node) =>
+                    deleteElement({ type: "node", item: node })
+                  }
+                />
+              ) : null}
+            </div>
+          )}
+        </div>
       </div>
-      {/* oxlint-enable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
     </TooltipProvider>
   );
 }

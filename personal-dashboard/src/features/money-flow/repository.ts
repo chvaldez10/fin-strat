@@ -22,22 +22,35 @@ export function loadMoneyFlow(userId: UserId): MoneyFlowDocument {
     return createDemoMoneyFlowDocument(userId);
   }
 
-  const scopedDocument = decodeStoredMoneyFlowDocument(
-    readStoredDocument(storageKeyForUser(userId)),
-    userId
-  );
-  if (scopedDocument) {
-    saveMoneyFlow(userId, scopedDocument);
+  const storedDocument = readStoredDocument(storageKeyForUser(userId));
+  if (storedDocument !== null) {
+    const scopedDocument = decodeStoredMoneyFlowDocument(
+      storedDocument,
+      userId
+    );
+    if (!scopedDocument)
+      throw new Error(
+        "Saved finance data is invalid or belongs to another user. It has not been overwritten."
+      );
+    if (scopedDocument !== storedDocument)
+      saveMoneyFlow(userId, scopedDocument);
     return scopedDocument;
   }
 
-  const legacyDocument = decodeStoredMoneyFlowDocument(
-    readStoredDocument(LEGACY_STORAGE_KEY),
-    userId
-  );
-  if (legacyDocument) {
+  const storedLegacy = readStoredDocument(LEGACY_STORAGE_KEY);
+  if (storedLegacy !== null) {
+    const legacyDocument = decodeStoredMoneyFlowDocument(storedLegacy, userId);
+    if (!legacyDocument)
+      throw new Error(
+        "Older finance data could not be loaded safely. It has not been overwritten."
+      );
     saveMoneyFlow(userId, legacyDocument);
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    // The scoped copy is durable before the original migration record is removed.
+    try {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch {
+      /* Keep the original when storage prevents cleanup. */
+    }
     return legacyDocument;
   }
 
@@ -69,8 +82,12 @@ function readStoredDocument(key: string): unknown {
   const stored = window.localStorage.getItem(key);
   if (!stored) return null;
   try {
-    return JSON.parse(stored);
+    const value: unknown = JSON.parse(stored);
+    if (value === null) throw new Error("Empty saved document");
+    return value;
   } catch {
-    return null;
+    throw new Error(
+      "Saved finance data could not be read. It has not been overwritten."
+    );
   }
 }

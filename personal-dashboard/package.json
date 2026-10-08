@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
+    "test": "tsc --project tsconfig.tests.json && node --test .test-output/tests/*.test.js",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -28,7 +28,16 @@ export function NodeContextMenu({
   const isProtected = menu.node.data.kind === "chequing";
 
   useEffect(() => {
-    menuRef.current?.focus();
+    const menuElement = menuRef.current;
+    const previousFocus = document.activeElement;
+    const getItems = () =>
+      Array.from(
+        menuElement?.querySelectorAll<HTMLButtonElement>(
+          "button:not(:disabled)"
+        ) ?? []
+      );
+    const items = getItems();
+    (items[0] ?? menuElement)?.focus();
 
     function handlePointerDown(event: PointerEvent) {
       if (!menuRef.current?.contains(event.target as globalThis.Node)) {
@@ -37,8 +46,28 @@ export function NodeContextMenu({
     }
 
     function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (!menuElement?.contains(event.target as globalThis.Node)) return;
       if (event.key === "Escape") {
+        event.preventDefault();
         onClose();
+      } else if (event.key === "Tab") {
+        onClose();
+      } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        const items = getItems();
+        const current = items.indexOf(
+          document.activeElement as HTMLButtonElement
+        );
+        const index =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? items.length - 1
+              : (current +
+                  (event.key === "ArrowDown" ? 1 : -1) +
+                  items.length) %
+                items.length;
+        items[index]?.focus();
       }
     }
 
@@ -48,12 +77,20 @@ export function NodeContextMenu({
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      if (
+        previousFocus instanceof HTMLElement &&
+        previousFocus.isConnected &&
+        (document.activeElement === document.body ||
+          menuElement?.contains(document.activeElement))
+      )
+        previousFocus.focus();
     };
   }, [onClose]);
 
   return (
     <div
       ref={menuRef}
+      data-testid="money-flow-node-menu"
       role="menu"
       aria-label={`Actions for ${menu.node.data.label}`}
       tabIndex={-1}
@@ -108,7 +145,7 @@ function ContextAction({
       type="button"
       role="menuitem"
       className={cn(
-        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4 [&_svg]:shrink-0",
+        "flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none disabled:opacity-40 md:min-h-0 [&_svg]:size-4 [&_svg]:shrink-0",
         variant === "destructive" &&
           "text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/10",
         className

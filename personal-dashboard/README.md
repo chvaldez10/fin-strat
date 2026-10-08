@@ -16,13 +16,14 @@ Open [localhost:3000](http://localhost:3000).
 
 ## Commands
 
-| Command             | Purpose                         |
-| ------------------- | ------------------------------- |
-| `pnpm dev`          | Start the development server.   |
-| `pnpm lint`         | Run Oxlint.                     |
-| `pnpm typecheck`    | Check types with TypeScript 7.  |
-| `pnpm format:check` | Check formatting with Prettier. |
-| `pnpm build`        | Create a production build.      |
-| `pnpm start`        | Serve a production build.       |
+| Command             | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
+| `pnpm dev`          | Start the development server.                    |
+| `pnpm lint`         | Run Oxlint.                                      |
+| `pnpm typecheck`    | Check types with TypeScript 7.                   |
+| `pnpm test`         | Run finance and watchlist data regression tests. |
+| `pnpm format:check` | Check formatting with Prettier.                  |
+| `pnpm build`        | Create a production build.                       |
+| `pnpm start`        | Serve a production build.                        |
 
 The money-flow [architecture notes](./docs/technical/money-flow-canvas.md) describe its data model and canvas behavior.

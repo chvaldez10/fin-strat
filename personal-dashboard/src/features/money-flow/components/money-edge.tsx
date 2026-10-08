@@ -36,6 +36,7 @@ export const MoneyEdge = memo(function MoneyEdge({
   return (
     <>
       <BaseEdge
+        data-testid={`money-flow-edge-${id}`}
         id={id}
         path={edgePath}
         markerEnd={markerEnd}

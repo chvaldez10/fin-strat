@@ -1,7 +1,10 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type HeroSectionProps = {
+type HeroSectionProps = Omit<
+  ComponentProps<"section">,
+  "title" | "children"
+> & {
   eyebrow?: string;
   title: string;
   description: string;
@@ -19,10 +22,12 @@ export function HeroSection({
   visual,
   variant = "centered",
   className,
+  ...props
 }: HeroSectionProps) {
   if (variant === "split") {
     return (
       <section
+        {...props}
         className={cn(
           "grid min-h-[calc(100vh-9rem)] items-center gap-10 py-16 lg:grid-cols-[1fr_0.9fr]",
           className
@@ -43,6 +48,7 @@ export function HeroSection({
   if (variant === "compact") {
     return (
       <section
+        {...props}
         className={cn(
           "rounded-3xl border border-border bg-card px-6 py-12 text-center shadow-sm md:px-12",
           className
@@ -62,6 +68,7 @@ export function HeroSection({
 
   return (
     <section
+      {...props}
       className={cn(
         "flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center py-16 text-center",
         className

@@ -52,7 +52,11 @@ export function ToolDock({
   onReset,
 }: ToolDockProps) {
   return (
-    <div className="absolute bottom-3 left-1/2 z-20 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 shadow-md md:bottom-auto md:left-3 md:top-3 md:max-w-none md:translate-x-0 md:flex-col">
+    <section
+      aria-label="Canvas actions"
+      data-testid="money-flow-tools"
+      className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 z-20 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 shadow-md md:bottom-auto md:left-3 md:top-3 md:max-w-none md:translate-x-0 md:flex-col"
+    >
       {nodeTools.map((tool) => {
         const Icon = tool.icon;
 
@@ -102,7 +106,7 @@ export function ToolDock({
       <ToolButton label="Reset demo" onClick={onReset}>
         <RotateCcw />
       </ToolButton>
-    </div>
+    </section>
   );
 }
 

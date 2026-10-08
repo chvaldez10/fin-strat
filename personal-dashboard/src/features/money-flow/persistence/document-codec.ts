@@ -1,6 +1,6 @@
 import type { UserId } from "@/features/auth/types";
-import { createCibcWorkspace, createDemoMoneyFlowDocument } from "../mock-data";
-import { currentYearMonth } from "../months";
+import { createCibcWorkspace } from "../mock-data";
+import { currentYearMonth, isYearMonth, monthsBetween } from "../months";
 import {
   MONEY_FLOW_DOCUMENT_VERSION,
   type MoneyFlowAccountWorkspace,
@@ -69,19 +69,28 @@ export function decodeStoredMoneyFlowDocument(
   value: unknown,
   userId: UserId
 ): MoneyFlowDocument | null {
+  if (!value || typeof value !== "object") return null;
+  const owner = (value as { userId?: unknown }).userId;
+  if (owner !== undefined && owner !== userId) return null;
+
   if (isMoneyFlowDocument(value, userId)) {
-    return repairZeroedDemoTransfers(value, userId);
+    return value;
   }
-  if (isPartialSharedV4Document(value)) {
-    return migratePartialV4Document(value, userId);
+
+  // Historical records have different shapes. Validate the migration result
+  // before exposing it, and preserve malformed records for recovery.
+  try {
+    const migrated = isPartialSharedV4Document(value)
+      ? migratePartialV4Document(value, userId)
+      : isLegacyV3Document(value)
+        ? migrateV3Document(value, userId)
+        : isLegacyV1V2Document(value)
+          ? migrateV1V2Document(value, userId)
+          : null;
+    return isMoneyFlowDocument(migrated, userId) ? migrated : null;
+  } catch {
+    return null;
   }
-  if (isLegacyV3Document(value)) {
-    return migrateV3Document(value, userId);
-  }
-  if (isLegacyV1V2Document(value)) {
-    return migrateV1V2Document(value, userId);
-  }
-  return null;
 }
 
 function migratePartialV4Document(
@@ -212,47 +221,6 @@ function migrateV1V2Document(
   );
 }
 
-function repairZeroedDemoTransfers(
-  document: MoneyFlowDocument,
-  userId: UserId
-): MoneyFlowDocument {
-  const demo = createDemoMoneyFlowDocument(userId);
-  let repaired = false;
-  const accounts = document.accounts.map((account) => {
-    const demoAccount = demo.accounts.find((item) => item.id === account.id);
-    if (!demoAccount) return account;
-
-    const demoTransferById = new Map(
-      demoAccount.transfers.map((transfer) => [transfer.id, transfer])
-    );
-    const recognizedTransfers = account.transfers.filter((transfer) =>
-      demoTransferById.has(transfer.id)
-    );
-    const wasSimultaneouslyZeroed =
-      recognizedTransfers.length >= 2 &&
-      recognizedTransfers.every(
-        (transfer) => transfer.baseMonthlyAmountCents === 0
-      );
-
-    if (!wasSimultaneouslyZeroed) return account;
-    repaired = true;
-    return {
-      ...account,
-      transfers: account.transfers.map((transfer) => {
-        const demoTransfer = demoTransferById.get(transfer.id);
-        return demoTransfer
-          ? {
-              ...transfer,
-              baseMonthlyAmountCents: demoTransfer.baseMonthlyAmountCents,
-            }
-          : transfer;
-      }),
-    };
-  });
-
-  return repaired ? { ...document, accounts } : document;
-}
-
 function createFallbackCenterNode(): MoneyFlowNode {
   return {
     id: "scotia-chequing",
@@ -270,21 +238,29 @@ function isMoneyFlowDocument(
   if (!value || typeof value !== "object") return false;
   const document = value as Partial<MoneyFlowDocument>;
   return (
+    typeof document.id === "string" &&
     document.version === MONEY_FLOW_DOCUMENT_VERSION &&
     document.currency === "CAD" &&
     document.userId === userId &&
     Array.isArray(document.accounts) &&
     document.accounts.length > 0 &&
     document.accounts.every(isAccountWorkspace) &&
+    new Set(document.accounts.map((account) => account.id)).size ===
+      document.accounts.length &&
     typeof document.scenario?.name === "string" &&
     isYearMonth(document.scenario.startMonth) &&
-    Number.isInteger(document.scenario.forecastMonthCount) &&
+    Number.isSafeInteger(document.scenario.forecastMonthCount) &&
     document.scenario.forecastMonthCount > 0 &&
+    document.scenario.forecastMonthCount <= 1200 &&
     typeof document.view?.selectedAccountId === "string" &&
     document.accounts.some(
       (account) => account.id === document.view?.selectedAccountId
     ) &&
     isYearMonth(document.view.selectedMonth) &&
+    monthsBetween(document.scenario.startMonth, document.view.selectedMonth) >=
+      0 &&
+    monthsBetween(document.scenario.startMonth, document.view.selectedMonth) <
+      document.scenario.forecastMonthCount &&
     (document.view.mode === "canvas" || document.view.mode === "table")
   );
 }
@@ -295,6 +271,7 @@ function isAccountWorkspace(
   if (!value || typeof value !== "object") return false;
   const account = value as Partial<MoneyFlowAccountWorkspace>;
   const nodes = Array.isArray(account.nodes) ? account.nodes : [];
+  if (!nodes.every(isMoneyFlowNode)) return false;
   const nodeIds = new Set(nodes.map((node) => node.id));
   return (
     typeof account.id === "string" &&
@@ -302,9 +279,11 @@ function isAccountWorkspace(
     typeof account.name === "string" &&
     (account.accountType === "chequing" || account.accountType === "savings") &&
     typeof account.centerNodeId === "string" &&
-    Number.isFinite(account.openingBalanceCents) &&
-    nodes.every(isMoneyFlowNode) &&
+    Number.isSafeInteger(account.openingBalanceCents) &&
+    nodeIds.size === nodes.length &&
     nodeIds.has(account.centerNodeId) &&
+    nodes.find((node) => node.id === account.centerNodeId)?.kind ===
+      "chequing" &&
     Array.isArray(account.transfers) &&
     account.transfers.every(
       (transfer) =>
@@ -312,9 +291,12 @@ function isAccountWorkspace(
         nodeIds.has(transfer.sourceNodeId) &&
         nodeIds.has(transfer.targetNodeId)
     ) &&
+    new Set(account.transfers.map((transfer) => transfer.id)).size ===
+      account.transfers.length &&
     Number.isFinite(account.viewport?.x) &&
     Number.isFinite(account.viewport?.y) &&
-    Number.isFinite(account.viewport?.zoom)
+    Number.isFinite(account.viewport?.zoom) &&
+    account.viewport!.zoom > 0
   );
 }
 
@@ -328,7 +310,8 @@ function isMoneyFlowNode(value: unknown): value is MoneyFlowNode {
       node.kind ?? ""
     ) &&
     Number.isFinite(node.position?.x) &&
-    Number.isFinite(node.position?.y)
+    Number.isFinite(node.position?.y) &&
+    (node.note === undefined || typeof node.note === "string")
   );
 }
 
@@ -341,15 +324,21 @@ function isMoneyFlowTransfer(value: unknown): value is MoneyFlowTransfer {
       typeof transfer.monthOverrides === "object" &&
       Object.entries(transfer.monthOverrides).every(
         ([month, amount]) =>
-          isYearMonth(month) && (amount === null || Number.isFinite(amount))
+          isYearMonth(month) &&
+          (amount === null ||
+            (Number.isSafeInteger(amount) && (amount as number) >= 0))
       ));
   return (
     typeof transfer.id === "string" &&
     typeof transfer.sourceNodeId === "string" &&
     typeof transfer.targetNodeId === "string" &&
-    Number.isFinite(transfer.baseMonthlyAmountCents) &&
+    Number.isSafeInteger(transfer.baseMonthlyAmountCents) &&
+    transfer.baseMonthlyAmountCents! >= 0 &&
     isYearMonth(transfer.startMonth) &&
     (transfer.endMonth === undefined || isYearMonth(transfer.endMonth)) &&
+    (transfer.endMonth === undefined ||
+      monthsBetween(transfer.startMonth!, transfer.endMonth) >= 0) &&
+    (transfer.label === undefined || typeof transfer.label === "string") &&
     overridesAreValid
   );
 }
@@ -402,10 +391,4 @@ function hasLegacyGraphShape(value: unknown) {
     Array.isArray(document.transfers) &&
     typeof document.viewport?.zoom === "number"
   );
-}
-
-function isYearMonth(value: unknown): value is YearMonth {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}$/.test(value)) return false;
-  const month = Number(value.slice(5));
-  return month >= 1 && month <= 12;
 }
