@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
+import styles from "./navbar.module.css";
 import { siteConfig } from "@/config/site";
 import {
   publicNavGroups,
@@ -39,15 +40,25 @@ export function PublicNavbar() {
         </Link>
 
         <div className="hidden flex-1 justify-center lg:flex">
-          <NavigationMenu viewport={false}>
+          <NavigationMenu
+            className="static max-w-none flex-none"
+            delayDuration={120}
+            skipDelayDuration={400}
+            viewportProps={{
+              containerClassName: "w-full",
+              className: `${styles.viewport} mt-0 w-full rounded-none border-x-0 border-border bg-background/95 shadow-lg backdrop-blur md:w-full`,
+            }}
+          >
             <NavigationMenuList>
               {publicNavGroups.map((group) => (
                 <NavigationMenuItem key={group.title}>
                   <NavigationMenuTrigger className="bg-transparent">
                     {group.title}
                   </NavigationMenuTrigger>
-                  <NavigationMenuContent className="fixed! inset-x-0! top-[73px]! z-50! mt-0! w-auto! max-w-none! translate-x-0! overflow-visible! rounded-none! border-x-0! border-y! border-border! bg-background/95 p-0! shadow-lg backdrop-blur data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-4 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-4">
-                    <div className="container mx-auto grid grid-cols-[0.8fr_1fr_1fr_1fr] gap-x-12 gap-y-8 px-4 py-10">
+                  <NavigationMenuContent
+                    className={`${styles.content} p-0 md:w-full`}
+                  >
+                    <div className="container mx-auto grid min-h-64 grid-cols-[0.8fr_1fr_1fr_1fr] gap-x-12 gap-y-8 px-4 py-10">
                       <div className="min-w-0">
                         <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
                           {group.title}
@@ -122,7 +133,7 @@ export function PublicNavbar() {
               <Menu className="size-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent className="w-[min(28rem,100vw)]! max-w-none! overflow-hidden rounded-l-3xl p-0">
+          <SheetContent className="w-[min(28rem,100vw)]! max-w-none! overflow-hidden p-0">
             <SheetHeader className="border-b border-border p-6 text-left">
               <SheetTitle className="text-3xl font-black tracking-tight">
                 {siteConfig.name}
