@@ -1,6 +1,6 @@
 # App Patterns
 
-Patterns are reusable product-facing compositions built from `components/ui`.
+Patterns are reusable compositions built from `components/ui`, intended for use across projects.
 
 ## Use This Folder For
 
@@ -14,7 +14,7 @@ Patterns are reusable product-facing compositions built from `components/ui`.
 
 ## Rules
 
-- Patterns may include app-level copy defaults, but should still accept props for customization.
+- Patterns may include generic copy defaults, but must accept content customization. Project-specific copy belongs to consumers.
 - Prefer patterns when two or more pages need the same structure.
 - Keep patterns independent from route groups and feature-specific data.
 - Do not duplicate layout shell concerns here; use `components/layout` for shell infrastructure.

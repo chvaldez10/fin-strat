@@ -1,6 +1,6 @@
 # Personal Dashboard
 
-The Next.js app for a personal workspace that brings money, notes, and daily signals together. See the [repository overview](../README.md) for what works today and a project map.
+The Next.js personal dashboard for money, notes, and daily signals. Build features with composability and production quality in mind. See the [repository overview](../README.md) for current features, and the [architecture](./docs/engineering/architecture.md) and [quality criteria](./docs/engineering/quality.md) for engineering guidance.
 
 ## Get started
 
@@ -8,7 +8,7 @@ Requires Node.js 24+ and pnpm 11.
 
 ```bash
 corepack enable
-pnpm install --frozen-lockfile
+pnpm install
 pnpm dev
 ```
 

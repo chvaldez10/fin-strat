@@ -2,7 +2,9 @@
 
 **A quieter place to keep life in view.**
 
-A personal workspace for the small things that are easy to lose track of: money, notes, reminders, and whatever deserves a second look. Built as a Next.js app with a focused, adaptable UI.
+A personal workspace for money, notes, reminders, and daily signals. Built with composable components and production quality in mind, so useful pieces can be reused in other projects.
+
+For development guidance, see the [architecture](./personal-dashboard/docs/engineering/architecture.md) and [quality criteria](./personal-dashboard/docs/engineering/quality.md).
 
 `Next.js 16` · `React 19` · `TypeScript 7` · `Tailwind CSS 4` · `pnpm 11`
 
@@ -24,7 +26,7 @@ Requires **Node.js 24+** and **pnpm 11**. From the repository root:
 ```bash
 cd personal-dashboard
 corepack enable
-pnpm install --frozen-lockfile
+pnpm install
 pnpm dev
 ```
 

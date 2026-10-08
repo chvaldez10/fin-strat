@@ -1,6 +1,6 @@
 # Source Structure
 
-This project is a Next.js personal dashboard. Keep the source tree organized by responsibility so the app can scale without mixing routing, reusable UI, and personal tracking features.
+This project is a Next.js personal dashboard. Build composable features and keep shared UI independent of routing, data, and personal tracking behavior so it can be reused where useful. See the [architecture](../docs/engineering/architecture.md) for ownership and reuse guidance.
 
 ## Folder Responsibilities
 
