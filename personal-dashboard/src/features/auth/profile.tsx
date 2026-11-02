@@ -83,7 +83,9 @@ export function Profile() {
             maxLength={80}
           />
         </label>
-        <Button disabled={pending}>Save profile</Button>
+        <Button type="submit" disabled={pending}>
+          Save profile
+        </Button>
       </form>
       <Button
         variant="outline"
@@ -121,7 +123,9 @@ export function Profile() {
                 <option value="recovery">Password recovery</option>
               </select>
             </label>
-            <Button disabled={pending}>Create private link</Button>
+            <Button type="submit" disabled={pending}>
+              Create private link
+            </Button>
           </form>
           {link && (
             <label htmlFor="private-link" className="block break-all text-sm">

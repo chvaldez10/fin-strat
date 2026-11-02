@@ -6,19 +6,21 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type FormEvent,
 } from "react";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
 import { api } from "@convex/_generated/api";
 import { useUser } from "@/features/auth/use-user";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { parseMoneyCents } from "../../amounts";
 import { SaveQueue } from "../../persistence/save-queue";
-import type { MoneyFlowDocument, MoneyFlowAccountWorkspace } from "../../types";
+import type {
+  MoneyFlowDocument,
+  MoneyFlowAccountWorkspace,
+  YearMonth,
+} from "../../types";
 import { MoneyFlowWorkspace } from "./money-flow-workspace";
 import { LocalImport } from "./local-import";
+import { CreateAccountForm } from "./create-account-form";
 
 type Root = NonNullable<FunctionReturnType<typeof api.moneyFlow.getCurrent>>;
 type Account = FunctionReturnType<
@@ -65,11 +67,12 @@ export function PersistedWorkspace() {
   const user = useUser();
   const root = useQuery(api.moneyFlow.getCurrent, user ? {} : "skip");
   if (!user || root === undefined)
-    return <output className="p-6">Loading your private plan…</output>;
+    return <output className="p-6">Loading your private planâ€¦</output>;
   return <LoadedPlan key={root?._id ?? user.id} root={root} userId={user.id} />;
 }
 
 function LoadedPlan({ root, userId }: { root: Root | null; userId: string }) {
+  const createAccount = useMutation(api.moneyFlow.createAccount);
   const {
     results: accounts,
     status,
@@ -113,9 +116,11 @@ function LoadedPlan({ root, userId }: { root: Root | null; userId: string }) {
         )}
       </div>
       {(adding || !root) && (
-        <CreateAccount
-          onCreated={(id) => {
-            if (!root) setSelected(id);
+        <CreateAccountForm
+          planStartMonth={root?.scenario.startMonth as YearMonth | undefined}
+          onSubmit={async (values) => {
+            const result = await createAccount(values);
+            if (!root) setSelected(result.accountId);
             setAdding(false);
           }}
         />
@@ -131,108 +136,9 @@ function LoadedPlan({ root, userId }: { root: Root | null; userId: string }) {
             onBusy={setBusy}
           />
         ) : (
-          <output className="p-6">Loading account…</output>
+          <output className="p-6">Loading accountâ€¦</output>
         ))}
     </div>
-  );
-}
-
-function CreateAccount({ onCreated }: { onCreated: (id: string) => void }) {
-  const create = useMutation(api.moneyFlow.createAccount);
-  const [pending, setPending] = useState(false),
-    [error, setError] = useState("");
-  const [startMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (pending) return;
-    const data = new FormData(event.currentTarget);
-    const balance = parseMoneyCents(String(data.get("balance")), {
-      allowNegative: true,
-    });
-    if (balance === null) {
-      setError("Enter a valid balance with at most two decimal places.");
-      return;
-    }
-    setPending(true);
-    setError("");
-    try {
-      const result = await create({
-        name: String(data.get("name")),
-        institution: String(data.get("institution")),
-        accountType: data.get("type") === "savings" ? "savings" : "chequing",
-        openingBalanceCents: balance,
-        startMonth: String(data.get("month")),
-      });
-      onCreated(result.accountId);
-    } catch {
-      setError(
-        "Account could not be created. Check your details and connection, then retry."
-      );
-    } finally {
-      setPending(false);
-    }
-  }
-  return (
-    <form
-      className="m-4 max-w-lg space-y-4 rounded-xl border p-5"
-      onSubmit={submit}
-      aria-busy={pending}
-    >
-      <h2 className="text-xl font-semibold">Create an account workspace</h2>
-      <p className="text-sm text-muted-foreground">
-        Start with your own opening balance. No sample transactions will be
-        added.
-      </p>
-      <label className="block" htmlFor="persisted-workspace-name">
-        Account name
-        <Input
-          id="persisted-workspace-name"
-          name="name"
-          required
-          maxLength={120}
-        />
-      </label>
-      <label className="block" htmlFor="persisted-workspace-institution">
-        Institution
-        <Input
-          id="persisted-workspace-institution"
-          name="institution"
-          required
-          maxLength={120}
-        />
-      </label>
-      <label className="block">
-        Type
-        <select name="type" className="ml-3 rounded border bg-background p-2">
-          <option value="chequing">Chequing</option>
-          <option value="savings">Savings</option>
-        </select>
-      </label>
-      <label className="block" htmlFor="persisted-workspace-balance">
-        Opening balance (CAD)
-        <Input
-          id="persisted-workspace-balance"
-          name="balance"
-          inputMode="decimal"
-          required
-          defaultValue="0.00"
-        />
-      </label>
-      <label className="block" htmlFor="persisted-workspace-month">
-        Plan start month
-        <Input
-          id="persisted-workspace-month"
-          name="month"
-          type="month"
-          required
-          defaultValue={startMonth}
-        />
-      </label>
-      {error && <p role="alert">{error}</p>}
-      <Button disabled={pending}>
-        {pending ? "Creating…" : "Create workspace"}
-      </Button>
-    </form>
   );
 }
 
@@ -435,7 +341,7 @@ function WorkspaceSession({
           {state.status === "saved"
             ? "All changes saved"
             : state.status === "saving"
-              ? "Saving…"
+              ? "Savingâ€¦"
               : state.status === "failed"
                 ? "Save failed. Your edits remain on this screen."
                 : "This account changed elsewhere. Your edits are preserved."}

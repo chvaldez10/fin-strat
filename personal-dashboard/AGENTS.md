@@ -25,6 +25,7 @@ This project is a personal dashboard. Build its features with composability, reu
 - For code changes, use `pnpm lint` and `pnpm typecheck`. Run relevant existing tests with `pnpm test` when changing behavior they cover, and keep those tests passing. Use `pnpm build` for framework, dependency, or rendering changes and `pnpm format:check` for formatting. For docs-only work, check the changed documents.
 - This is a personal project: do not add new unit tests, test suites, or test infrastructure unless the user explicitly requests them. Keep existing tests; do not delete them to simplify the workflow. Prefer focused browser/manual verification of changed behavior alongside the checks above, and report any failures honestly.
 - Follow `src/components/ui/button.tsx` for primitive composition and variants, `src/components/patterns/` for reusable compositions, and `src/features/money-flow/` for domain code separated from UI and persistence.
+- The shared `Button` defaults to `type="button"`. Form submission actions must explicitly set `type="submit"`; verify clicks trigger the form handler.
 
 ## Data and generated files
 

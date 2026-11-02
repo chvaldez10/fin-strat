@@ -13,6 +13,11 @@ backend configuration, migration, verification, and operational boundaries.
 - `components/workspace/persisted-workspace.tsx`: authenticated queries,
   onboarding, account switching, view saves, debounced viewport persistence,
   and explicit asynchronous save/conflict state.
+- `components/workspace/create-account-form.tsx`: account fields, exact-cents
+  validation, pending/error feedback, and an asynchronous submission callback.
+  The parent supplies the Convex operation. Shared Select and MonthPicker
+  controls contain no finance or persistence behavior. Existing plans supply a
+  fixed start month so adding an account cannot imply a different scenario date.
 - `persistence/save-queue.ts`: one serial writer per workspace, pending snapshot
   coalescing, confirmed revisions, retry, and explicit conflict decisions.
 - `components/workspace/money-flow-workspace.tsx`: uncontrolled React Flow

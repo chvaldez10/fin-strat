@@ -72,7 +72,7 @@ function PreferencesForm({ saved }: { saved: Preferences }) {
         Weekly review is an on-screen preference. No notifications or emails are
         sent.
       </p>
-      <Button disabled={pending}>
+      <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save preferences"}
       </Button>
       <output>{message}</output>
