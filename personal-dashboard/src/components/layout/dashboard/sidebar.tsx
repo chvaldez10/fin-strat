@@ -6,10 +6,10 @@ import { ChevronRight } from "lucide-react";
 import {
   dashboardNavItems,
   dashboardUtilityItems,
-  dashboardUser,
   dashboardWorkspace,
 } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
+import { useUser } from "@/features/auth/use-user";
 import {
   Collapsible,
   CollapsibleContent,
@@ -33,6 +33,11 @@ import {
 } from "@/components/ui/sidebar";
 
 export function DashboardSidebar() {
+  const dashboardUser = useUser() ?? {
+    initials: "…",
+    name: "Loading account…",
+    email: "",
+  };
   const pathname = usePathname();
   const { setOpenMobile } = useSidebar();
   const closeMobileNavigation = () => setOpenMobile(false);

@@ -62,3 +62,25 @@ Do not claim a component works in an arbitrary React project until its dependenc
 ## Changes to an existing API
 
 Find actual consumers before changing props, defaults, exported types, or markup semantics. Preserve existing behavior where practical. When a breaking change is needed, update affected examples and document the migration. Do not add compatibility layers for hypothetical consumers.
+
+## Authenticated persistence
+
+Convex Auth admits invited accounts only. Route protection is implemented by
+`src/proxy.ts`; private queries and mutations independently derive the current
+user and enforce ownership. Layout/navigation consume real-user data through
+feature hooks. Shared primitives remain independent of auth and Convex.
+
+Use the single configured Personal Dashboard backend for localhost and frontend
+hosting. Never point dashboard data at the personal-site deployment or create a
+staging database as part of normal development.
+
+Feature adapters own backend hooks and asynchronous state. Money Flow subscribes
+to metadata, paginated account summaries, and the selected graph. Its editor takes
+domain data and callbacks; its serial writer tracks acknowledged account revisions
+and preserves failed/conflicting drafts. Paired changes commit atomically.
+
+Browser finance/watchlist records are explicit recovery sources, not an offline
+authority or demo fallback. Imports validate untrusted JSON, derive ownership
+server-side, commit idempotently, and retain originals. Theme is a device-level
+presentation preference; dashboard preferences belong to the authenticated user.
+See the [integration record](../plans/money-flow-convex-integration.md).

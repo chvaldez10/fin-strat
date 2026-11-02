@@ -15,7 +15,10 @@ import { cn } from "@/lib/utils";
 import type { MoneyFlowAccountWorkspace } from "../types";
 
 type AccountSwitcherProps = {
-  accounts: MoneyFlowAccountWorkspace[];
+  accounts: Pick<
+    MoneyFlowAccountWorkspace,
+    "id" | "name" | "institution" | "accountType"
+  >[];
   selectedAccountId: string;
   onAccountChange: (accountId: string) => void;
 };

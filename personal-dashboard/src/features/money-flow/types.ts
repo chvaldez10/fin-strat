@@ -86,10 +86,3 @@ export type MoneyFlowTotals = {
 export type MoneyFlowMonthResult = MoneyFlowTotals & {
   transferAmounts: Record<string, number>;
 };
-
-export type MoneyFlowRepository = {
-  userId: UserId;
-  load: () => MoneyFlowDocument;
-  save: (document: MoneyFlowDocument) => void;
-  reset: () => MoneyFlowDocument;
-};

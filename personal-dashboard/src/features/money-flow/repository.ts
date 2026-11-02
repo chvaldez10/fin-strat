@@ -1,25 +1,14 @@
 import type { UserId } from "@/features/auth/types";
-import { createDemoMoneyFlowDocument } from "./mock-data";
 import { decodeStoredMoneyFlowDocument } from "./persistence/document-codec";
-import type { MoneyFlowDocument, MoneyFlowRepository } from "./types";
+import type { MoneyFlowDocument } from "./types";
 
 const STORAGE_PREFIX = "personal-dashboard:money-flow";
 const LEGACY_STORAGE_KEY = STORAGE_PREFIX;
 
-export function createLocalMoneyFlowRepository(
-  userId: UserId
-): MoneyFlowRepository {
-  return {
-    userId,
-    load: () => loadMoneyFlow(userId),
-    save: (document) => saveMoneyFlow(userId, document),
-    reset: () => resetMoneyFlow(userId),
-  };
-}
-
-export function loadMoneyFlow(userId: UserId): MoneyFlowDocument {
+/** Read-only browser backup reader. Convex is the runtime store. */
+export function loadMoneyFlow(userId: UserId): MoneyFlowDocument | null {
   if (typeof window === "undefined") {
-    return createDemoMoneyFlowDocument(userId);
+    return null;
   }
 
   const storedDocument = readStoredDocument(storageKeyForUser(userId));
@@ -32,8 +21,6 @@ export function loadMoneyFlow(userId: UserId): MoneyFlowDocument {
       throw new Error(
         "Saved finance data is invalid or belongs to another user. It has not been overwritten."
       );
-    if (scopedDocument !== storedDocument)
-      saveMoneyFlow(userId, scopedDocument);
     return scopedDocument;
   }
 
@@ -44,34 +31,10 @@ export function loadMoneyFlow(userId: UserId): MoneyFlowDocument {
       throw new Error(
         "Older finance data could not be loaded safely. It has not been overwritten."
       );
-    saveMoneyFlow(userId, legacyDocument);
-    // The scoped copy is durable before the original migration record is removed.
-    try {
-      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
-    } catch {
-      /* Keep the original when storage prevents cleanup. */
-    }
     return legacyDocument;
   }
 
-  return createDemoMoneyFlowDocument(userId);
-}
-
-export function saveMoneyFlow(userId: UserId, document: MoneyFlowDocument) {
-  if (typeof window === "undefined") return;
-  if (document.userId !== userId) {
-    throw new Error("Cannot save a money-flow document for another user.");
-  }
-  window.localStorage.setItem(
-    storageKeyForUser(userId),
-    JSON.stringify(document)
-  );
-}
-
-export function resetMoneyFlow(userId: UserId) {
-  const document = createDemoMoneyFlowDocument(userId);
-  saveMoneyFlow(userId, document);
-  return document;
+  return null;
 }
 
 function storageKeyForUser(userId: UserId) {

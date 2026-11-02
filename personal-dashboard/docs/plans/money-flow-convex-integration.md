@@ -1,266 +1,104 @@
-# Money Flow Convex Integration Plan
+# Money Flow Convex Integration
 
-## Status
+## Implemented
 
-Planned for after the local money-flow behavior and schema stabilize. Convex
-is installed, but this plan does not require implementing it during the mock
-stage.
+The dashboard uses invitation-only Convex Auth and private Convex persistence.
+The original proposal has been reconciled with the actual implementation.
 
-The current architecture is documented in
-[`../technical/money-flow-canvas.md`](../technical/money-flow-canvas.md).
+- Project: `christian-valdez:personal-dashboard`.
+- Shared production deployment: `tremendous-wren-397`.
+- Public endpoint: `https://tremendous-wren-397.convex.cloud`.
+- Local development and frontend hosting must use this same backend. The
+  personal-site project and its database are separate and were not changed.
+- Auth signing keys live in Convex deployment settings. Local public endpoint
+  configuration lives in ignored `.env.local`; `.env.example` is safe to commit.
 
-## Objective
+## Authentication and admission
 
-Replace mock identity and user-scoped localStorage with authenticated Convex
-persistence without coupling React Flow objects to the database or changing
-forecast calculations.
+Convex Auth Password creates real users and sessions. Registration requires a
+valid, unused invitation, consumed atomically with user creation. Member links
+are email-bound and expire after seven days. An initial operator-issued link
+creates the first administrator; subsequent invitations require an administrator.
 
-## Non-Goals
+`src/proxy.ts` protects dashboard/profile routes and handles `/api/auth`.
+Every private backend operation independently resolves the authenticated user
+and enforces ownership. Shared UI has no dependency on authentication or Convex.
 
-- Bank transaction synchronization.
-- Multi-currency calculations.
-- Real-time collaborative canvas editing.
-- Reintroducing undo/redo.
-- Net-worth aggregation across unrelated features.
+Profile supports name updates, sign-out, and administrator-issued invitation or
+recovery links. Recovery links expire after one hour, are single-use, and
+invalidate prior sessions. There is no email delivery service: administrators
+must deliver links privately. A deployment operator can recover a sole admin
+using `scripts/create-recovery-link.mjs`.
 
-## Recommended Storage Shape
+## Storage and fetching
 
-Use one root document plus one aggregate record per account workspace. Do not
-store the entire multi-account graph in one row, and do not normalize every
-node into its own table during the first database iteration.
+`moneyFlowDocuments` holds scenario, view preferences, owner, and revision.
+`moneyFlowAccounts` holds one bounded domain workspace and revision per account.
+Queries subscribe to root metadata, paginated account summaries, and only the
+selected account graph. Owner/document indexes constrain reads. No React Flow
+objects, calculated balances, credentials, or tokens enter financial records.
 
-### `moneyFlowDocuments`
+Limits: 25 accounts per plan, 100 nodes and 300 transfers per workspace, 128 KB
+per workspace, and 800 KB per import. Forecasts support up to 1,200 months.
+Money remains integer cents; existing calculation functions power both views.
 
-```ts
-{
-  ownerSubject: string,
-  domainId: string,
-  version: number,
-  currency: "CAD",
-  scenario: {
-    name: string,
-    startMonth: string,
-    forecastMonthCount: number,
-  },
-  view: {
-    selectedMonth: string,
-    selectedAccountId: string,
-    mode: "canvas" | "table",
-  },
-  createdAt: number,
-  updatedAt: number,
-}
-```
+## Saving and conflicts
 
-Indexes:
+The editor emits completed commands and drag stops. `SaveQueue` serializes
+workspace requests, coalesces newer pending snapshots, and uses acknowledged
+revisions. View preferences save separately. Viewport completion is debounced
+by 300 ms and flushed before account switches.
 
-- `by_ownerSubject`
-- `by_ownerSubject_domainId`
+Failed requests preserve drafts and offer retry. Convex retries disconnected
+requests; pending edits stay visible while waiting for reconnection. A stale
+revision offers explicit server reload or an explicit save of the local version.
+Clean remote changes can refresh the canvas; pending local edits are retained.
+Linked-transfer financial edits and deletion update both account records in one
+transaction, checking both revisions and preserving independent labels.
 
-### `moneyFlowAccounts`
+Creating an account does not change an existing editor's selected account.
+Imports are disabled while the current editor has pending work. Replacing a
+server plan checks root/account revisions and requires explicit confirmation.
 
-```ts
-{
-  ownerSubject: string,
-  documentId: Id<"moneyFlowDocuments">,
-  accountId: string,
-  institution: string,
-  name: string,
-  accountType: "chequing" | "savings",
-  openingBalanceCents: number,
-  centerNodeId: string,
-  nodes: MoneyFlowNode[],
-  transfers: MoneyFlowTransfer[],
-  viewport: { x: number, y: number, zoom: number },
-  revision: number,
-  updatedAt: number,
-}
-```
+## First run and migration
 
-Indexes:
+A new account starts empty and can create its first account workspace. There is
+no automatic demo seed or fallback to browser persistence.
 
-- `by_documentId`
-- `by_documentId_accountId`
-- `by_ownerSubject`
+Money Flow's recovery panel inspects the authenticated user's key,
+`personal-dashboard:money-flow:user_chris_demo`, and the supported unscoped
+legacy key. Users must affirm ownership and explicitly import. Server ownership
+always comes from the session. Decoding uses the existing codec; the browser
+original is neither rewritten nor removed. Invalid records remain downloadable.
+Successful imports are recorded atomically and repeated imports are no-ops.
 
-Nested node and transfer arrays preserve the current semantic save boundary:
-one selected account workspace. They can be normalized later if query or
-collaboration requirements justify the added complexity.
+Legacy single-account records do not receive fabricated extra accounts. Shared
+legacy graphs retain their nodes/transfers in separate account workspace copies;
+direct cross-account transfers receive paired schedules. Original shared-canvas
+positions and viewport are retained. Current version-four workspaces are preserved.
 
-## Identity And Authorization
+Watchlist notes use private paginated records with explicit browser imports.
+Import batches and legacy note IDs prevent duplicates. Preferences persist per
+user. Overview counts and recent notes come from saved data; future trackers
+are described honestly rather than displaying invented user activity.
 
-- Replace `getCurrentMockUser()` with the authenticated Convex identity.
-- Derive `ownerSubject` inside every query and mutation from
-  `ctx.auth.getUserIdentity()`.
-- Never accept an owner ID from client arguments as authorization.
-- Verify that the root document and account workspace belong to the identity
-  before reading or mutating them.
-- Return an authorization error rather than an empty fallback for forbidden
-  records.
+## Verification
 
-## Convex Validators
+Real invited administrator/member accounts verified registration, login,
+ownership isolation, signed-out protection, workspace persistence, stale
+revisions, paired updates/deletion and rollback, recovery-link reuse rejection,
+and import idempotence. Browser verification covered imports and retained
+backups/zero overrides, canvas/table agreement, failed save and retry, conflict
+recovery, account switching, responsive layouts and both themes.
 
-Create reusable validators for:
+Temporary verification users and the internal cleanup utility are removed
+before handoff. Existing unit tests remain; the project workflow does not add
+new tests by default. See the app README for setup and account onboarding.
 
-- `YearMonth` strings.
-- Positions and viewport.
-- Node kind and node records.
-- Scheduled transfers and month overrides.
-- Account workspace payloads.
-- Scenario and view preferences.
+## Operational boundaries
 
-Server validators should mirror domain invariants from
-`persistence/document-codec.ts`, including valid center-node membership and
-transfer endpoint membership. Keep a domain schema version on the root record.
-
-## Server API
-
-### Queries
-
-- `moneyFlow.getCurrent`
-  - Authenticate.
-  - Load the user's root document and account workspaces.
-  - Return one assembled `MoneyFlowDocument`, or `null` if none exists.
-
-### Mutations
-
-- `moneyFlow.createDemo`
-  - Create the initial root and seeded account workspaces only when the user
-    has no document.
-- `moneyFlow.saveWorkspace`
-  - Accept root document ID, account domain ID, workspace fields, and expected
-    revision.
-  - Validate ownership and graph invariants.
-  - Increment revision and update timestamps.
-- `moneyFlow.saveView`
-  - Persist selected month, account, and mode without replacing graph data.
-- `moneyFlow.updateScenario`
-  - Persist scenario changes independently from canvas data.
-- `moneyFlow.saveLinkedTransfer`
-  - Update both account workspaces in one mutation when linked transfer
-    editing is implemented.
-- `moneyFlow.resetDemo`
-  - Replace only the authenticated user's money-flow records after explicit
-    confirmation.
-
-## Client Persistence Boundary
-
-Do not make the synchronous `MoneyFlowRepository` return promises and call it
-done. Introduce a client hook with explicit network state:
-
-```ts
-type MoneyFlowPersistenceState = {
-  document: MoneyFlowDocument | null;
-  status: "loading" | "ready" | "saving" | "error";
-  error?: string;
-  saveWorkspace(account: MoneyFlowAccountWorkspace): Promise<void>;
-  saveView(view: MoneyFlowView): Promise<void>;
-  reset(): Promise<void>;
-};
-```
-
-Provide two implementations during migration:
-
-- `useLocalMoneyFlowPersistence` for the current mock stage.
-- `useConvexMoneyFlowPersistence` for authenticated server data.
-
-The workspace should consume the hook contract and remain unaware of
-localStorage or Convex function names.
-
-## Save Behavior
-
-- Keep React Flow uncontrolled during dragging and panning.
-- Save node movement on drag stop.
-- Save graph commands immediately after their semantic action.
-- Debounce viewport persistence by roughly 250-400 ms after move end if actual
-  usage produces excessive writes.
-- Save view preferences separately from account graph data.
-- Show a small save status in the header for `saving`, `saved`, and `error`.
-- Keep the last server-confirmed snapshot for retry and conflict recovery.
-
-## Concurrency
-
-The first server version should use account-level optimistic concurrency:
-
-- Every account workspace has a numeric `revision`.
-- `saveWorkspace` receives `expectedRevision`.
-- A mismatch returns the current server workspace instead of overwriting it.
-- The client can offer reload or explicit overwrite; do not silently merge
-  graph arrays.
-
-This is enough for multiple tabs without implementing collaborative editing.
-
-## Local Data Migration
-
-On the first authenticated load:
-
-1. Query Convex for the user's money-flow document.
-2. If server data exists, use it and leave local data untouched as a temporary
-   backup.
-3. If server data does not exist, decode the user-scoped local record through
-   `document-codec.ts`.
-4. Ask the user to import the local plan or start with the demo.
-5. Import the root and all account workspaces in one Convex mutation.
-6. Mark the local key with the imported server document ID and timestamp.
-7. Do not repeatedly import on later loads.
-
-Keep local records for one release window before adding an explicit cleanup
-action.
-
-## Rollout Phases
-
-### Phase 1: Persistence Contract
-
-- Add the client persistence-state hook contract.
-- Move current local behavior behind `useLocalMoneyFlowPersistence`.
-- Add loading, saving, and error UI states.
-- Keep behavior otherwise unchanged.
-
-### Phase 2: Convex Schema And API
-
-- Add schema validators and indexes.
-- Implement authenticated query and mutations.
-- Add domain-to-Convex mapping tests.
-
-### Phase 3: Convex Client
-
-- Implement `useConvexMoneyFlowPersistence`.
-- Add optimistic workspace saves and revision handling.
-- Preserve uncontrolled React Flow interaction.
-
-### Phase 4: Import And Cutover
-
-- Add the one-time local import flow.
-- Compare table and canvas totals before and after import.
-- Make Convex the default for authenticated users.
-- Retain local fallback only during the migration window.
-
-### Phase 5: Linked Transfers
-
-- Add atomic two-workspace transfer editing.
-- Validate that outgoing and incoming linked amounts and schedules agree.
-- Surface broken links as recoverable data errors.
-
-## Acceptance Criteria
-
-- Authenticated users can load the same money-flow data on another device.
-- Users cannot query or mutate another user's records.
-- Account switching still loads independent graphs and viewports.
-- Canvas and table forecasts match the local version exactly.
-- Dragging and panning remain smooth and do not cause page-level rerenders.
-- Failed saves remain visible and retryable.
-- Revision conflicts never silently overwrite server data.
-- Existing valid local documents can be imported without losing positions,
-  schedules, overrides, or opening balances.
-- Linked account transfers can eventually be updated atomically.
-- Lint, typecheck, build, domain tests, and persistence integration tests pass.
-
-## Testing Plan
-
-- Unit tests for month arithmetic, forecasts, and document decoding.
-- Validator tests for malformed nodes, endpoints, months, and ownership.
-- Convex tests for authorization, creation, workspace saves, revisions, and
-  linked-transfer atomicity.
-- Import tests for legacy versions and the current version 4 document.
-- Manual mobile and desktop checks for drag, tap, account switching, table
-  scrolling, save status, offline failure, and reload behavior.
+This is account-private persistence, not bank synchronization or collaborative
+graph merging. Concurrent changes require the user's explicit conflict decision.
+Keep the page open while changes are pending or failed; unloading warns about
+unsaved work. Save before navigating away. Browser backups remain device-local
+recovery sources. There are no scheduled reminder emails or push notifications.

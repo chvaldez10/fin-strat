@@ -18,8 +18,6 @@ import {
   type Viewport,
 } from "@xyflow/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { getCurrentMockUser } from "@/features/auth/mock-session";
 import {
   calculateMoneyFlowTotals,
   getTransferAmountForMonth,
@@ -30,9 +28,7 @@ import {
   type MoneyCanvasEdge,
   type MoneyCanvasNode,
 } from "../../canvas-types";
-import { createDemoMoneyFlowDocument } from "../../mock-data";
 import { addMonths, monthsBetween } from "../../months";
-import { createLocalMoneyFlowRepository } from "../../repository";
 import { removeTransfers, updateTransfer } from "../../transfers";
 import type {
   MoneyFlowDocument,
@@ -74,20 +70,23 @@ const defaultEdgeOptions = {
   },
 };
 
-export function MoneyFlowWorkspace() {
-  const [currentUser] = useState(() => getCurrentMockUser());
-  const [initialDocument] = useState(() =>
-    createDemoMoneyFlowDocument(currentUser.id)
-  );
-  const [repository] = useState(() =>
-    createLocalMoneyFlowRepository(currentUser.id)
-  );
+export function MoneyFlowWorkspace({
+  initialDocument,
+  accountSummaries,
+  onChange,
+  onAccountChange,
+}: {
+  initialDocument: MoneyFlowDocument;
+  accountSummaries: Pick<
+    MoneyFlowDocument["accounts"][number],
+    "id" | "name" | "institution" | "accountType"
+  >[];
+  onChange: (document: MoneyFlowDocument) => void;
+  onAccountChange: (accountId: string) => void;
+}) {
   const instanceRef =
     useRef<ReactFlowInstance<MoneyCanvasNode, MoneyCanvasEdge>>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const hasLoadedDocument = useRef(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const flowAreaRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef(initialDocument);
   const [totals, setTotals] = useState(() =>
@@ -112,18 +111,8 @@ export function MoneyFlowWorkspace() {
     useState<NodeContextMenuState | null>(null);
   const closeNodeContextMenu = useCallback(() => setNodeContextMenu(null), []);
   const saveDocument = useCallback(
-    (document: MoneyFlowDocument) => {
-      if (!hasLoadedDocument.current) return;
-      try {
-        repository.save(document);
-        setSaveError(null);
-      } catch {
-        setSaveError(
-          "Changes are still on this screen but couldn't be saved. Keep this page open and retry saving."
-        );
-      }
-    },
-    [repository]
+    (document: MoneyFlowDocument) => onChange(document),
+    [onChange]
   );
   const readDocument = useCallback(() => {
     const instance = instanceRef.current;
@@ -204,21 +193,7 @@ export function MoneyFlowWorkspace() {
   const handleInit = useCallback(
     (instance: ReactFlowInstance<MoneyCanvasNode, MoneyCanvasEdge>) => {
       instanceRef.current = instance;
-      let savedDocument: MoneyFlowDocument;
-      try {
-        savedDocument = hasLoadedDocument.current
-          ? documentRef.current
-          : repository.load();
-        hasLoadedDocument.current = true;
-        setLoadError(null);
-      } catch (error) {
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : "Saved finance data couldn't be loaded. Retry before editing."
-        );
-        return;
-      }
+      const savedDocument = documentRef.current;
       const savedTotals = calculateMoneyFlowTotals(
         savedDocument,
         savedDocument.view.selectedMonth,
@@ -243,7 +218,7 @@ export function MoneyFlowWorkspace() {
       setSelectedAccountId(savedDocument.view.selectedAccountId);
       setViewMode(savedDocument.view.mode);
     },
-    [repository]
+    []
   );
 
   const createNode = useCallback(
@@ -571,13 +546,13 @@ export function MoneyFlowWorkspace() {
   );
 
   const reset = useCallback(() => {
-    if (!window.confirm("Reset this canvas to the demo money flow?")) {
-      return;
-    }
-
-    const document = createDemoMoneyFlowDocument(currentUser.id);
-    restoreDocument(document);
-  }, [currentUser.id, restoreDocument]);
+    if (
+      window.confirm(
+        "Discard changes on this screen and restore its last loaded version?"
+      )
+    )
+      restoreDocument(initialDocument);
+  }, [initialDocument, restoreDocument]);
 
   const changeMonth = useCallback(
     (month: YearMonth) => {
@@ -618,34 +593,12 @@ export function MoneyFlowWorkspace() {
 
   const changeAccount = useCallback(
     (accountId: string) => {
-      const currentDocument = instanceRef.current
-        ? readDocument()
-        : documentRef.current;
-      const document: MoneyFlowDocument = {
-        ...currentDocument,
-        view: {
-          ...currentDocument.view,
-          selectedAccountId: accountId,
-        },
-      };
-      const account = getAccountWorkspace(document, accountId);
-
+      const document = readDocument();
       documentRef.current = document;
       saveDocument(document);
-      setActiveDocument(document);
-      setSelectedAccountId(accountId);
-      setTotals(calculateMoneyFlowTotals(document, selectedMonth, accountId));
-      clearSelection();
-      setNodeContextMenu(null);
-      instanceRef.current?.setNodes(
-        getCanvasNodes(document, account.id, selectedMonth)
-      );
-      instanceRef.current?.setEdges(
-        toCanvasEdges(account.transfers, selectedMonth)
-      );
-      void instanceRef.current?.setViewport(account.viewport);
+      onAccountChange(accountId);
     },
-    [clearSelection, readDocument, saveDocument, selectedMonth]
+    [readDocument, saveDocument, onAccountChange]
   );
 
   const changeViewMode = useCallback(
@@ -683,11 +636,7 @@ export function MoneyFlowWorkspace() {
     (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       if (!(target instanceof HTMLElement)) return;
-      if (
-        event.defaultPrevented ||
-        loadError ||
-        !canvasRef.current?.contains(target)
-      )
+      if (event.defaultPrevented || !canvasRef.current?.contains(target))
         return;
       const isEditing =
         target.closest(
@@ -720,7 +669,7 @@ export function MoneyFlowWorkspace() {
         clearSelection();
       }
     },
-    [clearSelection, deleteSelection, duplicateSelection, loadError, selected]
+    [clearSelection, deleteSelection, duplicateSelection, selected]
   );
 
   useEffect(() => {
@@ -746,34 +695,14 @@ export function MoneyFlowWorkspace() {
       <div
         ref={canvasRef}
         data-testid="money-flow-workspace"
-        className="flex h-[calc(100dvh-4rem)] min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden bg-background"
+        className="flex min-h-80 flex-1 w-full min-w-0 max-w-full flex-col overflow-hidden bg-background"
       >
-        {loadError || saveError ? (
-          <div
-            role="alert"
-            className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-3 py-2 text-sm"
-          >
-            <p className="min-w-0 flex-1 text-destructive">
-              {loadError ?? saveError}
-            </p>
-            <Button
-              size="sm"
-              onClick={() =>
-                loadError
-                  ? instanceRef.current && handleInit(instanceRef.current)
-                  : persistDocument(false)
-              }
-            >
-              {loadError ? "Retry loading" : "Retry save"}
-            </Button>
-          </div>
-        ) : null}
-        <div className="contents" inert={!!loadError}>
+        <div className="contents">
           <MoneySummary
             totals={totals}
             month={selectedMonth}
             viewMode={viewMode}
-            accounts={activeDocument.accounts}
+            accounts={accountSummaries}
             selectedAccountId={selectedAccountId}
             canGoPrevious={canGoPrevious}
             canGoNext={canGoNext}
@@ -933,29 +862,38 @@ export function MoneyFlowWorkspace() {
                 onFitView={() =>
                   void instanceRef.current?.fitView({
                     padding: 0.18,
-                    duration: window.matchMedia(
-                      "(prefers-reduced-motion: reduce)"
-                    ).matches
-                      ? 0
-                      : 220,
+                    duration:
+                      document.documentElement.hasAttribute(
+                        "data-reduce-motion"
+                      ) ||
+                      window.matchMedia("(prefers-reduced-motion: reduce)")
+                        .matches
+                        ? 0
+                        : 220,
                   })
                 }
                 onZoomIn={() =>
                   void instanceRef.current?.zoomIn({
-                    duration: window.matchMedia(
-                      "(prefers-reduced-motion: reduce)"
-                    ).matches
-                      ? 0
-                      : 160,
+                    duration:
+                      document.documentElement.hasAttribute(
+                        "data-reduce-motion"
+                      ) ||
+                      window.matchMedia("(prefers-reduced-motion: reduce)")
+                        .matches
+                        ? 0
+                        : 160,
                   })
                 }
                 onZoomOut={() =>
                   void instanceRef.current?.zoomOut({
-                    duration: window.matchMedia(
-                      "(prefers-reduced-motion: reduce)"
-                    ).matches
-                      ? 0
-                      : 160,
+                    duration:
+                      document.documentElement.hasAttribute(
+                        "data-reduce-motion"
+                      ) ||
+                      window.matchMedia("(prefers-reduced-motion: reduce)")
+                        .matches
+                        ? 0
+                        : 160,
                   })
                 }
                 onReset={reset}

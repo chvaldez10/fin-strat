@@ -5,12 +5,9 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 import styles from "./navbar.module.css";
 import { siteConfig } from "@/config/site";
-import {
-  publicNavGroups,
-  publicNavItems,
-  publicUserNav,
-} from "@/config/navigation";
+import { publicNavGroups, publicNavItems } from "@/config/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useUser } from "@/features/auth/use-user";
 import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
@@ -30,6 +27,12 @@ import {
 } from "@/components/ui/sheet";
 
 export function PublicNavbar() {
+  const user = useUser();
+  const publicUserNav = {
+    href: user ? "/user/profile" : "/login",
+    title: user ? "Profile" : "Sign in",
+    initials: user?.initials ?? "↗",
+  };
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (

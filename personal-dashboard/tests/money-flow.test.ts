@@ -186,7 +186,7 @@ test("corrupt saved data and unavailable storage are surfaced rather than replac
   assert.throws(() => loadMoneyFlow(userId), /Storage blocked/);
 });
 
-test("valid legacy migration is persisted before its original key is removed", () => {
+test("legacy decoding preserves the original backup and never seeds an extra account", () => {
   const document = createDemoMoneyFlowDocument(userId);
   const account = document.accounts[0];
   const legacy = {
@@ -211,11 +211,17 @@ test("valid legacy migration is persisted before its original key is removed", (
     (key, value) => entries.set(key, value)
   );
   const result = loadMoneyFlow(userId);
+  assert.ok(result);
   assert.equal(result.version, 4);
   assert.equal(
     result.accounts[0].openingBalanceCents,
     account.openingBalanceCents
   );
   assert.deepEqual(result.accounts[0].transfers, account.transfers);
-  assert.deepEqual(JSON.parse(entries.get(storageKey)!), result);
+  assert.equal(entries.has(storageKey), false);
+  assert.equal(
+    entries.get("personal-dashboard:money-flow"),
+    JSON.stringify(legacy)
+  );
+  assert.equal(result.accounts.length, 1);
 });

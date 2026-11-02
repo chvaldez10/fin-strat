@@ -3,11 +3,14 @@
 import { useId, useState, type FormEvent } from "react";
 import { Check, NotebookPen, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getCurrentMockUser } from "@/features/auth/mock-session";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
 
-import { MAX_CAPTURE_LENGTH, saveWatchlistCapture } from "../captures";
+import { MAX_CAPTURE_LENGTH } from "../captures";
 
 export function WatchlistQuickCapture() {
+  const create = useMutation(api.watchlist.create);
+  const [pending, setPending] = useState(false);
   const [text, setText] = useState("");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,23 +18,20 @@ export function WatchlistQuickCapture() {
   const statusId = `${inputId}-status`;
   const trimmedText = text.trim();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!trimmedText) return;
-
-    const user = getCurrentMockUser();
+    if (!trimmedText || pending) return;
+    setPending(true);
     try {
-      saveWatchlistCapture(window.localStorage, user.id, {
-        id: crypto.randomUUID(),
-        text: trimmedText,
-        createdAt: new Date().toISOString(),
-      });
+      await create({ text: trimmedText });
     } catch {
       setSaved(false);
       setError(
-        "Couldn't save your note. Your text is still here; check browser storage and try again."
+        "Couldn't save your note. Your text is still here; check your connection and try again."
       );
       return;
+    } finally {
+      setPending(false);
     }
     setError(null);
     setText("");
@@ -65,6 +65,7 @@ export function WatchlistQuickCapture() {
           aria-describedby={statusId}
           data-testid="watchlist-capture-input"
           value={text}
+          disabled={pending}
           maxLength={MAX_CAPTURE_LENGTH}
           onChange={(event) => {
             setText(event.target.value);
@@ -81,7 +82,7 @@ export function WatchlistQuickCapture() {
             {saved ? (
               <>
                 <Check className="size-3.5 text-emerald-600" />
-                <output>Saved locally</output>
+                <output>Saved to your account</output>
               </>
             ) : (
               <span>
@@ -89,7 +90,7 @@ export function WatchlistQuickCapture() {
               </span>
             )}
           </div>
-          <Button type="submit" disabled={!trimmedText}>
+          <Button type="submit" disabled={!trimmedText || pending}>
             <Save />
             Save note
           </Button>

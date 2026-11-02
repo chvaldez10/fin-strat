@@ -28,7 +28,10 @@ type MoneySummaryProps = {
   totals: MoneyFlowTotals;
   month: YearMonth;
   viewMode: MoneyFlowViewMode;
-  accounts: MoneyFlowAccountWorkspace[];
+  accounts: Pick<
+    MoneyFlowAccountWorkspace,
+    "id" | "name" | "institution" | "accountType"
+  >[];
   selectedAccountId: string;
   canGoPrevious: boolean;
   canGoNext: boolean;

@@ -4,6 +4,9 @@ import { siteConfig } from "@/config/site";
 import "../styles/themes.css";
 import "./globals.css";
 import { Providers } from "./providers";
+import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
+import { AuthProvider } from "@/features/auth/provider";
+import { ApplyPreferences } from "@/features/auth/preferences";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,15 +33,20 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          <a
-            href="#main-content"
-            className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-background focus:px-4 focus:py-3 focus:text-foreground focus:ring-2 focus:ring-ring"
-          >
-            Skip to main content
-          </a>
-          {children}
-        </Providers>
+        <ConvexAuthNextjsServerProvider shouldHandleCode={false}>
+          <AuthProvider>
+            <Providers>
+              <ApplyPreferences />
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-background focus:px-4 focus:py-3 focus:text-foreground focus:ring-2 focus:ring-ring"
+              >
+                Skip to main content
+              </a>
+              {children}
+            </Providers>
+          </AuthProvider>
+        </ConvexAuthNextjsServerProvider>
       </body>
     </html>
   );

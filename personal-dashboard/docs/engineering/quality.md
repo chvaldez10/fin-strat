@@ -22,11 +22,12 @@ Identify the intended consumers, public props, defaults, states, and accessibili
 ## Choose checks by the change
 
 - Documentation changes: verify accuracy, links, and formatting. Do not rebuild the app for prose alone.
-- Component API or interaction changes: run lint and typecheck; exercise the affected dashboard feature and important state/keyboard transitions. Add focused behavior or type tests when they protect a meaningful contract. Use existing test tooling; introduce a harness only when warranted by the task.
+- Component API or interaction changes: run lint and typecheck; exercise the affected dashboard feature and important state/keyboard transitions in the browser. Run relevant existing tests and keep them passing.
+- For this personal project, do not add new unit tests, suites, or test infrastructure unless explicitly requested. Preserve existing tests. Focus verification on the actual changed behavior and proportionate checks; do not expand a task into a testing project.
 - Styling changes: inspect affected states at representative viewport sizes and themes. Screenshots can support visual checks but do not prove interaction or accessibility.
 - Framework integration, client boundaries, imports, dependencies, or exports: also verify the relevant build and consumer environment. Run dev mode when the risk concerns development behavior.
 
-Available commands from the app directory are `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, and `pnpm build`. Use the pinned pnpm version and frozen lockfile for installation checks. Stop repeating checks once they cover the final changes and pass.
+Available commands from the app directory are `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`, and `pnpm build`. Use the pinned pnpm version and frozen lockfile for installation checks. Stop repeating checks once they cover the final changes and pass.
 
 ## Ready to share
 

@@ -103,7 +103,7 @@ export function ToolDock({
       <ToolButton label="Zoom out" onClick={onZoomOut}>
         <ZoomOut />
       </ToolButton>
-      <ToolButton label="Reset demo" onClick={onReset}>
+      <ToolButton label="Restore loaded version" onClick={onReset}>
         <RotateCcw />
       </ToolButton>
     </section>

@@ -1,4 +1,4 @@
-import { WatchlistItems } from "@/features/watchlist/components/watchlist-items";
+import { SavedCaptures } from "@/features/watchlist/components/saved-captures";
 import { WatchlistQuickCapture } from "@/features/watchlist/components/watchlist-quick-capture";
 
 export default function WatchlistPage() {
@@ -13,7 +13,7 @@ export default function WatchlistPage() {
         </p>
       </div>
       <WatchlistQuickCapture />
-      <WatchlistItems />
+      <SavedCaptures />
     </div>
   );
 }

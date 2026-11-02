@@ -12,7 +12,6 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react";
-import { currentMockUser } from "@/features/auth/mock-session";
 
 export type NavItem = {
   title: string;
@@ -45,13 +44,6 @@ export const publicNavItems: NavItem[] = [
     href: "/dashboard",
   },
 ];
-
-export const publicUserNav = {
-  title: "Profile",
-  href: "/user/profile",
-  initials: currentMockUser.initials,
-  name: currentMockUser.name,
-} as const;
 
 export const publicNavGroups: PublicNavGroup[] = [
   {
@@ -120,7 +112,7 @@ export const publicNavGroups: PublicNavGroup[] = [
       },
       {
         title: "Quick Capture",
-        href: "/login",
+        href: "/dashboard/watchlist",
         description: "Drop in a thought before it disappears.",
         icon: Sparkle,
       },
@@ -191,5 +183,3 @@ export const dashboardUtilityItems: DashboardNavItem[] = [
     icon: Home,
   },
 ];
-
-export const dashboardUser = currentMockUser;

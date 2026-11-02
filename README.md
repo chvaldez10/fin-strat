@@ -10,14 +10,16 @@ For development guidance, see the [architecture](./personal-dashboard/docs/engin
 
 ## What you can do
 
-| Space                   | What is there today                                                                                                                                         |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Money flow**          | Arrange income, expenses, and transfers on a canvas; switch to a monthly cash-flow table; inspect projected balances. Changes are saved in browser storage. |
-| **Watchlist**           | Capture short notes and revisit a set of sample items. Quick-capture notes are saved in browser storage.                                                    |
-| **Overview**            | Scan a sample snapshot of priorities, upcoming dates, habits, and money.                                                                                    |
-| **Trackers & settings** | Explore the UI for future personal trackers and preferences. These screens currently use sample content or in-memory state.                                 |
+| Space                  | What is there today                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Money Flow**         | Private account workspaces, canvas/table planning, recurring schedules, atomic linked transfers, and revision-aware Convex saves. |
+| **Watchlist**          | Private saved notes, quick capture, and explicit import of browser backups.                                                       |
+| **Overview**           | Counts and recent notes from your saved data.                                                                                     |
+| **Settings & profile** | Persisted preferences, real user details, sign-out, and administrator-managed invitations.                                        |
 
-The app uses a mock user. Browser storage is local to the current device; account sync and persistent settings are not implemented yet.
+Accounts are invitation-only. Data is private to each authenticated user. Legacy
+browser records stay intact as explicit migration backups. Additional trackers
+are planned.
 
 ## Run locally
 
@@ -27,21 +29,22 @@ Requires **Node.js 24+** and **pnpm 11**. From the repository root:
 cd personal-dashboard
 corepack enable
 pnpm install
-pnpm dev
+pnpm dev --hostname 127.0.0.1
 ```
 
-Open [localhost:3000](http://localhost:3000). Go straight to `/dashboard` for the overview or `/dashboard/watchlist/money-flow` for the interactive canvas.
+Configure the backend environment and obtain an invitation using the
+[app setup guide](./personal-dashboard/README.md). Open [localhost:3000](http://localhost:3000), sign in, then go to `/dashboard` for the overview or `/dashboard/watchlist/money-flow` for the interactive canvas.
 
 ## Project map
 
 ```text
 personal-dashboard/
 ├── src/app/                 Routes and layouts
-├── src/features/money-flow/ Canvas, calculations, and local persistence
+├── src/features/money-flow/ Canvas, calculations, and Convex persistence
 ├── src/features/watchlist/  Watchlist and quick capture
 ├── src/components/          Shared UI and layout
 ├── src/config/              Site and navigation settings
-└── docs/                    Feature architecture and future plans
+└── docs/                    Architecture and integration records
 ```
 
 The [app README](./personal-dashboard/README.md) has the development commands. For the money-flow implementation, see the [architecture notes](./personal-dashboard/docs/technical/money-flow-canvas.md).

@@ -1,5 +1,4 @@
 import type { UserId } from "@/features/auth/types";
-import { createCibcWorkspace } from "../mock-data";
 import { currentYearMonth, isYearMonth, monthsBetween } from "../months";
 import {
   MONEY_FLOW_DOCUMENT_VERSION,
@@ -97,55 +96,74 @@ function migratePartialV4Document(
   legacy: PartialSharedV4Document,
   userId: UserId
 ): MoneyFlowDocument {
-  const primaryAccount =
-    legacy.accounts.find((account) => account.id === "account-scotiabank") ??
-    legacy.accounts[0];
-  const primaryNode =
-    legacy.nodes.find((node) => node.id === primaryAccount?.nodeId) ??
-    legacy.nodes.find((node) => node.kind === "chequing");
-  const centerNode = primaryNode ?? createFallbackCenterNode();
-  const otherAccountNodeIds = new Set(
-    legacy.accounts
-      .filter((account) => account.id !== primaryAccount?.id)
-      .map((account) => account.nodeId)
+  const accounts: MoneyFlowAccountWorkspace[] = legacy.accounts.map(
+    (account) => {
+      const center = legacy.nodes.find((node) => node.id === account.nodeId);
+      if (!center)
+        throw new Error("A legacy account is missing its center node.");
+      return {
+        id: account.id,
+        institution: account.institution,
+        name: account.name,
+        accountType: "chequing",
+        openingBalanceCents: account.openingBalanceCents,
+        centerNodeId: center.id,
+        viewport: { ...legacy.viewport },
+        // Older versions shared one graph. Retain that graph in each workspace
+        // instead of dropping other accounts, disconnected notes, or transfers.
+        nodes: legacy.nodes.map((node) => ({
+          ...node,
+          kind:
+            node.id === center.id
+              ? "chequing"
+              : node.kind === "chequing"
+                ? "account"
+                : node.kind,
+        })),
+        transfers: legacy.transfers.map((transfer) => {
+          const source = legacy.accounts.find(
+            (item) => item.nodeId === transfer.sourceNodeId
+          );
+          const target = legacy.accounts.find(
+            (item) => item.nodeId === transfer.targetNodeId
+          );
+          if (
+            source &&
+            target &&
+            source.id !== target.id &&
+            (source.id === account.id || target.id === account.id)
+          ) {
+            return {
+              ...transfer,
+              linkedTransferId: `legacy:${transfer.id}`,
+              counterpartyAccountId:
+                source.id === account.id ? target.id : source.id,
+            };
+          }
+          const {
+            linkedTransferId: _linked,
+            counterpartyAccountId: _counterparty,
+            ...independent
+          } = transfer;
+          return independent;
+        }),
+      };
+    }
   );
-  const nodes = legacy.nodes
-    .filter((node) => !otherAccountNodeIds.has(node.id))
-    .map((node) =>
-      node.id === centerNode.id ? { ...node, label: "Chequing" } : node
-    );
-  if (!nodes.some((node) => node.id === centerNode.id)) {
-    nodes.push(centerNode);
-  }
-
-  const scotiabank: MoneyFlowAccountWorkspace = {
-    id: primaryAccount?.id ?? "account-scotiabank",
-    institution: primaryAccount?.institution ?? "Scotiabank",
-    name: primaryAccount?.name ?? "Scotiabank Chequing",
-    accountType: "chequing",
-    openingBalanceCents: primaryAccount?.openingBalanceCents ?? 0,
-    centerNodeId: centerNode.id,
-    nodes,
-    transfers: legacy.transfers.filter(
-      (transfer) =>
-        !otherAccountNodeIds.has(transfer.sourceNodeId) &&
-        !otherAccountNodeIds.has(transfer.targetNodeId)
-    ),
-    viewport: legacy.viewport,
-  };
-  const cibc = createCibcWorkspace(legacy.scenario.startMonth);
-
   return {
     id: legacy.id,
     userId,
     version: MONEY_FLOW_DOCUMENT_VERSION,
     currency: legacy.currency,
     scenario: legacy.scenario,
-    accounts: [scotiabank, cibc],
+    accounts,
     view: {
       ...legacy.view,
-      selectedAccountId:
-        legacy.view.selectedAccountId === cibc.id ? cibc.id : scotiabank.id,
+      selectedAccountId: accounts.some(
+        (account) => account.id === legacy.view.selectedAccountId
+      )
+        ? legacy.view.selectedAccountId
+        : accounts[0].id,
     },
   };
 }
@@ -183,7 +201,7 @@ function migrateV3Document(
       startMonth: legacy.scenario.startMonth,
       forecastMonthCount: legacy.scenario.forecastMonthCount,
     },
-    accounts: [scotiabank, createCibcWorkspace(legacy.scenario.startMonth)],
+    accounts: [scotiabank],
     view: { ...legacy.view, selectedAccountId: scotiabank.id },
   };
 }

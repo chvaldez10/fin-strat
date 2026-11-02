@@ -22,13 +22,14 @@ This project is a personal dashboard. Build its features with composability, reu
 ## Commands and reference implementations
 
 - Run commands from this directory with Node.js 24+ and the pinned pnpm 11 version. Install locally with `pnpm install`; develop with `pnpm dev`. Use `pnpm install --frozen-lockfile` for CI, deployment, or an explicit lockfile consistency check.
-- For code changes, use `pnpm lint` and `pnpm typecheck`. Run `pnpm test` for finance parsing, persistence/migration, or watchlist storage changes. Use `pnpm build` for framework, dependency, or rendering changes and `pnpm format:check` for formatting. For docs-only work, check the changed documents.
+- For code changes, use `pnpm lint` and `pnpm typecheck`. Run relevant existing tests with `pnpm test` when changing behavior they cover, and keep those tests passing. Use `pnpm build` for framework, dependency, or rendering changes and `pnpm format:check` for formatting. For docs-only work, check the changed documents.
+- This is a personal project: do not add new unit tests, test suites, or test infrastructure unless the user explicitly requests them. Keep existing tests; do not delete them to simplify the workflow. Prefer focused browser/manual verification of changed behavior alongside the checks above, and report any failures honestly.
 - Follow `src/components/ui/button.tsx` for primitive composition and variants, `src/components/patterns/` for reusable compositions, and `src/features/money-flow/` for domain code separated from UI and persistence.
 
 ## Data and generated files
 
 - Preserve stored finance data and document migration behavior when changing its schema. Treat data loaded from storage or external services as untrusted input.
-- Authentication currently uses a mock user. If adding protected backend operations, enforce authentication and ownership on the server; a client-supplied user ID is not authorization.
+- Authentication uses invitation-only Convex Auth. Enforce authentication and ownership on the server for every private operation; a client-supplied user ID is not authorization. Keep dashboard data separate from the personal-site backend.
 - Generate `pnpm-lock.yaml` through pnpm. Do not hand-edit `.next/`, `next-env.d.ts`, or `*.tsbuildinfo`. Preserve the Next.js-managed block below.
 
 ## Working efficiently
@@ -48,3 +49,17 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+<!-- convex-ai-start -->
+
+This project uses [Convex](https://convex.dev) as its backend.
+
+When working on Convex code, **always read
+`convex/_generated/ai/guidelines.md` first** for important guidelines on
+how to correctly use Convex APIs and patterns. The file contains rules that
+override what you may have learned about Convex from training data.
+
+Convex agent skills for common tasks can be installed by running
+`npx convex ai-files install`.
+
+<!-- convex-ai-end -->

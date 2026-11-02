@@ -1,277 +1,71 @@
 # Money Flow Architecture
 
-## Scope
+The route `/dashboard/watchlist/money-flow` composes the authenticated feature.
+The [integration record](../plans/money-flow-convex-integration.md) documents
+backend configuration, migration, verification, and operational boundaries.
 
-This document describes the implemented architecture of the money-flow feature
-at `/dashboard/watchlist/money-flow`. It is the reference for current behavior
-and code ownership.
+## Ownership
 
-Future Convex work is intentionally kept in
-[`../plans/money-flow-convex-integration.md`](../plans/money-flow-convex-integration.md).
+- `types.ts`, `months.ts`, `amounts.ts`, `calculations.ts`, `transfers.ts`, and
+  `validation.ts`: framework-independent domain contracts and calculations.
+- `canvas-types.ts`: domain/React Flow conversion. Selection, calculated node
+  display data, and React Flow internals are never persisted.
+- `components/workspace/persisted-workspace.tsx`: authenticated queries,
+  onboarding, account switching, view saves, debounced viewport persistence,
+  and explicit asynchronous save/conflict state.
+- `persistence/save-queue.ts`: one serial writer per workspace, pending snapshot
+  coalescing, confirmed revisions, retry, and explicit conflict decisions.
+- `components/workspace/money-flow-workspace.tsx`: uncontrolled React Flow
+  editor, semantic commands, inspector, month navigation and canvas/table view.
+  Receives an initial document containing only the selected graph, separate
+  account summaries, and callbacks; it has no identity or storage dependency.
+- `components/workspace/local-import.tsx`: explicit browser backup discovery,
+  validation, download, ownership confirmation and server import.
+- `persistence/document-codec.ts`: untrusted JSON validation and legacy decoding.
+- `repository.ts`: read-only legacy backup access; not a runtime persistence store.
+- `mock-data.ts`: test fixtures; never an automatic first-run fallback.
+- `convex/moneyFlow.ts`: authenticated root/account queries, bounded writes,
+  revision checks, atomic paired transfers and idempotent imports.
+- `convex/validation.ts`: backend payload bounds and domain validation.
 
-## Design Goals
+## Data model
 
-- Keep financial records independent from React Flow.
-- Render one bank account workspace at a time.
-- Derive canvas and table totals from the same calculation functions.
-- Keep pointer movement inside React Flow so the dashboard does not rerender
-  during dragging or panning.
-- Persist only at semantic action boundaries.
-- Keep mock fixtures and local persistence replaceable.
+A root holds scenario, selected view, owner and revision. Each account record
+holds its own opening balance, nodes, schedules and viewport plus its revision.
+The client fetches root metadata, paginated summaries, and only the selected
+workspace. Account summaries never return complete graphs.
 
-## Route And Feature Boundary
+Amounts are integer cents and dates are valid `YYYY-MM`. Month overrides retain
+intentional zero values. Carry-forward balances, canvas totals and table rows
+come from the same pure calculation functions. Backend writes check ownership
+using the authenticated user rather than imported or client-provided ownership.
 
-```text
-src/app/(dashboard)/dashboard/watchlist/money-flow/page.tsx
-  -> MoneyFlowWorkspace
-     -> domain calculations and validation
-     -> React Flow canvas adapter
-     -> local repository
-```
+## Interaction and saving
 
-The route owns metadata and full-bleed page layout only. Feature code lives in
-`src/features/money-flow`.
+Pointer movement stays inside React Flow; drag stop and completed commands
+emit domain snapshots. Only visible nodes render. The writer serializes saves
+and coalesces newer snapshots while a request is in flight. It advances only
+from acknowledged revisions and preserves pending data through failures.
+Viewport movement completion waits 300 ms; account switching flushes it and the
+active writer before loading another graph. Month/mode preferences save separately.
 
-## File Ownership
+A clean remote revision refreshes the editor. A conflicting save keeps the local
+canvas and offers a deliberate server reload or local-version save. Paired
+transfer amount/schedule edits and deletion check both accounts and commit
+atomically; the counterpart's graph, viewport and labels remain independent.
 
-### Domain
+The mobile toolbar, inspector sheet, internal table scrolling and semantic theme
+tokens remain part of the feature's supported presentation. Shared UI primitives
+remain independent of finance, authentication, fetching and storage.
 
-- `types.ts`: persisted domain contracts and repository contract.
-- `months.ts`: `YearMonth` arithmetic and formatting.
-- `calculations.ts`: pure monthly forecast and currency formatting.
-- `validation.ts`: graph connection rules.
+## Recovery
 
-### Persistence
+New users create their own first account; errors do not seed samples. Browser
+imports require explicit consent, preserve original keys, validate through the
+codec and commit idempotently. Replacing a server plan additionally requires
+explicit confirmation and matching revisions. Legacy shared graphs retain all
+nodes/edges in account workspace copies instead of dropping data.
 
-- `mock-data.ts`: deterministic account workspace fixtures.
-- `repository.ts`: user-scoped localStorage adapter only.
-- `persistence/document-codec.ts`: runtime decoding, structural validation,
-  legacy migrations, and validation of migrated records. Valid current records
-  are loaded unchanged, including intentionally zeroed transfers.
-
-The codec accepts `unknown` and is the only path from untrusted stored JSON to
-`MoneyFlowDocument`.
-
-### Canvas Adapter
-
-- `canvas-types.ts`: conversion between domain records and React Flow nodes and
-  edges.
-- React Flow-only fields such as `selected`, `hidden`, and rendered balance
-  data never enter the persisted schema.
-
-### Workspace And Presentation
-
-- `components/workspace/money-flow-workspace.tsx`: editor orchestration,
-  commands, persistence boundaries, and React Flow instance ownership.
-- `components/workspace/workspace-document.ts`: selected-account lookup and
-  canvas projection helpers.
-- `components/workspace/use-money-flow-history.ts`: dormant, isolated history
-  implementation retained for a possible future undo/redo feature. It is not
-  connected to the current editor.
-- Other files under `components/`: focused visual controls for the summary,
-  account switcher, table, nodes, edges, inspector, context menu, and tool dock.
-
-## Persisted Domain Model
-
-```ts
-type MoneyFlowDocument = {
-  id: string;
-  userId: UserId;
-  version: 4;
-  currency: "CAD";
-  scenario: {
-    name: string;
-    startMonth: YearMonth;
-    forecastMonthCount: number;
-  };
-  accounts: MoneyFlowAccountWorkspace[];
-  view: {
-    selectedMonth: YearMonth;
-    selectedAccountId: string;
-    mode: "canvas" | "table";
-  };
-};
-
-type MoneyFlowAccountWorkspace = {
-  id: string;
-  institution: string;
-  name: string;
-  accountType: "chequing" | "savings";
-  openingBalanceCents: number;
-  centerNodeId: string;
-  nodes: MoneyFlowNode[];
-  transfers: MoneyFlowTransfer[];
-  viewport: { x: number; y: number; zoom: number };
-};
-```
-
-An account is the workspace boundary. Scotiabank and CIBC do not coexist as
-bank nodes in one graph. Each account owns its graph, opening balance, and
-viewport.
-
-Money uses integer cents. Dates use a zero-padded `YYYY-MM` value. Stored JSON
-is runtime-validated before use, including graph endpoints and center-node
-membership.
-
-## Transfer Model
-
-Transfers own recurring amounts and schedules:
-
-```ts
-type MoneyFlowTransfer = {
-  id: string;
-  linkedTransferId?: string;
-  counterpartyAccountId?: string;
-  sourceNodeId: string;
-  targetNodeId: string;
-  baseMonthlyAmountCents: number;
-  startMonth: YearMonth;
-  endMonth?: YearMonth;
-  monthOverrides?: Partial<Record<YearMonth, number | null>>;
-  label?: string;
-};
-```
-
-An account-to-account movement is represented by one outgoing transfer in the
-source workspace and one incoming transfer in the destination workspace.
-`linkedTransferId` preserves their relationship. Editing both halves
-atomically is not implemented in the mock stage.
-
-## Forecast Invariant
-
-For each account and forecast month:
-
-```text
-ending balance =
-  opening balance
-  + direct transfers into centerNodeId
-  - direct transfers out of centerNodeId
-
-next opening balance = current ending balance
-```
-
-The canvas summary and cash-flow table both call
-`calculateMoneyFlowForecast`. UI components must not implement separate money
-math.
-
-## State Ownership
-
-The feature has three state categories:
-
-1. **Domain document**
-   - `documentRef` is the current mutable snapshot used by commands.
-   - `activeDocument` triggers React updates for the table, header, and account
-     metadata after a semantic change.
-
-2. **Canvas interaction state**
-   - React Flow's internal store owns live node positions, edges, selection,
-     and viewport movement.
-   - The dashboard does not mirror live pointer state into React state.
-
-3. **Presentation state**
-   - Selected inspector item, context menu, month, account, and view mode are
-     small React states.
-
-This split is deliberate. Moving a node must not rerender the page shell,
-summary, or every unaffected node.
-
-## Command And Save Flow
-
-```text
-user action
-  -> mutate React Flow instance
-  -> read selected workspace from the instance
-  -> convert through canvas-types.ts
-  -> save MoneyFlowDocument through repository.ts
-  -> recalculate selected account totals
-```
-
-Persistence occurs after:
-
-- Node create, duplicate, delete, or drag stop.
-- Transfer create, edit, or delete.
-- Opening-balance or node edit.
-- Viewport move end.
-- Account, month, or Canvas/Table change.
-- Demo reset.
-
-Month navigation is projection-only. It never serializes transfer amounts out
-of the canvas. This prevents display navigation from mutating financial data.
-
-## Canvas Interaction Contract
-
-- Left tap/click opens the selected node or edge inspector.
-- Left drag moves a node without opening the mobile inspector.
-- Empty-canvas left drag does not create a lasso.
-- Right drag pans.
-- Space plus drag is an alternate pan gesture.
-- Right click opens Duplicate/Delete for a node.
-- The center chequing node cannot be duplicated or deleted.
-- Connections use orthogonal step routing.
-
-## Local Persistence
-
-The current storage key is:
-
-```text
-personal-dashboard:money-flow:{userId}
-```
-
-`repository.ts` rejects cross-user saves. `document-codec.ts` supports legacy
-versions 1-3 and the temporary shared-graph version 4 shape. Missing records
-start with demo data. Invalid or unreadable saved records are preserved, with
-editing blocked until loading succeeds. Current records are never rewritten
-just to restore demo amounts.
-
-Amounts must be safe integer cents, and input accepts at most two decimal
-places without truncation. Stored forecast lengths are bounded to 1-1200 months
-to prevent untrusted data from creating unbounded forecast arrays. Migrations
-are validated and persisted before removing their original storage key.
-
-Failed saves show a retry action while retaining the current in-memory document,
-including when switching between canvas and table. Leaving or reloading the page
-before a successful save can still lose those unsaved edits.
-
-The current `MoneyFlowRepository` is synchronous because localStorage is
-synchronous. It is not intended to disguise network I/O. Convex integration
-must introduce explicit loading, saving, error, and conflict states rather
-than pretending the existing methods are asynchronous drop-in replacements.
-
-## Current Limitations
-
-- One mock user and local browser persistence.
-- No server authentication or authorization.
-- No collaboration or conflict resolution.
-- Linked transfer edits and deletions update both account records in one local
-  document save; there are no server transactions or multi-device guarantees.
-- No import from bank transactions.
-- Undo/redo is not exposed; dormant implementation logic is isolated in the
-  workspace folder.
-- Domain and persistence regressions run with `pnpm test`. Automated browser
-  interaction tests are not yet part of the project test command.
-
-## Extension Rules
-
-- Keep React Flow types out of `types.ts` and database records.
-- Keep calculations pure and shared by every presentation.
-- Decode untrusted persistence data before it reaches the workspace.
-- Persist integer cents, never formatted currency strings.
-- Add schema versions and migrations for persisted shape changes.
-- Save one account workspace at a time when server persistence is introduced.
-- Do not save on every pointer-move event.
-
-## Verification
-
-Current automated checks:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
-
-Manual verification should cover account switching, month carry-forward,
-opening-balance edits, node and transfer commands, mobile drag versus tap,
-contained table scrolling, viewport restoration, reload persistence, and demo
-reset.
+Keep pending/failed drafts open and retry before leaving. Browser unload warns
+when work is outstanding. Save before navigating to another route. See the
+integration record for the completed acceptance checks and remaining boundaries.
