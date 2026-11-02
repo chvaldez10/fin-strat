@@ -23,3 +23,14 @@ Patterns forward native props, refs, and `data-testid` to their root element.
 `SearchInput` forwards them to the input instead. Consumers provide its accessible
 name with a label or `aria-label`. Loading states announce their label and hide
 decorative skeletons from assistive technology.
+
+`SaveStatus` is a presentational badge with `saved`, `saving`, `failed`, and
+`conflict` states. Only `saving` spins; reduced-motion preferences stop rotation.
+The consumer supplies actual persistence state and keeps recovery actions outside
+the badge. It has no authentication, storage, or network dependencies. Children
+can customize its label; native output props, refs, className and test IDs are
+forwarded. Status changes are announced politely without moving keyboard focus.
+
+```tsx
+<SaveStatus status={saveState} />
+```

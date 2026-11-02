@@ -1,6 +1,8 @@
 # Money Flow Architecture
 
-The route `/dashboard/watchlist/money-flow` composes the authenticated feature.
+The route `/dashboard/watchlist/money-flow` lists the user's bank accounts.
+`/dashboard/watchlist/money-flow/[accountId]` opens an existing account workspace.
+The list reads account summaries; only an account route subscribes to its graph.
 The [integration record](../plans/money-flow-convex-integration.md) documents
 backend configuration, migration, verification, and operational boundaries.
 
@@ -11,8 +13,16 @@ backend configuration, migration, verification, and operational boundaries.
 - `canvas-types.ts`: domain/React Flow conversion. Selection, calculated node
   display data, and React Flow internals are never persisted.
 - `components/workspace/persisted-workspace.tsx`: authenticated queries,
-  onboarding, account switching, view saves, debounced viewport persistence,
+  account-list orchestration, account switching, view saves, debounced viewport persistence,
   and explicit asynchronous save/conflict state.
+- `components/workspace/bank-account-list.tsx`: bank account cards, opening
+  balances, workspace links, empty state and an explicit account-creation slot.
+  This presentation component has no Convex or authentication dependency.
+- `components/workspace/bank-account-list-loading.tsx`: list-route skeleton,
+  distinct from the canvas workspace's loading layout.
+- `components/workspace/money-flow-loading.tsx`: the same viewport-sized
+  skeleton for route loading, session restoration, and selected-account queries.
+  Placeholders preserve the workspace layout and expose one loading announcement.
 - `components/workspace/create-account-form.tsx`: account fields, exact-cents
   validation, pending/error feedback, and an asynchronous submission callback.
   The parent supplies the Convex operation. Shared Select and MonthPicker
@@ -24,8 +34,6 @@ backend configuration, migration, verification, and operational boundaries.
   editor, semantic commands, inspector, month navigation and canvas/table view.
   Receives an initial document containing only the selected graph, separate
   account summaries, and callbacks; it has no identity or storage dependency.
-- `components/workspace/local-import.tsx`: explicit browser backup discovery,
-  validation, download, ownership confirmation and server import.
 - `persistence/document-codec.ts`: untrusted JSON validation and legacy decoding.
 - `repository.ts`: read-only legacy backup access; not a runtime persistence store.
 - `mock-data.ts`: test fixtures; never an automatic first-run fallback.
@@ -53,6 +61,8 @@ and coalesces newer snapshots while a request is in flight. It advances only
 from acknowledged revisions and preserves pending data through failures.
 Viewport movement completion waits 300 ms; account switching flushes it and the
 active writer before loading another graph. Month/mode preferences save separately.
+The workspace's back-to-list action also flushes pending graph, viewport and view
+saves; failures or conflicts keep the editor open for recovery.
 
 A clean remote revision refreshes the editor. A conflicting save keeps the local
 canvas and offers a deliberate server reload or local-version save. Paired
@@ -65,11 +75,12 @@ remain independent of finance, authentication, fetching and storage.
 
 ## Recovery
 
-New users create their own first account; errors do not seed samples. Browser
-imports require explicit consent, preserve original keys, validate through the
-codec and commit idempotently. Replacing a server plan additionally requires
-explicit confirmation and matching revisions. Legacy shared graphs retain all
-nodes/edges in account workspace copies instead of dropping data.
+New users create their own first account; errors do not seed samples. The workspace
+has no browser-data recovery controls. Original browser records remain untouched;
+the authenticated import API and codec remain available for deliberate recovery.
+Imports commit idempotently, and replacing a server plan requires explicit intent
+and matching revisions. Legacy shared graphs retain all nodes/edges in account
+workspace copies instead of dropping data.
 
 Keep pending/failed drafts open and retry before leaving. Browser unload warns
 when work is outstanding. Save before navigating to another route. See the

@@ -76,7 +76,11 @@ export function DashboardPageHeader() {
 
               return {
                 href: registeredLabel ? candidateHref : undefined,
-                label: registeredLabel ?? formatSegment(segment),
+                label: /^\/dashboard\/watchlist\/money-flow\/[^/]+$/.test(
+                  candidateHref
+                )
+                  ? "Workspace"
+                  : (registeredLabel ?? formatSegment(segment)),
                 isLast: index === dashboardSegments.length - 1,
               };
             });
@@ -86,7 +90,11 @@ export function DashboardPageHeader() {
       <SidebarTrigger />
       <Breadcrumb className="min-w-0 flex-1">
         <BreadcrumbList className="flex-nowrap">
-          <BreadcrumbItem>
+          <BreadcrumbItem
+            className={
+              breadcrumbs.length > 1 ? "hidden sm:inline-flex" : undefined
+            }
+          >
             {breadcrumbs.length === 0 ? (
               <BreadcrumbPage>Overview</BreadcrumbPage>
             ) : (
@@ -95,10 +103,23 @@ export function DashboardPageHeader() {
               </BreadcrumbLink>
             )}
           </BreadcrumbItem>
-          {breadcrumbs.map((crumb) => (
+          {breadcrumbs.map((crumb, index) => (
             <Fragment key={`${crumb.label}-${crumb.href ?? "text"}`}>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem className="min-w-0">
+              <BreadcrumbSeparator
+                className={
+                  breadcrumbs.length > 1 &&
+                  index <= Math.max(0, breadcrumbs.length - 2)
+                    ? "hidden sm:block"
+                    : undefined
+                }
+              />
+              <BreadcrumbItem
+                className={
+                  index < breadcrumbs.length - 2
+                    ? "hidden min-w-0 sm:inline-flex"
+                    : "min-w-0"
+                }
+              >
                 {crumb.isLast || !crumb.href ? (
                   <BreadcrumbPage className="truncate">
                     {crumb.label}

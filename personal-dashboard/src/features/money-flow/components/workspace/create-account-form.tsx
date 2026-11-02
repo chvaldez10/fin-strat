@@ -27,6 +27,7 @@ export type CreateAccountValues = {
 
 type CreateAccountFormProps = {
   onSubmit: (values: CreateAccountValues) => Promise<void>;
+  onCancel?: () => void;
   /** Existing accounts share the plan's start month. Omit for a new plan. */
   planStartMonth?: YearMonth;
   className?: string;
@@ -34,6 +35,7 @@ type CreateAccountFormProps = {
 
 export function CreateAccountForm({
   onSubmit,
+  onCancel,
   planStartMonth,
   className,
 }: CreateAccountFormProps) {
@@ -105,10 +107,10 @@ export function CreateAccountForm({
             id={`${id}-title`}
             className="text-xl font-semibold tracking-tight"
           >
-            Create an account workspace
+            Add a bank account
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Start with your opening balance and build your monthly plan.
+            Create a planning workspace for one of your bank accounts.
           </p>
         </div>
       </div>
@@ -204,11 +206,27 @@ export function CreateAccountForm({
       )}
       <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
-          No sample transactions are added.
+          Use the balance from the start of your plan.
         </p>
-        <Button type="submit" disabled={pending} className="min-h-11">
-          {pending ? "Creating workspace…" : "Create workspace"}
-        </Button>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          {onCancel && (
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={onCancel}
+              className="min-h-11 flex-1 sm:flex-none"
+            >
+              Cancel
+            </Button>
+          )}
+          <Button
+            type="submit"
+            disabled={pending}
+            className="min-h-11 flex-1 sm:flex-none"
+          >
+            {pending ? "Adding bank account..." : "Add bank account"}
+          </Button>
+        </div>
       </div>
     </form>
   );

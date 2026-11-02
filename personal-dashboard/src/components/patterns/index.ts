@@ -4,3 +4,5 @@ export { FormSection } from "./form-section";
 export { HeroSection } from "./hero-section";
 export { LoadingState } from "./loading-state";
 export { SearchInput } from "./search-input";
+export { SaveStatus } from "./save-status";
+export type { SaveStatusState } from "./save-status";

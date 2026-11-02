@@ -90,15 +90,17 @@ Do not commit `.local`, signing keys, passwords, or deployment credentials.
 
 ## Your data
 
-Money Flow starts with first-account onboarding. Accounts have independent graphs
-and viewports; monthly schedules, zero overrides, carry-forward balances and
-canvas/table calculations use integer cents. The backend owns all private data.
+Money Flow opens to your bank accounts list. Select an existing account to reopen
+its workspace, or explicitly add another bank account. Each workspace has its own
+URL, graph, and viewport; its back-to-list action flushes pending saves before
+leaving. Monthly schedules, zero overrides, carry-forward balances and canvas/table
+calculations use integer cents. The backend owns all private data.
 
-To recover old device data, open **Recover browser data** on Money Flow and
-explicitly confirm ownership. This includes the old `user_chris_demo` key; it is
-never automatically assigned to the signed-in user. Original records remain
-untouched and downloadable. Imports are idempotent; replacing a server plan is
-an explicit, revision-checked action. Save open edits first.
+Money Flow no longer displays browser-data recovery controls. Existing browser
+backups, including the old `user_chris_demo` key, remain untouched. The authenticated
+import API is retained for deliberate recovery; it never automatically assigns
+browser data to the signed-in user. Imports are idempotent and replacing a server
+plan requires explicit intent and matching revisions.
 
 Watchlist Quick Capture and preferences also persist privately. Watchlist
 provides explicit import of old browser notes. Theme remains a device preference.

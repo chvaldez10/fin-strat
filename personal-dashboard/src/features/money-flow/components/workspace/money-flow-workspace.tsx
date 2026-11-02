@@ -247,7 +247,7 @@ export function MoneyFlowWorkspace({
       const labels: Record<typeof kind, string> = {
         income: "New income",
         expense: "New expense",
-        account: "New account",
+        account: "Transfer destination",
         note: "New note",
       };
       const node: MoneyCanvasNode = {

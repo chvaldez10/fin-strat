@@ -57,20 +57,20 @@ Linked-transfer financial edits and deletion update both account records in one
 transaction, checking both revisions and preserving independent labels.
 
 Creating an account does not change an existing editor's selected account.
-Imports are disabled while the current editor has pending work. Replacing a
-server plan checks root/account revisions and requires explicit confirmation.
+The browser-data recovery UI has been removed. The retained import API checks
+root/account revisions and requires explicit replacement intent.
 
 ## First run and migration
 
 A new account starts empty and can create its first account workspace. There is
 no automatic demo seed or fallback to browser persistence.
 
-Money Flow's recovery panel inspects the authenticated user's key,
-`personal-dashboard:money-flow:user_chris_demo`, and the supported unscoped
-legacy key. Users must affirm ownership and explicitly import. Server ownership
-always comes from the session. Decoding uses the existing codec; the browser
-original is neither rewritten nor removed. Invalid records remain downloadable.
-Successful imports are recorded atomically and repeated imports are no-ops.
+The original migration UI supported the authenticated user's key,
+`personal-dashboard:money-flow:user_chris_demo`, and the unscoped legacy key.
+That UI is now removed from Money Flow; existing browser backups remain untouched.
+The authenticated import API is retained for deliberate recovery. Ownership comes
+from the session, decoding uses the existing codec, and successful imports are
+recorded atomically. Repeated imports are no-ops.
 
 Legacy single-account records do not receive fabricated extra accounts. Shared
 legacy graphs retain their nodes/transfers in separate account workspace copies;

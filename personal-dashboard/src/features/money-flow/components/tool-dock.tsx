@@ -36,7 +36,7 @@ type ToolDockProps = {
 const nodeTools = [
   { kind: "income", label: "Add income", icon: ArrowDownToLine },
   { kind: "expense", label: "Add expense", icon: ArrowUpFromLine },
-  { kind: "account", label: "Add account", icon: Landmark },
+  { kind: "account", label: "Add transfer destination", icon: Landmark },
   { kind: "note", label: "Add note", icon: NotebookPen },
 ] as const;
 
