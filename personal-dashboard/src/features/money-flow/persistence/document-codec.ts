@@ -1,4 +1,5 @@
 import type { UserId } from "@/features/auth/types";
+import { parseDateOnly } from "../../../lib/date-only";
 import { currentYearMonth, isYearMonth, monthsBetween } from "../months";
 import {
   MONEY_FLOW_DOCUMENT_VERSION,
@@ -356,6 +357,14 @@ function isMoneyFlowTransfer(value: unknown): value is MoneyFlowTransfer {
     (transfer.endMonth === undefined || isYearMonth(transfer.endMonth)) &&
     (transfer.endMonth === undefined ||
       monthsBetween(transfer.startMonth!, transfer.endMonth) >= 0) &&
+    (transfer.startDate === undefined ||
+      (!!parseDateOnly(transfer.startDate) &&
+        transfer.startDate.slice(0, 7) === transfer.startMonth)) &&
+    (transfer.endDate === undefined ||
+      (!!parseDateOnly(transfer.endDate) &&
+        transfer.endDate.slice(0, 7) === transfer.endMonth &&
+        !!transfer.startDate &&
+        transfer.endDate >= transfer.startDate)) &&
     (transfer.label === undefined || typeof transfer.label === "string") &&
     overridesAreValid
   );

@@ -264,6 +264,10 @@ export const saveWorkspace = mutation({
                   endMonth:
                     next.endMonth as MoneyFlowAccountWorkspace["transfers"][number]["endMonth"],
                   monthOverrides: next.monthOverrides,
+                  startDate:
+                    next.startDate as MoneyFlowAccountWorkspace["transfers"][number]["startDate"],
+                  endDate:
+                    next.endDate as MoneyFlowAccountWorkspace["transfers"][number]["endDate"],
                 }
               : t
           )

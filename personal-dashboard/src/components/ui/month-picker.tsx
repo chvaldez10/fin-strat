@@ -107,7 +107,7 @@ export function MonthPicker({
           <Button
             variant="outline"
             className={cn(
-              "min-h-11 w-full justify-start px-3 font-normal",
+              "min-h-11 w-full min-w-0 justify-start px-3 font-normal",
               !selected && "text-muted-foreground",
               className
             )}

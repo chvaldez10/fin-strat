@@ -227,6 +227,14 @@ export function useWorkspacePersistence({
     drainViewport();
     return (await queue.flush()) && (await flushView());
   }
+  async function saveNow() {
+    drainViewport();
+    const saved =
+      queue.getSnapshot().status === "failed"
+        ? await queue.retry()
+        : await queue.flush();
+    return saved && (await flushView());
+  }
   return {
     document: initial,
     editorVersion: epoch,
@@ -235,6 +243,7 @@ export function useWorkspacePersistence({
     viewError,
     change,
     flush,
+    saveNow,
     saveAccountSelection,
     reloadServerVersion,
     retrySave: () => queue.retry(),

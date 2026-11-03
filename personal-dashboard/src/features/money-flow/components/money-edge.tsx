@@ -51,7 +51,7 @@ export const MoneyEdge = memo(function MoneyEdge({
           className="nodrag nopan absolute rounded-md border border-border bg-background px-2 py-1 text-[0.68rem] font-semibold text-foreground shadow-xs"
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            pointerEvents: "all",
+            pointerEvents: "none",
           }}
         >
           {data?.label ? `${data.label} · ` : ""}

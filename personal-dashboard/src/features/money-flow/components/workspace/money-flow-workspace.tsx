@@ -38,7 +38,12 @@ import type {
 } from "../../types";
 import { validateConnection } from "../../validation";
 import { MoneyEdge } from "../money-edge";
-import { MoneyInspector, type SelectedMoneyElement } from "../money-inspector";
+import {
+  MoneyInspector,
+  type SelectedMoneyElement,
+  type MoneyNodeEditValues,
+  type TransferEditValues,
+} from "../money-inspector";
 import { MoneyNode } from "../money-node";
 import {
   NodeContextMenu,
@@ -62,6 +67,10 @@ const edgeTypes = {
 };
 const defaultEdgeOptions = {
   type: "money",
+  selectable: false,
+  focusable: false,
+  deletable: false,
+  reconnectable: false,
   markerEnd: {
     type: MarkerType.ArrowClosed,
     width: 16,
@@ -75,6 +84,7 @@ export function MoneyFlowWorkspace({
   accountSummaries,
   onChange,
   onAccountChange,
+  onSave,
 }: {
   initialDocument: MoneyFlowDocument;
   accountSummaries: Pick<
@@ -83,6 +93,7 @@ export function MoneyFlowWorkspace({
   >[];
   onChange: (document: MoneyFlowDocument) => void;
   onAccountChange: (accountId: string) => void;
+  onSave: () => Promise<boolean>;
 }) {
   const instanceRef =
     useRef<ReactFlowInstance<MoneyCanvasNode, MoneyCanvasEdge>>(null);
@@ -157,7 +168,12 @@ export function MoneyFlowWorkspace({
   const finishMutation = useCallback(() => {
     // React Flow applies imperative node/edge updater functions through its
     // store. Read the canvas on the next frame so persistence sees the result.
-    window.requestAnimationFrame(() => persistDocument());
+    return new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => {
+        persistDocument();
+        resolve();
+      });
+    });
   }, [persistDocument]);
 
   const restoreDocument = useCallback(
@@ -269,6 +285,7 @@ export function MoneyFlowWorkspace({
             selected: item.id === id,
           }))
         );
+        setSelected({ type: "node", item: node });
       });
     },
     [finishMutation]
@@ -392,37 +409,26 @@ export function MoneyFlowWorkspace({
         return;
       }
 
-      if (target.type === "node" && target.item.data.kind === "chequing") {
+      if (target.item.data.kind === "chequing") {
         return;
       }
 
       const document = readDocument();
       const accountId = document.view.selectedAccountId;
       const removedIds = getAccountWorkspace(document)
-        .transfers.filter((transfer) =>
-          target.type === "edge"
-            ? transfer.id === target.item.id
-            : transfer.sourceNodeId === target.item.id ||
-              transfer.targetNodeId === target.item.id
+        .transfers.filter(
+          (transfer) =>
+            transfer.sourceNodeId === target.item.id ||
+            transfer.targetNodeId === target.item.id
         )
         .map((transfer) => transfer.id);
       documentRef.current = removeTransfers(document, accountId, removedIds);
 
-      if (target.type === "node") {
-        const nodeId = target.item.id;
-        instance.setNodes((nodes) =>
-          nodes.filter((node) => node.id !== nodeId)
-        );
-        instance.setEdges((edges) =>
-          edges.filter(
-            (edge) => edge.source !== nodeId && edge.target !== nodeId
-          )
-        );
-      } else {
-        instance.setEdges((edges) =>
-          edges.filter((edge) => edge.id !== target.item.id)
-        );
-      }
+      const nodeId = target.item.id;
+      instance.setNodes((nodes) => nodes.filter((node) => node.id !== nodeId));
+      instance.setEdges((edges) =>
+        edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+      );
 
       setSelected(null);
       finishMutation();
@@ -441,22 +447,16 @@ export function MoneyFlowWorkspace({
   }, [deleteElement, selected]);
 
   const saveNode = useCallback(
-    (
-      id: string,
-      values: {
-        label: string;
-        note: string;
-        startingBalanceCents?: number;
-      }
-    ) => {
+    async (id: string, values: MoneyNodeEditValues) => {
       const instance = instanceRef.current;
 
       if (!instance) {
-        return;
+        return false;
       }
 
       const currentDocument = readDocument();
-      if (typeof values.startingBalanceCents === "number") {
+      documentRef.current = currentDocument;
+      if (getAccountWorkspace(currentDocument).centerNodeId === id) {
         documentRef.current = {
           ...currentDocument,
           accounts: currentDocument.accounts.map((account) =>
@@ -464,45 +464,105 @@ export function MoneyFlowWorkspace({
               ? {
                   ...account,
                   name: values.label,
-                  openingBalanceCents: values.startingBalanceCents!,
+                  openingBalanceCents:
+                    values.startingBalanceCents ?? account.openingBalanceCents,
                 }
               : account
           ),
         };
       }
+      const account = getAccountWorkspace(
+        documentRef.current,
+        selectedAccountId
+      );
+      const node = account.nodes.find((item) => item.id === id);
+      if (
+        values.flow &&
+        node &&
+        ["income", "expense", "account"].includes(node.kind)
+      ) {
+        const existing = values.flow.transferId
+          ? account.transfers.find(
+              (transfer) =>
+                transfer.id === values.flow!.transferId &&
+                (transfer.sourceNodeId === id || transfer.targetNodeId === id)
+            )
+          : undefined;
+        if (values.flow.transferId && !existing) return false;
+        const monthOverrides = { ...existing?.monthOverrides };
+        if (values.flow.monthOverrideCents === null) {
+          delete monthOverrides[selectedMonth];
+        } else {
+          monthOverrides[selectedMonth] = values.flow.monthOverrideCents;
+        }
+        const transfer = {
+          ...existing,
+          id: existing?.id ?? `flow-${crypto.randomUUID()}`,
+          sourceNodeId:
+            existing?.sourceNodeId ??
+            (node.kind === "income" ? id : account.centerNodeId),
+          targetNodeId:
+            existing?.targetNodeId ??
+            (node.kind === "income" ? account.centerNodeId : id),
+          baseMonthlyAmountCents: values.flow.baseMonthlyAmountCents,
+          startMonth: values.flow.startDate.slice(0, 7) as YearMonth,
+          endMonth: values.flow.endDate?.slice(0, 7) as YearMonth | undefined,
+          startDate: values.flow.startDate,
+          endDate: values.flow.endDate,
+          label: values.flow.label || undefined,
+          monthOverrides,
+        };
+        documentRef.current = existing
+          ? updateTransfer(
+              documentRef.current,
+              account.id,
+              existing.id,
+              transfer
+            )
+          : {
+              ...documentRef.current,
+              accounts: documentRef.current.accounts.map((item) =>
+                item.id === account.id
+                  ? { ...item, transfers: [...item.transfers, transfer] }
+                  : item
+              ),
+            };
+        instance.setEdges(
+          toCanvasEdges(
+            getAccountWorkspace(documentRef.current).transfers,
+            selectedMonth
+          )
+        );
+      }
       instance.updateNodeData(id, {
         label: values.label,
         note: values.note || undefined,
       });
-      finishMutation();
+      await finishMutation();
+      return onSave();
     },
-    [finishMutation, readDocument, selectedAccountId]
+    [finishMutation, readDocument, selectedAccountId, selectedMonth, onSave]
   );
 
-  const saveEdge = useCallback(
-    (
-      id: string,
-      values: {
-        label: string;
-        baseMonthlyAmountCents: number;
-        monthOverrideCents: number | null;
-        startMonth: YearMonth;
-        endMonth?: YearMonth;
-      }
-    ) => {
+  const saveTransfer = useCallback(
+    async (nodeId: string, id: string, values: TransferEditValues) => {
       const instance = instanceRef.current;
 
       if (!instance) {
-        return;
+        return false;
       }
 
-      const edge = instance.getEdge(id);
-
-      if (!edge?.data) {
-        return;
+      const document = readDocument();
+      const transfer = getAccountWorkspace(document).transfers.find(
+        (item) =>
+          item.id === id &&
+          (item.sourceNodeId === nodeId || item.targetNodeId === nodeId)
+      );
+      if (!transfer) {
+        return false;
       }
 
-      const monthOverrides = { ...edge.data.monthOverrides };
+      const monthOverrides = { ...transfer.monthOverrides };
 
       if (values.monthOverrideCents === null) {
         delete monthOverrides[selectedMonth];
@@ -512,16 +572,17 @@ export function MoneyFlowWorkspace({
 
       const updatedTransfer = {
         id,
-        sourceNodeId: edge.source,
-        targetNodeId: edge.target,
+        sourceNodeId: transfer.sourceNodeId,
+        targetNodeId: transfer.targetNodeId,
         baseMonthlyAmountCents: values.baseMonthlyAmountCents,
-        startMonth: values.startMonth,
-        endMonth: values.endMonth,
+        startMonth: values.startDate.slice(0, 7) as YearMonth,
+        endMonth: values.endDate?.slice(0, 7) as YearMonth | undefined,
+        startDate: values.startDate,
+        endDate: values.endDate,
         monthOverrides,
         label: values.label || undefined,
       };
 
-      const document = readDocument();
       documentRef.current = updateTransfer(
         document,
         document.view.selectedAccountId,
@@ -532,17 +593,50 @@ export function MoneyFlowWorkspace({
       instance.updateEdgeData(id, {
         label: values.label || undefined,
         baseMonthlyAmountCents: values.baseMonthlyAmountCents,
-        startMonth: values.startMonth,
-        endMonth: values.endMonth,
+        startMonth: updatedTransfer.startMonth,
+        endMonth: updatedTransfer.endMonth,
+        startDate: updatedTransfer.startDate,
+        endDate: updatedTransfer.endDate,
         monthOverrides,
         monthlyAmountCents: getTransferAmountForMonth(
           updatedTransfer,
           selectedMonth
         ),
       });
-      finishMutation();
+      await finishMutation();
+      return onSave();
     },
-    [finishMutation, readDocument, selectedMonth]
+    [finishMutation, readDocument, selectedMonth, onSave]
+  );
+
+  const removeTransfer = useCallback(
+    async (nodeId: string, id: string) => {
+      const instance = instanceRef.current;
+      if (!instance) return false;
+      const document = readDocument();
+      const account = getAccountWorkspace(document);
+      if (
+        !account.transfers.some(
+          (transfer) =>
+            transfer.id === id &&
+            (transfer.sourceNodeId === nodeId ||
+              transfer.targetNodeId === nodeId)
+        )
+      )
+        return false;
+      documentRef.current = removeTransfers(document, account.id, [id]);
+      instance.setEdges(
+        toCanvasEdges(
+          getAccountWorkspace(documentRef.current).transfers,
+          selectedMonth
+        )
+      );
+      await finishMutation();
+      const saved = await onSave();
+      if (saved) clearSelection();
+      return saved;
+    },
+    [clearSelection, finishMutation, onSave, readDocument, selectedMonth]
   );
 
   const reset = useCallback(() => {
@@ -680,8 +774,7 @@ export function MoneyFlowWorkspace({
   const canDuplicate =
     selected?.type === "node" && selected.item.data.kind !== "chequing";
   const canDelete =
-    selected?.type === "edge" ||
-    (selected?.type === "node" && selected.item.data.kind !== "chequing");
+    selected?.type === "node" && selected.item.data.kind !== "chequing";
   const selectedMonthIndex = monthsBetween(
     activeDocument.scenario.startMonth,
     selectedMonth
@@ -753,10 +846,6 @@ export function MoneyFlowWorkspace({
                   setNodeContextMenu(null);
                   setSelected({ type: "node", item: node });
                 }}
-                onEdgeClick={(_, edge) => {
-                  setNodeContextMenu(null);
-                  setSelected({ type: "edge", item: edge });
-                }}
                 onPaneClick={() => {
                   setNodeContextMenu(null);
                   clearSelection();
@@ -798,9 +887,9 @@ export function MoneyFlowWorkspace({
                 }}
                 onNodeDragStart={() => {
                   setNodeContextMenu(null);
-                  setSelected(null);
                 }}
-                onNodeDragStop={() => {
+                onNodeDragStop={(_, node) => {
+                  setSelected({ type: "node", item: node });
                   finishMutation();
                 }}
                 onMoveEnd={(_, viewport: Viewport) => {
@@ -901,18 +990,13 @@ export function MoneyFlowWorkspace({
 
               <MoneyInspector
                 selected={selected}
-                openingBalancesByNodeId={{
-                  [getAccountWorkspace(activeDocument, selectedAccountId)
-                    .centerNodeId]: getAccountWorkspace(
-                    activeDocument,
-                    selectedAccountId
-                  ).openingBalanceCents,
-                }}
+                account={getAccountWorkspace(activeDocument, selectedAccountId)}
                 selectedMonth={selectedMonth}
                 isFirstMonth={selectedMonthIndex === 0}
                 onClose={clearSelection}
                 onSaveNode={saveNode}
-                onSaveEdge={saveEdge}
+                onSaveTransfer={saveTransfer}
+                onRemoveTransfer={removeTransfer}
               />
               {nodeContextMenu ? (
                 <NodeContextMenu

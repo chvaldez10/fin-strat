@@ -142,6 +142,8 @@ export function financialSchedule(
     transfer.baseMonthlyAmountCents,
     transfer.startMonth,
     transfer.endMonth ?? null,
+    transfer.startDate ?? null,
+    transfer.endDate ?? null,
     Object.entries(transfer.monthOverrides ?? {}).sort(([a], [b]) =>
       a.localeCompare(b)
     ),

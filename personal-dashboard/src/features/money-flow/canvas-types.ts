@@ -26,6 +26,8 @@ export type MoneyCanvasEdgeData = Record<string, unknown> & {
   baseMonthlyAmountCents: number;
   startMonth: YearMonth;
   endMonth?: YearMonth;
+  startDate?: MoneyFlowTransfer["startDate"];
+  endDate?: MoneyFlowTransfer["endDate"];
   monthOverrides?: Partial<Record<YearMonth, number | null>>;
   label?: string;
 };
@@ -65,6 +67,10 @@ export function toCanvasEdges(
   return transfers.map((transfer) => ({
     id: transfer.id,
     type: "money",
+    selectable: false,
+    focusable: false,
+    deletable: false,
+    reconnectable: false,
     source: transfer.sourceNodeId,
     target: transfer.targetNodeId,
     hidden: !isTransferActiveForMonth(transfer, month),
@@ -73,6 +79,8 @@ export function toCanvasEdges(
       baseMonthlyAmountCents: transfer.baseMonthlyAmountCents,
       startMonth: transfer.startMonth,
       endMonth: transfer.endMonth,
+      startDate: transfer.startDate,
+      endDate: transfer.endDate,
       monthOverrides: transfer.monthOverrides,
       label: transfer.label,
     },
@@ -118,10 +126,14 @@ export function updateAccountWorkspaceFromCanvas(
                   edge.data?.startMonth ??
                   existing?.startMonth ??
                   document.scenario.startMonth,
-                endMonth: edge.data?.endMonth ?? existing?.endMonth,
+                endMonth: edge.data ? edge.data.endMonth : existing?.endMonth,
+                startDate: edge.data
+                  ? edge.data.startDate
+                  : existing?.startDate,
+                endDate: edge.data ? edge.data.endDate : existing?.endDate,
                 monthOverrides:
                   edge.data?.monthOverrides ?? existing?.monthOverrides,
-                label: edge.data?.label ?? existing?.label,
+                label: edge.data ? edge.data.label : existing?.label,
               };
             }),
             viewport,

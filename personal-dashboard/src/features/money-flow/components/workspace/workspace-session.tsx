@@ -29,6 +29,7 @@ export function WorkspaceSession({
     viewError,
     change,
     flush,
+    saveNow,
     saveAccountSelection,
     reloadServerVersion,
     retrySave,
@@ -135,6 +136,7 @@ export function WorkspaceSession({
         initialDocument={initial}
         accountSummaries={accounts}
         onChange={change}
+        onSave={saveNow}
         onAccountChange={(id) => {
           void switchAccount(id);
         }}

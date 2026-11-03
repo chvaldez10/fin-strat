@@ -1,4 +1,5 @@
 import type { UserId } from "@/features/auth/types";
+import type { DateOnly } from "@/lib/date-only";
 
 export const MONEY_FLOW_DOCUMENT_VERSION = 4 as const;
 
@@ -37,6 +38,9 @@ export type MoneyFlowTransfer = {
   baseMonthlyAmountCents: number;
   startMonth: YearMonth;
   endMonth?: YearMonth;
+  /** Exact monthly payment anchor. Older records retain their month-only schedule. */
+  startDate?: DateOnly;
+  endDate?: DateOnly;
   monthOverrides?: Partial<Record<YearMonth, number | null>>;
   label?: string;
 };

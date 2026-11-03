@@ -5,6 +5,8 @@ type TransferChanges = Pick<
   | "baseMonthlyAmountCents"
   | "startMonth"
   | "endMonth"
+  | "startDate"
+  | "endDate"
   | "monthOverrides"
   | "label"
 >;

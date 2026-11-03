@@ -35,6 +35,8 @@ export const transfer = v.object({
   baseMonthlyAmountCents: v.number(),
   startMonth: v.string(),
   endMonth: v.optional(v.string()),
+  startDate: v.optional(v.string()),
+  endDate: v.optional(v.string()),
   monthOverrides: v.optional(
     v.record(v.string(), v.union(v.number(), v.null()))
   ),

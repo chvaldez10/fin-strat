@@ -12,9 +12,20 @@ backend configuration, migration, verification, and operational boundaries.
   `validation.ts`: framework-independent domain contracts and calculations.
 - `canvas-types.ts`: domain/React Flow conversion. Selection, calculated node
   display data, and React Flow internals are never persisted.
-- `components/workspace/persisted-workspace.tsx`: authenticated queries,
-  account-list orchestration, account switching, view saves, debounced viewport persistence,
-  and explicit asynchronous save/conflict state.
+- `components/workspace/bank-accounts-page.tsx`: account-list loading and creation
+  orchestration. It does not import the canvas or workspace saving machinery.
+- `components/workspace/account-workspace-page.tsx`: selected-graph loading,
+  unavailable states and routing for one account workspace.
+- `components/workspace/workspace-session.tsx`: editor composition, save feedback,
+  recovery controls and navigation after a successful persistence flush.
+- `persistence/use-money-flow-plan.ts`: authenticated plan metadata and paginated
+  account summaries shared by both pages; no graph subscriptions.
+- `persistence/use-workspace-persistence.ts`: live draft, acknowledged revisions,
+  coalesced saves, viewport debounce, separate view writes, retries, conflict
+  recovery and unload warnings. It has no route or UI dependencies.
+- `persistence/workspace-writer.ts`: Convex workspace-write adapter and counterpart
+  revision acknowledgements, separate from React and presentation.
+- `persistence/convex-types.ts`: client data contracts derived from the backend API.
 - `components/workspace/bank-account-list.tsx`: bank account cards, opening
   balances, workspace links, empty state and an explicit account-creation slot.
   This presentation component has no Convex or authentication dependency.
@@ -63,6 +74,29 @@ Viewport movement completion waits 300 ms; account switching flushes it and the
 active writer before loading another graph. Month/mode preferences save separately.
 The workspace's back-to-list action also flushes pending graph, viewport and view
 saves; failures or conflicts keep the editor open for recovery.
+
+Inspector save buttons wait for the canvas command and server acknowledgement
+before showing success. Pending forms prevent duplicate submissions; failures
+retain the entered values and allow retry. Starts and Ends use the shared custom
+day calendar, with an explicit clear action for an ongoing schedule. Clearing an
+end month or flow label persists the removal rather than restoring the old value.
+
+Connection lines are display-only: they cannot be selected, focused, reconnected,
+edited or deleted on the canvas. All amount, date, override and label edits live
+in the connected element's inspector. Income, expense and transfer destinations
+edit their primary connection alongside the element's label and note; additional
+connections appear as named From/To sections on the same element. The tracked
+account exposes all its connections this way. Connections can be removed from
+their element without deleting the element. Existing graph data is retained.
+
+Transfers may store exact `startDate` and `endDate` values alongside their
+compatible month bounds. The start day is the recurring monthly payment day;
+shorter months clamp to their last day. End dates are inclusive: a month's payment
+is omitted when its scheduled day falls after the end date. Existing month-only
+records retain their prior calculation until the user edits their schedule; the
+editor shows their first start-month day and last end-month day as defaults.
+The schema addition is optional and requires no rewrite of stored records. Paired
+transfers synchronize exact dates together with their amounts and month bounds.
 
 A clean remote revision refreshes the editor. A conflicting save keeps the local
 canvas and offers a deliberate server reload or local-version save. Paired

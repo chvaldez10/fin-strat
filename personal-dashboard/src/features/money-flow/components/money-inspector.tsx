@@ -12,50 +12,62 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import type { MoneyCanvasEdge, MoneyCanvasNode } from "../canvas-types";
-import { formatYearMonth, isYearMonth, monthsBetween } from "../months";
+import type { MoneyCanvasNode } from "../canvas-types";
+import { formatYearMonth } from "../months";
 import { parseMoneyCents } from "../amounts";
-import type { YearMonth } from "../types";
+import type {
+  MoneyFlowAccountWorkspace,
+  MoneyFlowTransfer,
+  YearMonth,
+} from "../types";
+import {
+  TransferScheduleFields,
+  useTransferSchedule,
+  type TransferScheduleValues,
+} from "./transfer-schedule-fields";
 
-export type SelectedMoneyElement =
-  | { type: "node"; item: MoneyCanvasNode }
-  | { type: "edge"; item: MoneyCanvasEdge }
-  | null;
+export type SelectedMoneyElement = {
+  type: "node";
+  item: MoneyCanvasNode;
+} | null;
+
+export type TransferEditValues = TransferScheduleValues & {
+  label: string;
+  baseMonthlyAmountCents: number;
+  monthOverrideCents: number | null;
+};
+
+export type MoneyNodeEditValues = {
+  label: string;
+  note: string;
+  startingBalanceCents?: number;
+  flow?: TransferEditValues & { transferId?: string };
+};
 
 type MoneyInspectorProps = {
   selected: SelectedMoneyElement;
-  openingBalancesByNodeId: Record<string, number>;
+  account: MoneyFlowAccountWorkspace;
   selectedMonth: YearMonth;
   isFirstMonth: boolean;
   onClose: () => void;
-  onSaveNode: (
+  onSaveNode: (id: string, values: MoneyNodeEditValues) => Promise<boolean>;
+  onSaveTransfer: (
+    nodeId: string,
     id: string,
-    values: {
-      label: string;
-      note: string;
-      startingBalanceCents?: number;
-    }
-  ) => void;
-  onSaveEdge: (
-    id: string,
-    values: {
-      label: string;
-      baseMonthlyAmountCents: number;
-      monthOverrideCents: number | null;
-      startMonth: YearMonth;
-      endMonth?: YearMonth;
-    }
-  ) => void;
+    values: TransferEditValues
+  ) => Promise<boolean>;
+  onRemoveTransfer: (nodeId: string, transferId: string) => Promise<boolean>;
 };
 
 export function MoneyInspector({
   selected,
-  openingBalancesByNodeId,
+  account,
   selectedMonth,
   isFirstMonth,
   onClose,
   onSaveNode,
-  onSaveEdge,
+  onSaveTransfer,
+  onRemoveTransfer,
 }: MoneyInspectorProps) {
   const isMobile = useIsMobile();
 
@@ -63,23 +75,86 @@ export function MoneyInspector({
     return null;
   }
 
-  const content =
-    selected.type === "node" ? (
+  const node = selected.item;
+  const title = {
+    income: "Edit income",
+    expense: "Edit expense",
+    account: "Edit transfer destination",
+    note: "Edit note",
+    chequing: "Edit bank account",
+  }[node.data.kind];
+  const connected = account.transfers.filter(
+    (transfer) =>
+      transfer.sourceNodeId === node.id || transfer.targetNodeId === node.id
+  );
+  const hasFlow = ["income", "expense", "account"].includes(node.data.kind);
+  const primary = hasFlow
+    ? (connected.find((transfer) =>
+        node.data.kind === "income"
+          ? transfer.sourceNodeId === node.id &&
+            transfer.targetNodeId === account.centerNodeId
+          : transfer.sourceNodeId === account.centerNodeId &&
+            transfer.targetNodeId === node.id
+      ) ?? connected[0])
+    : undefined;
+  const additional = connected.filter(
+    (transfer) => transfer.id !== primary?.id
+  );
+  const primaryOtherId = primary
+    ? primary.sourceNodeId === node.id
+      ? primary.targetNodeId
+      : primary.sourceNodeId
+    : undefined;
+  const primaryOther = account.nodes.find(
+    (item) => item.id === primaryOtherId
+  )?.label;
+
+  const content = (
+    <div className="space-y-5">
+      {primaryOther && (
+        <p className="text-xs text-muted-foreground">
+          {primary?.sourceNodeId === node.id ? "To" : "From"} {primaryOther}
+        </p>
+      )}
       <NodeInspector
-        key={`${selected.item.id}:${selectedMonth}`}
-        node={selected.item}
-        startingBalanceCents={openingBalancesByNodeId[selected.item.id] ?? 0}
+        key={`${node.id}:${selectedMonth}`}
+        node={node}
+        startingBalanceCents={account.openingBalanceCents}
         isFirstMonth={isFirstMonth}
-        onSave={onSaveNode}
-      />
-    ) : (
-      <EdgeInspector
-        key={`${selected.item.id}:${selectedMonth}`}
-        edge={selected.item}
+        primaryTransfer={primary}
         selectedMonth={selectedMonth}
-        onSave={onSaveEdge}
+        onSave={onSaveNode}
+        onRemoveTransfer={(id) => onRemoveTransfer(node.id, id)}
       />
-    );
+      {additional.map((transfer) => {
+        const outgoing = transfer.sourceNodeId === node.id;
+        const otherId = outgoing
+          ? transfer.targetNodeId
+          : transfer.sourceNodeId;
+        const other =
+          account.nodes.find((item) => item.id === otherId)?.label ??
+          "Connected box";
+        return (
+          <details
+            key={`${node.id}:${transfer.id}:${selectedMonth}`}
+            className="rounded-md border border-border p-3"
+          >
+            <summary className="cursor-pointer text-sm font-medium">
+              {outgoing ? "To" : "From"} {other}
+            </summary>
+            <div className="pt-4">
+              <ElementTransferEditor
+                transfer={transfer}
+                selectedMonth={selectedMonth}
+                onSave={(id, values) => onSaveTransfer(node.id, id, values)}
+                onRemove={() => onRemoveTransfer(node.id, transfer.id)}
+              />
+            </div>
+          </details>
+        );
+      })}
+    </div>
+  );
 
   if (isMobile) {
     return (
@@ -90,9 +165,7 @@ export function MoneyInspector({
           className="max-h-[85dvh] overflow-y-auto pb-[env(safe-area-inset-bottom)]"
         >
           <SheetHeader>
-            <SheetTitle>
-              {selected.type === "node" ? "Edit box" : "Edit money flow"}
-            </SheetTitle>
+            <SheetTitle>{title}</SheetTitle>
             <SheetDescription>
               Changes update the monthly scenario when saved.
             </SheetDescription>
@@ -111,9 +184,7 @@ export function MoneyInspector({
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
-          <p className="font-semibold">
-            {selected.type === "node" ? "Edit box" : "Edit money flow"}
-          </p>
+          <p className="font-semibold">{title}</p>
           <p className="text-xs text-muted-foreground">
             Saved changes update totals.
           </p>
@@ -137,25 +208,54 @@ function NodeInspector({
   node,
   startingBalanceCents,
   isFirstMonth,
+  primaryTransfer,
+  selectedMonth,
   onSave,
+  onRemoveTransfer,
 }: {
   node: MoneyCanvasNode;
   startingBalanceCents: number;
   isFirstMonth: boolean;
+  primaryTransfer?: MoneyFlowTransfer;
+  selectedMonth: YearMonth;
   onSave: MoneyInspectorProps["onSaveNode"];
+  onRemoveTransfer: (id: string) => Promise<boolean>;
 }) {
   const [label, setLabel] = useState(node.data.label);
+  const save = useInspectorSave();
+  const schedule = useTransferSchedule(primaryTransfer, selectedMonth);
+  const hasFlow = ["income", "expense", "account"].includes(node.data.kind);
+  const flowKind = node.data.kind === "account" ? "transfer" : node.data.kind;
+  const [flowLabel, setFlowLabel] = useState(primaryTransfer?.label ?? "");
   const [note, setNote] = useState(node.data.note ?? "");
   const [startingBalance, setStartingBalance] = useState(
     (startingBalanceCents / 100).toString()
   );
   const [error, setError] = useState<string | null>(null);
+  const [flowAmount, setFlowAmount] = useState(
+    primaryTransfer
+      ? (primaryTransfer.baseMonthlyAmountCents / 100).toString()
+      : ""
+  );
+  const existingOverride = primaryTransfer?.monthOverrides?.[selectedMonth];
+  const [flowOverride, setFlowOverride] = useState(
+    typeof existingOverride === "number"
+      ? (existingOverride / 100).toString()
+      : ""
+  );
+  const [flowErrors, setFlowErrors] = useState<{
+    amount?: string;
+    override?: string;
+  }>({});
 
   return (
     <form
       className="space-y-4"
-      onSubmit={(event) => {
+      aria-busy={save.state === "saving"}
+      onChange={save.reset}
+      onSubmit={async (event) => {
         event.preventDefault();
+        if (save.state === "saving") return;
         const parsedStartingBalance = parseMoneyCents(startingBalance, {
           allowNegative: true,
         });
@@ -171,105 +271,232 @@ function NodeInspector({
         }
         setError(null);
 
-        onSave(node.id, {
-          label: label.trim() || "Untitled",
-          note: note.trim(),
-          startingBalanceCents:
-            node.data.kind === "chequing" &&
-            isFirstMonth &&
-            parsedStartingBalance !== null
-              ? parsedStartingBalance
-              : undefined,
-        });
+        const parsedAmount = parseMoneyCents(flowAmount);
+        const parsedOverride =
+          flowOverride.trim() === "" ? null : parseMoneyCents(flowOverride);
+        const nextFlowErrors: typeof flowErrors = {};
+        if (hasFlow) {
+          if (parsedAmount === null)
+            nextFlowErrors.amount =
+              "Enter a non-negative amount with no more than two decimal places.";
+          if (flowOverride.trim() !== "" && parsedOverride === null)
+            nextFlowErrors.override =
+              "Enter a valid override or leave it empty to use the recurring amount.";
+        }
+        setFlowErrors(nextFlowErrors);
+        const dates = hasFlow ? schedule.validate() : null;
+        if (Object.keys(nextFlowErrors).length > 0 || (hasFlow && !dates))
+          return;
+
+        await save.submit(() =>
+          onSave(node.id, {
+            label: label.trim() || "Untitled",
+            note: note.trim(),
+            startingBalanceCents:
+              node.data.kind === "chequing" &&
+              isFirstMonth &&
+              parsedStartingBalance !== null
+                ? parsedStartingBalance
+                : undefined,
+            flow:
+              hasFlow && parsedAmount !== null && dates
+                ? {
+                    ...dates,
+                    transferId: primaryTransfer?.id,
+                    label: flowLabel.trim(),
+                    baseMonthlyAmountCents: parsedAmount,
+                    monthOverrideCents: parsedOverride,
+                  }
+                : undefined,
+          })
+        );
       }}
     >
-      <Field label="Label" htmlFor="node-label">
-        <Input
-          id="node-label"
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-        />
-      </Field>
-      {node.data.kind === "chequing" ? (
-        <Field label="Starting balance" htmlFor="starting-balance">
-          <div className="relative">
-            <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="starting-balance"
-              inputMode="decimal"
-              value={startingBalance}
-              onChange={(event) => setStartingBalance(event.target.value)}
-              disabled={!isFirstMonth}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? "starting-balance-error" : undefined}
-              className="pl-9"
-            />
-          </div>
-          {!isFirstMonth ? (
-            <p className="text-xs text-muted-foreground">
-              Carried forward from the previous month.
-            </p>
-          ) : null}
+      <fieldset
+        disabled={save.state === "saving"}
+        className="min-w-0 space-y-4"
+      >
+        <legend className="sr-only">Box details</legend>
+        <Field label="Label" htmlFor="node-label">
+          <Input
+            id="node-label"
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+          />
         </Field>
-      ) : null}
-      <Field label="Note" htmlFor="node-note">
-        <textarea
-          id="node-note"
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
-          placeholder="Optional context"
+        {hasFlow ? (
+          <>
+            <Field
+              label={`Recurring monthly ${flowKind} (CAD)`}
+              htmlFor={`${flowKind}-amount`}
+            >
+              <Input
+                id={`${flowKind}-amount`}
+                inputMode="decimal"
+                value={flowAmount}
+                onChange={(event) => setFlowAmount(event.target.value)}
+                placeholder="0.00"
+                aria-invalid={flowErrors.amount ? true : undefined}
+                aria-describedby={
+                  flowErrors.amount ? `${flowKind}-amount-error` : undefined
+                }
+              />
+              {flowErrors.amount && (
+                <p
+                  id={`${flowKind}-amount-error`}
+                  role="alert"
+                  className="text-sm text-destructive"
+                >
+                  {flowErrors.amount}
+                </p>
+              )}
+            </Field>
+            <Field
+              label={`${formatYearMonth(selectedMonth)} override`}
+              htmlFor={`${flowKind}-month-override`}
+            >
+              <Input
+                id={`${flowKind}-month-override`}
+                inputMode="decimal"
+                value={flowOverride}
+                onChange={(event) => setFlowOverride(event.target.value)}
+                placeholder="Use recurring amount"
+                aria-invalid={flowErrors.override ? true : undefined}
+                aria-describedby={
+                  flowErrors.override ? `${flowKind}-override-error` : undefined
+                }
+              />
+              {flowErrors.override && (
+                <p
+                  id={`${flowKind}-override-error`}
+                  role="alert"
+                  className="text-sm text-destructive"
+                >
+                  {flowErrors.override}
+                </p>
+              )}
+            </Field>
+            <TransferScheduleFields
+              schedule={schedule}
+              idPrefix={flowKind}
+              disabled={save.state === "saving"}
+              onChange={save.reset}
+            />
+            <Field
+              label="Flow label (optional)"
+              htmlFor={`${flowKind}-flow-label`}
+            >
+              <Input
+                id={`${flowKind}-flow-label`}
+                value={flowLabel}
+                onChange={(event) => setFlowLabel(event.target.value)}
+                placeholder="Optional connection label"
+                maxLength={120}
+              />
+            </Field>
+          </>
+        ) : null}
+        {node.data.kind === "chequing" ? (
+          <Field label="Starting balance" htmlFor="starting-balance">
+            <div className="relative">
+              <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="starting-balance"
+                inputMode="decimal"
+                value={startingBalance}
+                onChange={(event) => setStartingBalance(event.target.value)}
+                disabled={!isFirstMonth}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? "starting-balance-error" : undefined}
+                className="pl-9"
+              />
+            </div>
+            {!isFirstMonth ? (
+              <p className="text-xs text-muted-foreground">
+                Carried forward from the previous month.
+              </p>
+            ) : null}
+          </Field>
+        ) : null}
+        <Field label="Note" htmlFor="node-note">
+          <textarea
+            id="node-note"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
+            placeholder="Optional context"
+          />
+        </Field>
+        {error ? (
+          <p
+            id="starting-balance-error"
+            role="alert"
+            className="text-sm text-destructive"
+          >
+            {error}
+          </p>
+        ) : null}
+        <InspectorSave
+          state={save.state}
+          label={hasFlow ? `Save ${flowKind}` : "Save box"}
+          confirmation={
+            hasFlow
+              ? `${flowKind[0].toUpperCase()}${flowKind.slice(1)} saved.`
+              : "Box saved."
+          }
         />
-      </Field>
-      {error ? (
-        <p
-          id="starting-balance-error"
-          role="alert"
-          className="text-sm text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
-      <Button type="submit" className="w-full">
-        <Save />
-        Save box
-      </Button>
+        {primaryTransfer && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() =>
+              void save.submit(() => onRemoveTransfer(primaryTransfer.id))
+            }
+          >
+            Remove connection
+          </Button>
+        )}
+      </fieldset>
     </form>
   );
 }
 
-function EdgeInspector({
-  edge,
+function ElementTransferEditor({
+  transfer,
   selectedMonth,
   onSave,
+  onRemove,
 }: {
-  edge: MoneyCanvasEdge;
+  transfer: MoneyFlowTransfer;
   selectedMonth: YearMonth;
-  onSave: MoneyInspectorProps["onSaveEdge"];
+  onSave: (id: string, values: TransferEditValues) => Promise<boolean>;
+  onRemove: () => Promise<boolean>;
 }) {
-  const [label, setLabel] = useState(edge.data?.label ?? "");
+  const [label, setLabel] = useState(transfer.label ?? "");
+  const prefix = `connection-${transfer.id}`;
+  const save = useInspectorSave();
+  const schedule = useTransferSchedule(transfer, selectedMonth);
   const [baseAmount, setBaseAmount] = useState(
-    ((edge.data?.baseMonthlyAmountCents ?? 0) / 100).toString()
+    (transfer.baseMonthlyAmountCents / 100).toString()
   );
-  const existingOverride = edge.data?.monthOverrides?.[selectedMonth];
+  const existingOverride = transfer.monthOverrides?.[selectedMonth];
   const [monthOverride, setMonthOverride] = useState(
     typeof existingOverride === "number"
       ? (existingOverride / 100).toString()
       : ""
   );
-  const [startMonth, setStartMonth] = useState(
-    edge.data?.startMonth ?? selectedMonth
-  );
-  const [endMonth, setEndMonth] = useState(edge.data?.endMonth ?? "");
   const [errors, setErrors] = useState<
-    Partial<Record<"amount" | "override" | "start" | "end", string>>
+    Partial<Record<"amount" | "override", string>>
   >({});
 
   return (
     <form
       className="space-y-4"
-      onSubmit={(event) => {
+      aria-busy={save.state === "saving"}
+      onChange={save.reset}
+      onSubmit={async (event) => {
         event.preventDefault();
+        if (save.state === "saving") return;
         const parsedBaseAmount = parseMoneyCents(baseAmount);
         const parsedOverride =
           monthOverride.trim() === "" ? null : parseMoneyCents(monthOverride);
@@ -280,109 +507,156 @@ function EdgeInspector({
         if (monthOverride.trim() !== "" && parsedOverride === null)
           nextErrors.override =
             "Enter a valid override or leave it empty to use the recurring amount.";
-        if (!isYearMonth(startMonth))
-          nextErrors.start = "Choose a valid start month.";
-        if (
-          endMonth &&
-          (!isYearMonth(endMonth) ||
-            (isYearMonth(startMonth) &&
-              monthsBetween(startMonth, endMonth) < 0))
-        )
-          nextErrors.end =
-            "The end month must be the same as or later than the start month.";
+        const dates = schedule.validate();
         setErrors(nextErrors);
-        if (Object.keys(nextErrors).length > 0 || parsedBaseAmount === null)
+        if (
+          Object.keys(nextErrors).length > 0 ||
+          parsedBaseAmount === null ||
+          !dates
+        )
           return;
 
-        onSave(edge.id, {
-          label: label.trim(),
-          baseMonthlyAmountCents: parsedBaseAmount,
-          monthOverrideCents: parsedOverride,
-          startMonth,
-          endMonth: endMonth ? (endMonth as YearMonth) : undefined,
-        });
+        await save.submit(() =>
+          onSave(transfer.id, {
+            label: label.trim(),
+            baseMonthlyAmountCents: parsedBaseAmount,
+            monthOverrideCents: parsedOverride,
+            ...dates,
+          })
+        );
       }}
     >
-      <Field label="Recurring monthly amount" htmlFor="edge-amount">
-        <div className="relative">
-          <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="edge-amount"
-            aria-invalid={errors.amount ? true : undefined}
-            aria-describedby={errors.amount ? "edge-amount-error" : undefined}
-            inputMode="decimal"
-            value={baseAmount}
-            onChange={(event) => setBaseAmount(event.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </Field>
-      <Field
-        label={`${formatYearMonth(selectedMonth)} override`}
-        htmlFor="edge-month-override"
+      <fieldset
+        disabled={save.state === "saving"}
+        className="min-w-0 space-y-4"
       >
-        <div className="relative">
-          <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="edge-month-override"
-            aria-invalid={errors.override ? true : undefined}
-            aria-describedby={
-              errors.override ? "edge-override-error" : undefined
-            }
-            inputMode="decimal"
-            value={monthOverride}
-            onChange={(event) => setMonthOverride(event.target.value)}
-            className="pl-9"
-            placeholder="Use recurring amount"
-          />
-        </div>
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Starts" htmlFor="edge-start-month">
-          <Input
-            id="edge-start-month"
-            aria-invalid={errors.start ? true : undefined}
-            aria-describedby={errors.start ? "edge-start-error" : undefined}
-            type="month"
-            value={startMonth}
-            onChange={(event) => setStartMonth(event.target.value as YearMonth)}
-          />
+        <legend className="sr-only">Money flow details</legend>
+        <Field label="Recurring monthly amount" htmlFor={`${prefix}-amount`}>
+          <div className="relative">
+            <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id={`${prefix}-amount`}
+              aria-invalid={errors.amount ? true : undefined}
+              aria-describedby={
+                errors.amount ? `${prefix}-amount-error` : undefined
+              }
+              inputMode="decimal"
+              value={baseAmount}
+              onChange={(event) => setBaseAmount(event.target.value)}
+              className="pl-9"
+            />
+          </div>
         </Field>
-        <Field label="Ends" htmlFor="edge-end-month">
-          <Input
-            id="edge-end-month"
-            aria-invalid={errors.end ? true : undefined}
-            aria-describedby={errors.end ? "edge-end-error" : undefined}
-            type="month"
-            value={endMonth}
-            onChange={(event) => setEndMonth(event.target.value)}
-          />
+        <Field
+          label={`${formatYearMonth(selectedMonth)} override`}
+          htmlFor={`${prefix}-month-override`}
+        >
+          <div className="relative">
+            <CircleDollarSign className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id={`${prefix}-month-override`}
+              aria-invalid={errors.override ? true : undefined}
+              aria-describedby={
+                errors.override ? `${prefix}-override-error` : undefined
+              }
+              inputMode="decimal"
+              value={monthOverride}
+              onChange={(event) => setMonthOverride(event.target.value)}
+              className="pl-9"
+              placeholder="Use recurring amount"
+            />
+          </div>
         </Field>
-      </div>
-      <Field label="Label" htmlFor="edge-label">
-        <Input
-          id="edge-label"
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-          placeholder="Optional, e.g. automatic transfer"
+        <TransferScheduleFields
+          schedule={schedule}
+          idPrefix={prefix}
+          disabled={save.state === "saving"}
+          onChange={save.reset}
         />
-      </Field>
-      <div aria-live="polite" className="space-y-1">
-        {Object.entries(errors).map(([field, message]) => (
-          <p
-            key={field}
-            id={`edge-${field}-error`}
-            className="text-sm text-destructive"
-          >
-            {message}
-          </p>
-        ))}
-      </div>
-      <Button type="submit" className="w-full">
-        <Save />
-        Save money flow
-      </Button>
+        <Field label="Flow label (optional)" htmlFor={`${prefix}-label`}>
+          <Input
+            id={`${prefix}-label`}
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            placeholder="Optional, e.g. automatic transfer"
+          />
+        </Field>
+        <div aria-live="polite" className="space-y-1">
+          {Object.entries(errors).map(([field, message]) => (
+            <p
+              key={field}
+              id={`${prefix}-${field}-error`}
+              className="text-sm text-destructive"
+            >
+              {message}
+            </p>
+          ))}
+        </div>
+        <InspectorSave
+          state={save.state}
+          label="Save connection"
+          confirmation="Connection saved."
+        />
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => void save.submit(onRemove)}
+        >
+          Remove connection
+        </Button>
+      </fieldset>
     </form>
+  );
+}
+
+type InspectorSaveState = "idle" | "saving" | "saved" | "failed";
+
+function useInspectorSave() {
+  const [state, setState] = useState<InspectorSaveState>("idle");
+  return {
+    state,
+    reset: () => setState("idle"),
+    submit: async (commit: () => Promise<boolean>) => {
+      setState("saving");
+      try {
+        setState((await commit()) ? "saved" : "failed");
+      } catch {
+        setState("failed");
+      }
+    },
+  };
+}
+
+function InspectorSave({
+  state,
+  label,
+  confirmation,
+}: {
+  state: InspectorSaveState;
+  label: string;
+  confirmation: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Button type="submit" className="w-full" disabled={state === "saving"}>
+        <Save aria-hidden="true" />
+        {state === "saving" ? "Saving…" : label}
+      </Button>
+      {state === "saved" && (
+        <output
+          className="block text-sm text-muted-foreground"
+          aria-live="polite"
+        >
+          {confirmation}
+        </output>
+      )}
+      {state === "failed" && (
+        <p role="alert" className="text-sm text-destructive">
+          Not saved. Your edits are still here. Try saving again, or resolve any
+          conflict above.
+        </p>
+      )}
+    </div>
   );
 }
 

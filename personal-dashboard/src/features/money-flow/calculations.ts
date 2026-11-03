@@ -1,4 +1,10 @@
 import { compareYearMonth, enumerateMonths } from "./months";
+import {
+  calendarDate,
+  daysInCalendarMonth,
+  formatDateOnly,
+  parseDateOnly,
+} from "../../lib/date-only";
 import type {
   MoneyFlowDocument,
   MoneyFlowMonthResult,
@@ -91,7 +97,34 @@ export function isTransferActiveForMonth(
     return false;
   }
 
+  if (transfer.startDate) {
+    const paymentDate = getTransferPaymentDate(transfer, month);
+    if (
+      !paymentDate ||
+      paymentDate < transfer.startDate ||
+      (transfer.endDate && paymentDate > transfer.endDate)
+    )
+      return false;
+  }
+
   return transfer.monthOverrides?.[month] !== null;
+}
+
+/** Monthly anchors clamp to the last valid day in shorter months. */
+export function getTransferPaymentDate(
+  transfer: MoneyFlowTransfer,
+  month: YearMonth
+) {
+  const start = parseDateOnly(transfer.startDate);
+  if (!start) return null;
+  const [year, monthNumber] = month.split("-").map(Number);
+  return formatDateOnly(
+    calendarDate(
+      year,
+      monthNumber - 1,
+      Math.min(start.getUTCDate(), daysInCalendarMonth(year, monthNumber - 1))
+    )
+  );
 }
 
 function sumTransfers(
