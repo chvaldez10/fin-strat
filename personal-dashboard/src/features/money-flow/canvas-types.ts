@@ -19,6 +19,10 @@ export type MoneyCanvasNodeData = Record<string, unknown> & {
   note?: string;
   startingBalanceCents?: number;
   projectedBalanceCents?: number;
+  monthlyAmountCents?: number;
+  paymentDay?: number;
+  connectionCount?: number;
+  active?: boolean;
 };
 
 export type MoneyCanvasEdgeData = Record<string, unknown> & {

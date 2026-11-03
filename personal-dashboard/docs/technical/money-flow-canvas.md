@@ -8,7 +8,7 @@ backend configuration, migration, verification, and operational boundaries.
 
 ## Ownership
 
-- `types.ts`, `months.ts`, `amounts.ts`, `calculations.ts`, `transfers.ts`, and
+- `types.ts`, `months.ts`, `amounts.ts`, `calculations.ts`, `transfers.ts`, `elements.ts`, and
   `validation.ts`: framework-independent domain contracts and calculations.
 - `canvas-types.ts`: domain/React Flow conversion. Selection, calculated node
   display data, and React Flow internals are never persisted.
@@ -45,6 +45,22 @@ backend configuration, migration, verification, and operational boundaries.
   editor, semantic commands, inspector, month navigation and canvas/table view.
   Receives an initial document containing only the selected graph, separate
   account summaries, and callbacks; it has no identity or storage dependency.
+- `components/money-element.tsx` and `element-connection.tsx`: canvas cards and
+  display-only connections. Card amounts, payment days and connection counts are
+  derived display data, not stored fields.
+- `components/element-inspector.tsx`: composition of the selected canvas
+  element's editor and its additional connection sections.
+- `components/element-details-form.tsx`, `element-transfer-form.tsx`,
+  `element-flow-fields.tsx`, `element-schedule-fields.tsx`, and
+  `element-form-feedback.tsx`: focused editing forms with shared financial
+  validation, schedule controls and acknowledged-save feedback.
+- `components/element-editor-types.ts` and `element-presentation.ts`: canvas
+  editor contracts and consistent element labels, icons and accents.
+- `components/element-toolbar.tsx`, `canvas-view-controls.tsx` and
+  `canvas-tool-button.tsx`: separate element actions from viewport controls.
+- `components/canvas-menu.tsx`: common measured positioning, dismissal, keyboard
+  navigation and focus return for canvas and element context menus. The wrappers
+  supply domain actions; account management and shared UI keep their own names.
 - `persistence/document-codec.ts`: untrusted JSON validation and legacy decoding.
 - `repository.ts`: read-only legacy backup access; not a runtime persistence store.
 - `mock-data.ts`: test fixtures; never an automatic first-run fallback.
@@ -59,7 +75,8 @@ holds its own opening balance, nodes, schedules and viewport plus its revision.
 The client fetches root metadata, paginated summaries, and only the selected
 workspace. Account summaries never return complete graphs.
 
-Amounts are integer cents and dates are valid `YYYY-MM`. Month overrides retain
+Amounts are integer cents. Projection months use `YYYY-MM`; optional exact payment
+dates use `YYYY-MM-DD`. Month overrides retain
 intentional zero values. Carry-forward balances, canvas totals and table rows
 come from the same pure calculation functions. Backend writes check ownership
 using the authenticated user rather than imported or client-provided ownership.
@@ -70,6 +87,16 @@ Pointer movement stays inside React Flow; drag stop and completed commands
 emit domain snapshots. Only visible nodes render. The writer serializes saves
 and coalesces newer snapshots while a request is in flight. It advances only
 from acknowledged revisions and preserves pending data through failures.
+Left or middle dragging empty space pans the viewport; dragging a card moves the
+element. Right-clicking empty space opens an add-element menu at the original
+canvas position, plus a fit-view action. The toolbar's Canvas menu button exposes
+the same actions to keyboard and touch users. Right-clicking an element offers
+edit, duplicate and delete actions, with protected-account actions disabled.
+Menus stay within the available canvas, support arrow/Home/End keys and Escape,
+and return focus on dismissal. New placement and dragging snap to the 24px grid.
+The line grid is visible by default and can be shown or hidden from the canvas
+view controls. Visibility is local to the open workspace and does not change
+snapping or write financial data.
 Viewport movement completion waits 300 ms; account switching flushes it and the
 active writer before loading another graph. Month/mode preferences save separately.
 The workspace's back-to-list action also flushes pending graph, viewport and view

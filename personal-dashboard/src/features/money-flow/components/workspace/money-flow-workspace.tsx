@@ -37,33 +37,45 @@ import type {
   YearMonth,
 } from "../../types";
 import { validateConnection } from "../../validation";
-import { MoneyEdge } from "../money-edge";
+import { ElementConnection } from "../element-connection";
+import { ElementInspector } from "../element-inspector";
+import type {
+  SelectedMoneyElement,
+  ElementEditValues,
+  ElementTransferValues,
+} from "../element-editor-types";
+import { MoneyElement } from "../money-element";
 import {
-  MoneyInspector,
-  type SelectedMoneyElement,
-  type MoneyNodeEditValues,
-  type TransferEditValues,
-} from "../money-inspector";
-import { MoneyNode } from "../money-node";
-import {
-  NodeContextMenu,
-  type NodeContextMenuState,
-} from "../node-context-menu";
+  ElementContextMenu,
+  type ElementContextMenuState,
+} from "../element-context-menu";
 import { MoneySummary } from "../money-summary";
-import { ToolDock } from "../tool-dock";
+import { ElementToolbar } from "../element-toolbar";
+import { CanvasViewControls } from "../canvas-view-controls";
+import {
+  CanvasContextMenu,
+  type CanvasContextMenuState,
+} from "../canvas-context-menu";
 import { CashFlowTable } from "../cash-flow-table";
 import { getAccountWorkspace, getCanvasNodes } from "./workspace-document";
 
-const SNAP_GRID: [number, number] = [16, 16];
+function canvasMotionDuration(duration: number) {
+  return document.documentElement.hasAttribute("data-reduce-motion") ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? 0
+    : duration;
+}
+
+const SNAP_GRID: [number, number] = [24, 24];
 const nodeTypes = {
-  chequing: MoneyNode,
-  income: MoneyNode,
-  expense: MoneyNode,
-  account: MoneyNode,
-  note: MoneyNode,
+  chequing: MoneyElement,
+  income: MoneyElement,
+  expense: MoneyElement,
+  account: MoneyElement,
+  note: MoneyElement,
 };
 const edgeTypes = {
-  money: MoneyEdge,
+  money: ElementConnection,
 };
 const defaultEdgeOptions = {
   type: "money",
@@ -75,7 +87,7 @@ const defaultEdgeOptions = {
     type: MarkerType.ArrowClosed,
     width: 16,
     height: 16,
-    color: "var(--foreground)",
+    color: "var(--muted-foreground)",
   },
 };
 
@@ -118,13 +130,35 @@ export function MoneyFlowWorkspace({
     initialDocument.view.selectedAccountId
   );
   const [selected, setSelected] = useState<SelectedMoneyElement>(null);
-  const [nodeContextMenu, setNodeContextMenu] =
-    useState<NodeContextMenuState | null>(null);
-  const closeNodeContextMenu = useCallback(() => setNodeContextMenu(null), []);
+  const [gridVisible, setGridVisible] = useState(true);
+  const [contextMenu, setContextMenu] = useState<
+    ElementContextMenuState | CanvasContextMenuState | null
+  >(null);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const saveDocument = useCallback(
     (document: MoneyFlowDocument) => onChange(document),
     [onChange]
   );
+  const openCanvasMenu = useCallback((clientX: number, clientY: number) => {
+    const bounds = flowAreaRef.current?.getBoundingClientRect();
+    const instance = instanceRef.current;
+    if (!bounds || !instance) return;
+    setContextMenu({
+      kind: "canvas",
+      x: clientX - bounds.left,
+      y: clientY - bounds.top,
+      position: instance.screenToFlowPosition(
+        { x: clientX, y: clientY },
+        { snapToGrid: true }
+      ),
+    });
+  }, []);
+  const fitCanvas = useCallback(() => {
+    void instanceRef.current?.fitView({
+      padding: 0.22,
+      duration: canvasMotionDuration(220),
+    });
+  }, []);
   const readDocument = useCallback(() => {
     const instance = instanceRef.current;
 
@@ -153,11 +187,17 @@ export function MoneyFlowWorkspace({
         const month = document.view.selectedMonth;
         const nextTotals = calculateMoneyFlowTotals(document, month, accountId);
         setTotals(nextTotals);
-        const account = getAccountWorkspace(document, accountId);
-        instanceRef.current?.updateNodeData(account.centerNodeId, {
-          startingBalanceCents: nextTotals.startingBalanceCents,
-          projectedBalanceCents: nextTotals.projectedBalanceCents,
-        });
+        const displayData = new Map(
+          getCanvasNodes(document, accountId, month, nextTotals).map(
+            (element) => [element.id, element.data]
+          )
+        );
+        instanceRef.current?.setNodes((elements) =>
+          elements.map((element) => ({
+            ...element,
+            data: { ...element.data, ...displayData.get(element.id) },
+          }))
+        );
       }
 
       return document;
@@ -237,7 +277,7 @@ export function MoneyFlowWorkspace({
     []
   );
 
-  const createNode = useCallback(
+  const createElement = useCallback(
     (
       kind: Exclude<MoneyNodeKind, "chequing">,
       position?: { x: number; y: number }
@@ -308,7 +348,7 @@ export function MoneyFlowWorkspace({
         return;
       }
 
-      createNode(
+      createElement(
         kind,
         instance.screenToFlowPosition(
           { x: event.clientX, y: event.clientY },
@@ -316,7 +356,7 @@ export function MoneyFlowWorkspace({
         )
       );
     },
-    [createNode]
+    [createElement]
   );
 
   const handleConnect = useCallback(
@@ -367,7 +407,7 @@ export function MoneyFlowWorkspace({
     setSelected(null);
   }, []);
 
-  const duplicateNode = useCallback(
+  const duplicateElement = useCallback(
     (source: MoneyCanvasNode) => {
       const instance = instanceRef.current;
 
@@ -438,16 +478,18 @@ export function MoneyFlowWorkspace({
 
   const duplicateSelection = useCallback(() => {
     if (selected?.type === "node") {
-      duplicateNode(selected.item);
+      duplicateElement(
+        instanceRef.current?.getNode(selected.item.id) ?? selected.item
+      );
     }
-  }, [duplicateNode, selected]);
+  }, [duplicateElement, selected]);
 
   const deleteSelection = useCallback(() => {
     deleteElement(selected);
   }, [deleteElement, selected]);
 
-  const saveNode = useCallback(
-    async (id: string, values: MoneyNodeEditValues) => {
+  const saveElement = useCallback(
+    async (id: string, values: ElementEditValues) => {
       const instance = instanceRef.current;
 
       if (!instance) {
@@ -545,7 +587,7 @@ export function MoneyFlowWorkspace({
   );
 
   const saveTransfer = useCallback(
-    async (nodeId: string, id: string, values: TransferEditValues) => {
+    async (nodeId: string, id: string, values: ElementTransferValues) => {
       const instance = instanceRef.current;
 
       if (!instance) {
@@ -717,7 +759,7 @@ export function MoneyFlowWorkspace({
       setActiveDocument(document);
       setViewMode(mode);
       setSelected(null);
-      setNodeContextMenu(null);
+      setContextMenu(null);
 
       if (mode === "table") {
         instanceRef.current = null;
@@ -815,7 +857,7 @@ export function MoneyFlowWorkspace({
           ) : (
             <div
               ref={flowAreaRef}
-              className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden"
+              className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden bg-muted/25 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               onDrop={handleDrop}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -843,50 +885,38 @@ export function MoneyFlowWorkspace({
                 onInit={handleInit}
                 onConnect={handleConnect}
                 onNodeClick={(_, node) => {
-                  setNodeContextMenu(null);
+                  setContextMenu(null);
                   setSelected({ type: "node", item: node });
                 }}
                 onPaneClick={() => {
-                  setNodeContextMenu(null);
+                  setContextMenu(null);
                   clearSelection();
                 }}
-                onNodeContextMenu={(event, node) => {
+                onPaneContextMenu={(event) => {
                   event.preventDefault();
+                  openCanvasMenu(event.clientX, event.clientY);
+                }}
+                onNodeContextMenu={(event, element) => {
+                  event.preventDefault();
+                  event.stopPropagation();
                   const bounds = flowAreaRef.current?.getBoundingClientRect();
-
-                  if (!bounds) {
-                    return;
-                  }
-
-                  const menuWidth = 176;
-                  const menuHeight = node.data.kind === "chequing" ? 142 : 102;
-                  const x = Math.min(
-                    event.clientX - bounds.left,
-                    bounds.width - menuWidth - 8
-                  );
-                  const y = Math.min(
-                    event.clientY - bounds.top,
-                    bounds.height - menuHeight - 8
-                  );
-
-                  instanceRef.current?.setNodes((nodes) =>
-                    nodes.map((item) => ({
+                  if (!bounds) return;
+                  instanceRef.current?.setNodes((elements) =>
+                    elements.map((item) => ({
                       ...item,
-                      selected: item.id === node.id,
+                      selected: item.id === element.id,
                     }))
                   );
-                  instanceRef.current?.setEdges((edges) =>
-                    edges.map((edge) => ({ ...edge, selected: false }))
-                  );
-                  setSelected({ type: "node", item: node });
-                  setNodeContextMenu({
-                    node,
-                    x: Math.max(8, x),
-                    y: Math.max(8, y),
+                  setSelected({ type: "node", item: element });
+                  setContextMenu({
+                    kind: "element",
+                    element,
+                    x: event.clientX - bounds.left,
+                    y: event.clientY - bounds.top,
                   });
                 }}
                 onNodeDragStart={() => {
-                  setNodeContextMenu(null);
+                  setContextMenu(null);
                 }}
                 onNodeDragStop={(_, node) => {
                   setSelected({ type: "node", item: node });
@@ -904,7 +934,7 @@ export function MoneyFlowWorkspace({
                   );
                   saveDocument(documentRef.current);
                 }}
-                onMoveStart={() => setNodeContextMenu(null)}
+                onMoveStart={() => setContextMenu(null)}
                 isValidConnection={(connection) => {
                   if (!connection.source || !connection.target) {
                     return false;
@@ -920,13 +950,13 @@ export function MoneyFlowWorkspace({
                 }}
                 snapToGrid
                 snapGrid={SNAP_GRID}
-                connectionLineType={ConnectionLineType.Step}
+                connectionLineType={ConnectionLineType.SmoothStep}
                 onlyRenderVisibleElements
                 nodesDraggable
                 nodesConnectable
                 elementsSelectable
                 selectionOnDrag={false}
-                panOnDrag={[2]}
+                panOnDrag={[0, 1]}
                 panActivationKeyCode="Space"
                 multiSelectionKeyCode="Shift"
                 deleteKeyCode={null}
@@ -934,78 +964,81 @@ export function MoneyFlowWorkspace({
                 maxZoom={2}
                 proOptions={{ hideAttribution: false }}
               >
-                <Background
-                  variant={BackgroundVariant.Lines}
-                  gap={16}
-                  size={1}
-                  color="var(--border)"
+                {gridVisible && (
+                  <Background
+                    variant={BackgroundVariant.Lines}
+                    gap={24}
+                    lineWidth={1}
+                    color="color-mix(in oklab, var(--foreground) 20%, transparent)"
+                  />
+                )}
+                <CanvasViewControls
+                  inspectorOpen={!!selected}
+                  gridVisible={gridVisible}
+                  onToggleGrid={() => setGridVisible((visible) => !visible)}
+                  onFitView={fitCanvas}
+                  onZoomIn={() =>
+                    void instanceRef.current?.zoomIn({
+                      duration: canvasMotionDuration(160),
+                    })
+                  }
+                  onZoomOut={() =>
+                    void instanceRef.current?.zoomOut({
+                      duration: canvasMotionDuration(160),
+                    })
+                  }
+                  onReset={reset}
                 />
               </ReactFlow>
 
-              <ToolDock
+              <ElementToolbar
                 canDuplicateSelection={canDuplicate}
                 canDeleteSelection={canDelete}
-                onAddNode={createNode}
+                onAddElement={createElement}
                 onDuplicate={duplicateSelection}
                 onDelete={deleteSelection}
-                onFitView={() =>
-                  void instanceRef.current?.fitView({
-                    padding: 0.18,
-                    duration:
-                      document.documentElement.hasAttribute(
-                        "data-reduce-motion"
-                      ) ||
-                      window.matchMedia("(prefers-reduced-motion: reduce)")
-                        .matches
-                        ? 0
-                        : 220,
-                  })
-                }
-                onZoomIn={() =>
-                  void instanceRef.current?.zoomIn({
-                    duration:
-                      document.documentElement.hasAttribute(
-                        "data-reduce-motion"
-                      ) ||
-                      window.matchMedia("(prefers-reduced-motion: reduce)")
-                        .matches
-                        ? 0
-                        : 160,
-                  })
-                }
-                onZoomOut={() =>
-                  void instanceRef.current?.zoomOut({
-                    duration:
-                      document.documentElement.hasAttribute(
-                        "data-reduce-motion"
-                      ) ||
-                      window.matchMedia("(prefers-reduced-motion: reduce)")
-                        .matches
-                        ? 0
-                        : 160,
-                  })
-                }
-                onReset={reset}
+                menuOpen={contextMenu?.kind === "canvas"}
+                onOpenCanvasMenu={() => {
+                  const bounds = flowAreaRef.current?.getBoundingClientRect();
+                  if (bounds)
+                    openCanvasMenu(
+                      bounds.left + bounds.width / 2,
+                      bounds.top + bounds.height / 2
+                    );
+                }}
               />
+              <p className="pointer-events-none absolute bottom-7 left-1/2 hidden -translate-x-1/2 text-[0.7rem] text-muted-foreground/70 lg:block">
+                Drag canvas to pan · Right-click to add
+              </p>
 
-              <MoneyInspector
+              <ElementInspector
                 selected={selected}
                 account={getAccountWorkspace(activeDocument, selectedAccountId)}
                 selectedMonth={selectedMonth}
                 isFirstMonth={selectedMonthIndex === 0}
                 onClose={clearSelection}
-                onSaveNode={saveNode}
+                onSaveElement={saveElement}
                 onSaveTransfer={saveTransfer}
                 onRemoveTransfer={removeTransfer}
               />
-              {nodeContextMenu ? (
-                <NodeContextMenu
-                  menu={nodeContextMenu}
-                  onClose={closeNodeContextMenu}
-                  onDuplicate={duplicateNode}
-                  onDelete={(node) =>
-                    deleteElement({ type: "node", item: node })
+              {contextMenu?.kind === "element" ? (
+                <ElementContextMenu
+                  menu={contextMenu}
+                  onClose={closeContextMenu}
+                  onEdit={(element) =>
+                    setSelected({ type: "node", item: element })
                   }
+                  onDuplicate={duplicateElement}
+                  onDelete={(element) =>
+                    deleteElement({ type: "node", item: element })
+                  }
+                />
+              ) : contextMenu?.kind === "canvas" ? (
+                <CanvasContextMenu
+                  menu={contextMenu}
+                  onClose={closeContextMenu}
+                  onAddElement={createElement}
+                  onFitView={fitCanvas}
                 />
               ) : null}
             </div>

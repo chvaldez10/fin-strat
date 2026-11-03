@@ -1,0 +1,132 @@
+"use client";
+
+import { memo } from "react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { cn } from "@/lib/utils";
+import { formatMoney } from "../calculations";
+import type { MoneyCanvasNode } from "../canvas-types";
+import { ELEMENT_PRESENTATION } from "./element-presentation";
+
+export const MoneyElement = memo(function MoneyElement({
+  id,
+  data,
+  selected,
+}: NodeProps<MoneyCanvasNode>) {
+  const presentation = ELEMENT_PRESENTATION[data.kind];
+  const Icon = presentation.icon;
+  const tracked = data.kind === "chequing";
+  const note = data.kind === "note";
+  return (
+    <div
+      data-testid={`money-flow-node-${id}`}
+      className={cn(
+        "group w-60 rounded-2xl border bg-card p-4 text-card-foreground shadow-sm transition-[border-color,box-shadow] hover:shadow-md",
+        presentation.border,
+        tracked &&
+          "w-72 border-foreground/15 bg-foreground text-background shadow-lg shadow-black/10",
+        selected &&
+          "ring-2 ring-ring ring-offset-4 ring-offset-background shadow-md"
+      )}
+    >
+      {!note && data.kind !== "income" && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          className={cn(
+            "size-3! border-[3px]! border-card!",
+            presentation.handle
+          )}
+        />
+      )}
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-xl",
+            tracked ? "bg-background/10 text-background" : presentation.accent
+          )}
+        >
+          <Icon className="size-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p
+            className={cn(
+              "text-[0.65rem] font-medium uppercase tracking-[0.12em]",
+              tracked ? "text-background/60" : "text-muted-foreground"
+            )}
+          >
+            {presentation.label}
+          </p>
+          <p
+            className="mt-1 truncate text-sm font-semibold tracking-tight"
+            title={data.label}
+          >
+            {data.label}
+          </p>
+        </div>
+      </div>
+      {tracked &&
+        typeof data.startingBalanceCents === "number" &&
+        typeof data.projectedBalanceCents === "number" && (
+          <div className="mt-5 space-y-3">
+            <div>
+              <p className="text-xs text-background/60">Projected balance</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                {formatMoney(data.projectedBalanceCents)}
+              </p>
+            </div>
+            <div className="flex items-center justify-between border-t border-background/15 pt-3 text-xs">
+              <span className="text-background/60">Opening balance</span>
+              <span className="font-medium tabular-nums">
+                {formatMoney(data.startingBalanceCents)}
+              </span>
+            </div>
+          </div>
+        )}
+      {!tracked && !note && (
+        <div className="mt-5">
+          <p
+            className={cn(
+              "text-2xl font-semibold tracking-tight tabular-nums",
+              typeof data.monthlyAmountCents !== "number" &&
+                "text-base text-muted-foreground"
+            )}
+          >
+            {typeof data.monthlyAmountCents === "number"
+              ? formatMoney(data.monthlyAmountCents)
+              : "Set an amount"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {data.active === false
+              ? "Not scheduled this month"
+              : data.paymentDay
+                ? `Monthly · Day ${data.paymentDay}`
+                : "Monthly cash flow"}
+            {(data.connectionCount ?? 0) > 1
+              ? ` · ${data.connectionCount} connections`
+              : ""}
+          </p>
+        </div>
+      )}
+      {data.note && (
+        <p
+          className={cn(
+            "mt-3 line-clamp-3 text-xs leading-relaxed",
+            tracked ? "text-background/65" : "text-muted-foreground"
+          )}
+        >
+          {data.note}
+        </p>
+      )}
+      {!note && data.kind !== "expense" && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={cn(
+            "size-3! border-[3px]! border-card!",
+            presentation.handle
+          )}
+        />
+      )}
+    </div>
+  );
+});

@@ -10,17 +10,13 @@ import {
   type DateOnly,
 } from "@/lib/date-only";
 import type { MoneyFlowTransfer, YearMonth } from "../types";
-
-export type TransferScheduleValues = {
-  startDate: DateOnly;
-  endDate?: DateOnly;
-};
+import type { ElementScheduleValues } from "./element-editor-types";
 type InitialSchedule = Pick<
   MoneyFlowTransfer,
   "startMonth" | "endMonth" | "startDate" | "endDate"
 >;
 
-export function useTransferSchedule(
+export function useElementSchedule(
   initial: InitialSchedule | undefined,
   month: YearMonth
 ) {
@@ -46,7 +42,7 @@ export function useTransferSchedule(
       setEndDate(value);
       setErrors({});
     },
-    validate: (): TransferScheduleValues | null => {
+    validate: (): ElementScheduleValues | null => {
       const next: typeof errors = {};
       if (!parseDateOnly(startDate)) next.start = "Choose a valid start date.";
       if (endDate && (!parseDateOnly(endDate) || endDate < startDate))
@@ -63,13 +59,13 @@ export function useTransferSchedule(
   };
 }
 
-export function TransferScheduleFields({
+export function ElementScheduleFields({
   schedule,
   idPrefix,
   disabled,
   onChange,
 }: {
-  schedule: ReturnType<typeof useTransferSchedule>;
+  schedule: ReturnType<typeof useElementSchedule>;
   idPrefix: string;
   disabled: boolean;
   onChange: () => void;

@@ -87,7 +87,7 @@ export const MoneySummary = memo(function MoneySummary({
 
   return (
     <header className="shrink-0 border-b border-border bg-background">
-      <div className="grid min-h-14 min-w-0 gap-2 border-b border-border px-3 py-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 md:px-4">
+      <div className="grid min-h-14 min-w-0 gap-2 px-3 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 md:px-5">
         <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 sm:flex sm:flex-wrap sm:gap-2">
           <div className="col-span-3 min-w-0 sm:col-span-1">
             <AccountSwitcher
@@ -124,12 +124,12 @@ export const MoneySummary = memo(function MoneySummary({
           </Button>
         </div>
 
-        <div className="flex min-w-0 items-center rounded-md border border-border p-0.5 sm:w-auto">
+        <div className="flex min-w-0 items-center rounded-xl bg-muted/50 p-1 sm:w-auto">
           <Button
             type="button"
             variant={viewMode === "canvas" ? "secondary" : "ghost"}
             size="sm"
-            className="flex-1 sm:flex-none"
+            className="flex-1 rounded-lg sm:flex-none"
             onClick={() => onViewModeChange("canvas")}
           >
             <Workflow />
@@ -139,7 +139,7 @@ export const MoneySummary = memo(function MoneySummary({
             type="button"
             variant={viewMode === "table" ? "secondary" : "ghost"}
             size="sm"
-            className="flex-1 sm:flex-none"
+            className="flex-1 rounded-lg sm:flex-none"
             onClick={() => onViewModeChange("table")}
           >
             <Table2 />
@@ -148,23 +148,28 @@ export const MoneySummary = memo(function MoneySummary({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 px-3 pb-3 pt-1 sm:gap-3 md:px-5 md:pb-4 xl:grid-cols-4">
         {items.map((item) => {
           const Icon = item.icon;
 
           return (
             <div
               key={item.label}
-              className="flex min-w-0 items-center gap-2 border-b border-border px-3 py-2.5 even:border-l sm:gap-3 sm:px-4 sm:py-3 xl:border-b-0 xl:border-l-0 xl:border-r"
+              className="flex min-w-0 items-start gap-2 rounded-xl bg-muted/40 px-3 py-3 sm:gap-3 sm:px-4"
             >
-              <Icon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="mt-0.5 hidden rounded-lg bg-background p-2 shadow-xs sm:block">
+                <Icon
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              </span>
               <div className="min-w-0">
-                <p className="truncate text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                <p className="truncate text-xs font-medium text-muted-foreground">
                   {item.label}
                 </p>
                 <p
                   className={cn(
-                    "mt-0.5 truncate text-base font-semibold sm:text-lg",
+                    "mt-1 truncate text-lg font-semibold tracking-tight tabular-nums sm:text-xl",
                     item.valueClassName
                   )}
                 >

@@ -10,7 +10,7 @@ import {
 import { formatMoney } from "../calculations";
 import type { MoneyCanvasEdge } from "../canvas-types";
 
-export const MoneyEdge = memo(function MoneyEdge({
+export const ElementConnection = memo(function ElementConnection({
   id,
   sourceX,
   sourceY,
@@ -19,7 +19,6 @@ export const MoneyEdge = memo(function MoneyEdge({
   sourcePosition,
   targetPosition,
   markerEnd,
-  selected,
   data,
 }: EdgeProps<MoneyCanvasEdge>) {
   const [edgePath, labelX, labelY] = getSmoothStepPath({
@@ -29,8 +28,8 @@ export const MoneyEdge = memo(function MoneyEdge({
     targetY,
     sourcePosition,
     targetPosition,
-    borderRadius: 0,
-    offset: 24,
+    borderRadius: 24,
+    offset: 32,
   });
 
   return (
@@ -41,14 +40,14 @@ export const MoneyEdge = memo(function MoneyEdge({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          strokeWidth: selected ? 2.5 : 1.75,
-          stroke: "var(--foreground)",
-          opacity: selected ? 1 : 0.62,
+          strokeWidth: 1.75,
+          stroke: "var(--muted-foreground)",
+          opacity: 0.5,
         }}
       />
       <EdgeLabelRenderer>
         <div
-          className="nodrag nopan absolute rounded-md border border-border bg-background px-2 py-1 text-[0.68rem] font-semibold text-foreground shadow-xs"
+          className="nodrag nopan absolute max-w-52 truncate rounded-full border border-border/70 bg-card px-3 py-1.5 text-[0.7rem] font-medium tabular-nums text-foreground shadow-sm"
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             pointerEvents: "none",

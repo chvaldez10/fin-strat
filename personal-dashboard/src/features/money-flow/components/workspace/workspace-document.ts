@@ -1,8 +1,14 @@
-import { calculateMoneyFlowTotals } from "../../calculations";
+import {
+  calculateMoneyFlowTotals,
+  getTransferAmountForMonth,
+  isTransferActiveForMonth,
+} from "../../calculations";
+import { getElementConnections } from "../../elements";
 import { toCanvasNodes, totalsForCenterNode } from "../../canvas-types";
 import type {
   MoneyFlowAccountWorkspace,
   MoneyFlowDocument,
+  MoneyFlowTotals,
   YearMonth,
 } from "../../types";
 
@@ -19,9 +25,31 @@ export function getAccountWorkspace(
 export function getCanvasNodes(
   document: MoneyFlowDocument,
   accountId: string,
-  month: YearMonth
+  month: YearMonth,
+  computedTotals?: MoneyFlowTotals
 ) {
   const account = getAccountWorkspace(document, accountId);
-  const totals = calculateMoneyFlowTotals(document, month, account.id);
-  return toCanvasNodes(account.nodes, totalsForCenterNode(account, totals));
+  const totals =
+    computedTotals ?? calculateMoneyFlowTotals(document, month, account.id);
+  return toCanvasNodes(account.nodes, totalsForCenterNode(account, totals)).map(
+    (element) => {
+      const { primary, count } = getElementConnections(account, element.id);
+      return {
+        ...element,
+        data: {
+          ...element.data,
+          monthlyAmountCents: primary
+            ? getTransferAmountForMonth(primary, month)
+            : undefined,
+          paymentDay: primary?.startDate
+            ? Number(primary.startDate.slice(8, 10))
+            : undefined,
+          connectionCount: count,
+          active: primary
+            ? isTransferActiveForMonth(primary, month)
+            : undefined,
+        },
+      };
+    }
+  );
 }
