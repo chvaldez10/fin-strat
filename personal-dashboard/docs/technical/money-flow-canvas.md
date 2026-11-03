@@ -41,10 +41,23 @@ backend configuration, migration, verification, and operational boundaries.
   fixed start month so adding an account cannot imply a different scenario date.
 - `persistence/save-queue.ts`: one serial writer per workspace, pending snapshot
   coalescing, confirmed revisions, retry, and explicit conflict decisions.
-- `components/workspace/money-flow-workspace.tsx`: uncontrolled React Flow
-  editor, semantic commands, inspector, month navigation and canvas/table view.
-  Receives an initial document containing only the selected graph, separate
-  account summaries, and callbacks; it has no identity or storage dependency.
+- `components/workspace/money-flow-workspace.tsx`: composes the editor hooks,
+  summary, canvas/table views and local grid preference. Its public document,
+  account-summary and callback contract has no identity or storage dependency.
+- `components/workspace/use-workspace-document.ts`: current domain snapshot,
+  projections, canvas initialization, viewport snapshots, month/mode navigation
+  and restoring the loaded document. View state comes from the active document.
+- `components/workspace/use-element-commands.ts`: element selection and semantic
+  create, connect, duplicate, delete, edit and disconnect commands. Explicit saves
+  await the completed canvas snapshot before requesting persistence confirmation.
+- `components/workspace/use-canvas-interactions.ts`: pointer and keyboard
+  routing, context-menu state, drop positions and viewport controls. It delegates
+  financial edits to element commands and document snapshots to the document hook.
+- `components/workspace/money-flow-canvas.tsx`: uncontrolled React Flow rendering,
+  element toolbar, inspector, grid, viewport controls and context-menu composition.
+  It consumes narrowly typed hook outputs rather than owning editor logic.
+- `components/workspace/canvas-config.ts`: common snap spacing, display-only edge
+  options and motion duration for canvas rendering and commands.
 - `components/money-element.tsx` and `element-connection.tsx`: canvas cards and
   display-only connections. Card amounts, payment days and connection counts are
   derived display data, not stored fields.
