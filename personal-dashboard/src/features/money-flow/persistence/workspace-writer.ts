@@ -5,6 +5,10 @@ import type {
   MoneyFlowAccountSummary,
   MoneyFlowWorkspaceSnapshot,
 } from "./convex-types";
+import {
+  withWorkspaceAccess,
+  type WorkspaceWriteAccess,
+} from "./workspace-write-access";
 
 const clean = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -15,17 +19,20 @@ export class WorkspaceWriter {
     accounts: MoneyFlowAccountSummary[],
     private save: (
       args: FunctionArgs<typeof api.moneyFlow.saveWorkspace>
-    ) => Promise<FunctionReturnType<typeof api.moneyFlow.saveWorkspace>>
+    ) => Promise<FunctionReturnType<typeof api.moneyFlow.saveWorkspace>>,
+    private access: WorkspaceWriteAccess
   ) {
-    this.configure(root, accounts, save);
+    this.configure(root, accounts, save, access);
   }
   configure(
     root: MoneyFlowPlan,
     accounts: MoneyFlowAccountSummary[],
-    save: WorkspaceWriter["save"]
+    save: WorkspaceWriter["save"],
+    access: WorkspaceWriteAccess
   ) {
     this.root = root;
     this.save = save;
+    this.access = access;
     for (const account of accounts)
       this.revisions[account.id] = Math.max(
         this.revisions[account.id] ?? 0,
@@ -36,13 +43,16 @@ export class WorkspaceWriter {
     workspace: MoneyFlowWorkspaceSnapshot["workspace"],
     revision: number
   ) {
-    const result = await this.save({
-      documentId: this.root._id,
-      accountId: workspace.id,
-      expectedRevision: revision,
-      counterpartRevisions: this.revisions,
-      workspace: clean(workspace),
-    });
+    const result = await withWorkspaceAccess(this.access, () =>
+      this.save({
+        documentId: this.root._id,
+        accountId: workspace.id,
+        sessionId: this.access.sessionId,
+        expectedRevision: revision,
+        counterpartRevisions: this.revisions,
+        workspace: clean(workspace),
+      })
+    );
     if (result.status === "saved")
       Object.assign(this.revisions, result.counterpartRevisions);
     return result;

@@ -110,6 +110,14 @@ export default defineSchema({
   })
     .index("by_owner_document", ["ownerId", "documentId"])
     .index("by_document_account", ["documentId", "accountId"]),
+  moneyFlowWorkspaceLeases: defineTable({
+    ownerId: v.id("users"),
+    documentId: v.id("moneyFlowDocuments"),
+    accountId: v.string(),
+    sessionId: v.union(v.string(), v.null()),
+    generation: v.number(),
+    expiresAt: v.number(),
+  }).index("by_documentId_and_accountId", ["documentId", "accountId"]),
   watchlistCaptures: defineTable({
     ownerId: v.id("users"),
     text: v.string(),

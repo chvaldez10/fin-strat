@@ -16,8 +16,12 @@ backend configuration, migration, verification, and operational boundaries.
   orchestration. It does not import the canvas or workspace saving machinery.
 - `components/workspace/account-workspace-page.tsx`: selected-graph loading,
   unavailable states and routing for one account workspace.
-- `components/workspace/workspace-session.tsx`: editor composition, save feedback,
+- `components/workspace/workspace-session.tsx`: single-writer session gate and
+  blocked-state composition. Acquires ownership before mounting the editor.
+- `components/workspace/workspace-editor.tsx`: editor composition, save feedback,
   recovery controls and navigation after a successful persistence flush.
+- `components/workspace/workspace-session-blocked.tsx`: blocked, displaced and
+  interrupted-connection feedback with refresh takeover and back navigation.
 - `persistence/use-money-flow-plan.ts`: authenticated plan metadata and paginated
   account summaries shared by both pages; no graph subscriptions.
 - `persistence/use-workspace-persistence.ts`: live draft, acknowledged revisions,
@@ -25,6 +29,10 @@ backend configuration, migration, verification, and operational boundaries.
   recovery and unload warnings. It has no route or UI dependencies.
 - `persistence/workspace-writer.ts`: Convex workspace-write adapter and counterpart
   revision acknowledgements, separate from React and presentation.
+- `persistence/use-workspace-lease.ts`: one session claim per mounted route,
+  reactive displacement, heartbeats, conservative expiry and conditional release.
+- `persistence/workspace-write-access.ts`: client write guard and typed server
+  revocation handling, shared by graph and view writes.
 - `persistence/convex-types.ts`: client data contracts derived from the backend API.
 - `components/workspace/bank-account-list.tsx`: bank account cards, opening
   balances, workspace links, empty state and an explicit account-creation slot.
@@ -80,6 +88,9 @@ backend configuration, migration, verification, and operational boundaries.
 - `convex/moneyFlow.ts`: authenticated root/account queries, bounded writes,
   revision checks, atomic paired transfers and idempotent imports.
 - `convex/validation.ts`: backend payload bounds and domain validation.
+- `convex/moneyFlowSessions.ts` and `convex/lib/workspaceLease.ts`: authenticated,
+  transactional exclusive write leases, separate from online presence and finance
+  records. `convex/lib/moneyFlowAccess.ts` shares plan/account ownership checks.
 
 ## Data model
 
@@ -95,6 +106,30 @@ come from the same pure calculation functions. Backend writes check ownership
 using the authenticated user rather than imported or client-provided ownership.
 
 ## Interaction and saving
+
+Each account canvas permits one active editing instance across tabs, browsers and
+devices for its authenticated owner. A normally opened second instance is blocked;
+refreshing the canvas explicitly transfers control and blocks the previous owner.
+The new owner starts from the saved graph returned by the acquisition transaction.
+The previous editor stays mounted but hidden and inert, preserving queued drafts
+in memory; those drafts cannot save after displacement. Refresh loads saved data,
+so unsaved changes from an inactive window are not automatically merged.
+
+Ownership uses a separate `moneyFlowWorkspaceLeases` row per plan/account. Atomic
+claims serialize simultaneous opens. A new session ID and increasing generation
+fence out the old owner; graph and view mutations validate the live token and
+expiry in the same transaction as the write, before revision/conflict handling.
+Existing account revisions, paired-transfer checks and conflict recovery remain.
+The lease lasts 90 seconds and renews every 20 seconds. Unmount conditionally
+releases it; browser crashes and suspended connections recover through expiry or
+explicit refresh. A monotonic browser deadline stops edits conservatively when
+renewal cannot be confirmed. Expired/displaced instances never silently reacquire.
+Reactive queries expose generation/token changes without time-dependent filters.
+React Strict Mode reuses one acquisition promise, and only the first workspace
+claim on an actual document reload may force takeover; SPA navigation cannot.
+
+The new table needs no finance-record migration. Deploy backend schema/functions
+with the session-aware client; old clients without a session token are rejected.
 
 Pointer movement stays inside React Flow; drag stop and completed commands
 emit domain snapshots. Only visible nodes render. The writer serializes saves

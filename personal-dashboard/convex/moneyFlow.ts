@@ -1,8 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import type { QueryCtx, MutationCtx } from "./_generated/server";
-import type { Id, Doc } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import { requireUser, hashToken } from "./permissions";
 import { workspace, scenario, view } from "./schema";
 import {
@@ -16,32 +15,8 @@ import {
   storedAccount,
 } from "./validation";
 import type { MoneyFlowAccountWorkspace } from "../src/features/money-flow/types";
-
-async function ownedDocument(
-  ctx: QueryCtx | MutationCtx,
-  id: Id<"moneyFlowDocuments">
-) {
-  const user = await requireUser(ctx);
-  const document = await ctx.db.get(id);
-  if (!document || document.ownerId !== user._id)
-    throw new ConvexError("Plan unavailable or access denied.");
-  return document;
-}
-async function accountRecord(
-  ctx: QueryCtx | MutationCtx,
-  document: Doc<"moneyFlowDocuments">,
-  id: string
-) {
-  const account = await ctx.db
-    .query("moneyFlowAccounts")
-    .withIndex("by_document_account", (q) =>
-      q.eq("documentId", document._id).eq("accountId", id)
-    )
-    .unique();
-  if (!account || account.ownerId !== document.ownerId)
-    throw new ConvexError("Account unavailable or access denied.");
-  return account;
-}
+import { ownedDocument, accountRecord } from "./lib/moneyFlowAccess";
+import { assertWorkspaceLease } from "./lib/workspaceLease";
 export const getCurrent = query({
   args: {},
   handler: async (ctx) => {
@@ -180,12 +155,14 @@ export const saveWorkspace = mutation({
   args: {
     documentId: v.id("moneyFlowDocuments"),
     accountId: v.string(),
+    sessionId: v.string(),
     expectedRevision: v.number(),
     counterpartRevisions: v.record(v.string(), v.number()),
     workspace,
   },
   handler: async (ctx, args) => {
     const document = await ownedDocument(ctx, args.documentId);
+    await assertWorkspaceLease(ctx, document, args.accountId, args.sessionId);
     const current = await accountRecord(ctx, document, args.accountId);
     if (current.revision !== args.expectedRevision)
       return {
@@ -302,9 +279,15 @@ export const saveWorkspace = mutation({
   },
 });
 export const saveView = mutation({
-  args: { documentId: v.id("moneyFlowDocuments"), view },
+  args: {
+    documentId: v.id("moneyFlowDocuments"),
+    accountId: v.string(),
+    sessionId: v.string(),
+    view,
+  },
   handler: async (ctx, args) => {
     const document = await ownedDocument(ctx, args.documentId);
+    await assertWorkspaceLease(ctx, document, args.accountId, args.sessionId);
     validateScenario(document.scenario);
     validateView(args.view, document.scenario);
     await accountRecord(ctx, document, args.view.selectedAccountId);

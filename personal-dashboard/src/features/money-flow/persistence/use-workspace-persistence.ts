@@ -12,6 +12,10 @@ import { api } from "@convex/_generated/api";
 import type { MoneyFlowDocument, MoneyFlowAccountWorkspace } from "../types";
 import { SaveQueue, type SaveState } from "./save-queue";
 import { WorkspaceWriter } from "./workspace-writer";
+import {
+  withWorkspaceAccess,
+  type WorkspaceWriteAccess,
+} from "./workspace-write-access";
 import type {
   MoneyFlowPlan,
   MoneyFlowAccountSummary,
@@ -26,17 +30,43 @@ export type WorkspacePersistenceOptions = {
 const clean = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 /** Owns the live draft and acknowledged writes, without routing or presentation. */
-export function useWorkspacePersistence({
-  root,
-  accounts,
-  server,
-}: WorkspacePersistenceOptions) {
+export function useWorkspacePersistence(
+  { root, accounts, server }: WorkspacePersistenceOptions,
+  access: WorkspaceWriteAccess
+) {
   const save = useMutation(api.moneyFlow.saveWorkspace),
     saveView = useMutation(api.moneyFlow.saveView);
-  const [writer] = useState(() => new WorkspaceWriter(root, accounts, save));
+  const mounted = useRef(true);
+  const { canWrite } = access;
+  const guardedAccess = useCallback(
+    () => mounted.current && canWrite(),
+    [canWrite]
+  );
+  const writeAccess = { ...access, canWrite: guardedAccess };
   useLayoutEffect(() => {
-    writer.configure(root, accounts, save);
-  }, [writer, root, save, accounts]);
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const [writer] = useState(
+    () => new WorkspaceWriter(root, accounts, save, access)
+  );
+  useLayoutEffect(() => {
+    writer.configure(root, accounts, save, {
+      sessionId: access.sessionId,
+      canWrite: guardedAccess,
+      onLost: access.onLost,
+    });
+  }, [
+    writer,
+    root,
+    save,
+    accounts,
+    access.sessionId,
+    access.onLost,
+    guardedAccess,
+  ]);
   const makeDocument = useCallback(
     (
       workspace: MoneyFlowWorkspaceSnapshot["workspace"]
@@ -92,7 +122,14 @@ export function useWorkspacePersistence({
       while (viewPending.current) {
         const value = viewPending.current;
         try {
-          await saveView({ documentId: root._id, view: value });
+          await withWorkspaceAccess(writeAccess, () =>
+            saveView({
+              documentId: root._id,
+              accountId: server.workspace.id,
+              sessionId: access.sessionId,
+              view: value,
+            })
+          );
           if (viewPending.current === value) viewPending.current = null;
           setViewError(false);
         } catch {
@@ -187,10 +224,14 @@ export function useWorkspacePersistence({
     if (!(await queue.flush()) || !(await flushView())) return false;
     setViewSaving(true);
     try {
-      await saveView({
-        documentId: root._id,
-        view: { ...JSON.parse(lastView.current), selectedAccountId: id },
-      });
+      await withWorkspaceAccess(writeAccess, () =>
+        saveView({
+          documentId: root._id,
+          accountId: server.workspace.id,
+          sessionId: access.sessionId,
+          view: { ...JSON.parse(lastView.current), selectedAccountId: id },
+        })
+      );
       return true;
     } catch {
       setViewError(true);

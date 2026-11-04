@@ -1,146 +1,48 @@
 "use client";
-import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { SaveStatus } from "@/components/patterns/save-status";
-import {
-  useWorkspacePersistence,
-  type WorkspacePersistenceOptions,
-} from "../../persistence/use-workspace-persistence";
-import { MoneyFlowWorkspace } from "./money-flow-workspace";
+import type { WorkspacePersistenceOptions } from "../../persistence/use-workspace-persistence";
+import { useWorkspaceLease } from "../../persistence/use-workspace-lease";
+import { MoneyFlowLoading } from "./money-flow-loading";
+import { WorkspaceEditor } from "./workspace-editor";
+import { WorkspaceSessionBlocked } from "./workspace-session-blocked";
 
 type WorkspaceSessionProps = WorkspacePersistenceOptions & {
   onSwitch: (accountId: string) => void;
   onBack: () => void;
 };
 
-export function WorkspaceSession({
-  root,
-  accounts,
-  server,
-  onSwitch,
-  onBack,
-}: WorkspaceSessionProps) {
-  const {
-    document: initial,
-    editorVersion: epoch,
-    status: saveStatus,
-    workspaceStatus,
-    viewError,
-    change,
-    flush,
-    saveNow,
-    saveAccountSelection,
-    reloadServerVersion,
-    retrySave,
-    retryView,
-    keepLocal,
-  } = useWorkspacePersistence({ root, accounts, server });
-  const [leaving, setLeaving] = useState(false);
-  async function switchAccount(id: string) {
-    if (await saveAccountSelection(id)) onSwitch(id);
-  }
-  async function backToAccounts() {
-    if (leaving) return;
-    setLeaving(true);
-    try {
-      if (await flush()) onBack();
-    } finally {
-      setLeaving(false);
-    }
-  }
-  function reloadRemote() {
-    if (
-      window.confirm(
-        "Discard your unsaved edits and load the saved server version?"
-      )
-    )
-      reloadServerVersion();
-  }
+export function WorkspaceSession(props: WorkspaceSessionProps) {
+  const lease = useWorkspaceLease(props.root, props.server.workspace.id);
+  const { grant, sessionId } = lease;
+  const active = lease.status === "active";
+  if (lease.status === "checking") return <MoneyFlowLoading />;
+  // Keep the editor mounted after displacement so any pending draft stays in
+  // memory. Inert removes all pointer, keyboard and accessibility interaction.
   return (
-    <>
-      <div
-        className="flex min-h-10 shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-1.5 text-xs"
-        data-testid="save-status"
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={leaving}
-          onClick={() => {
-            void backToAccounts();
-          }}
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {grant && sessionId && (
+        <div
+          className={active ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+          inert={!active}
+          aria-hidden={!active || undefined}
         >
-          <ArrowLeft aria-hidden="true" />
-          Bank accounts
-        </Button>
-        <SaveStatus
-          status={saveStatus}
-          className={
-            saveStatus === "saved" || saveStatus === "saving"
-              ? "ml-auto"
-              : undefined
-          }
-        />
-        {workspaceStatus === "failed" && (
-          <span role="alert">
-            Your edits are still here. Retry saving before leaving.
-          </span>
-        )}
-        {workspaceStatus === "conflict" && (
-          <span role="alert">
-            This account changed elsewhere. Your edits are preserved.
-          </span>
-        )}
-        {workspaceStatus === "failed" && (
-          <Button
-            size="sm"
-            onClick={() => {
-              void retrySave();
+          <WorkspaceEditor
+            {...props}
+            server={
+              props.server.revision >= grant.snapshot.revision
+                ? props.server
+                : grant.snapshot
+            }
+            access={{
+              sessionId,
+              canWrite: lease.canWrite,
+              onLost: lease.onLost,
             }}
-          >
-            Retry save
-          </Button>
-        )}
-        {workspaceStatus === "conflict" && (
-          <>
-            <Button size="sm" variant="outline" onClick={reloadRemote}>
-              Load server version
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                void keepLocal();
-              }}
-            >
-              Save my version instead
-            </Button>
-          </>
-        )}
-        {viewError && (
-          <>
-            <span role="alert">View preferences could not be saved.</span>
-            <Button
-              size="sm"
-              onClick={() => {
-                void retryView();
-              }}
-            >
-              Retry view save
-            </Button>
-          </>
-        )}
-      </div>
-      <MoneyFlowWorkspace
-        key={epoch}
-        initialDocument={initial}
-        accountSummaries={accounts}
-        onChange={change}
-        onSave={saveNow}
-        onAccountChange={(id) => {
-          void switchAccount(id);
-        }}
-      />
-    </>
+          />
+        </div>
+      )}
+      {!active && (
+        <WorkspaceSessionBlocked status={lease.status} onBack={props.onBack} />
+      )}
+    </div>
   );
 }
