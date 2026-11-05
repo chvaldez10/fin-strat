@@ -34,7 +34,7 @@ export function ScheduleEditor({
   expenseOnly = false,
   income = false,
   onClose,
-}: {
+}: Readonly<{
   month: string;
   accounts: FinancialAccount[];
   item?: PlannerData["schedules"][number];
@@ -42,7 +42,7 @@ export function ScheduleEditor({
   expenseOnly?: boolean;
   income?: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [value, setValue] = useState<PaymentValues>(() => ({
     ...emptyPayment(month),
     kind: income ? "income" : "expense",

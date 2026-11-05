@@ -5,10 +5,10 @@ import { MonthlyBudgetSummary } from "./monthly-budget-summary";
 export function CanvasBudgetSummary({
   data,
   month,
-}: {
+}: Readonly<{
   data: PlannerData;
   month: string;
-}) {
+}>) {
   const totals = plannerTotals(
     data.entries,
     data.accounts,

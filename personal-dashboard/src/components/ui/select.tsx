@@ -13,7 +13,7 @@ function SelectTrigger({
   className,
   children,
   ...props
-}: ComponentProps<typeof SelectPrimitive.Trigger>) {
+}: Readonly<ComponentProps<typeof SelectPrimitive.Trigger>>) {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
@@ -40,7 +40,7 @@ function SelectContent({
   position = "popper",
   sideOffset = 6,
   ...props
-}: ComponentProps<typeof SelectPrimitive.Content>) {
+}: Readonly<ComponentProps<typeof SelectPrimitive.Content>>) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -71,7 +71,7 @@ function SelectItem({
   className,
   children,
   ...props
-}: ComponentProps<typeof SelectPrimitive.Item>) {
+}: Readonly<ComponentProps<typeof SelectPrimitive.Item>>) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -94,7 +94,7 @@ function SelectItem({
 function SelectLabel({
   className,
   ...props
-}: ComponentProps<typeof SelectPrimitive.Label>) {
+}: Readonly<ComponentProps<typeof SelectPrimitive.Label>>) {
   return (
     <SelectPrimitive.Label
       data-slot="select-label"

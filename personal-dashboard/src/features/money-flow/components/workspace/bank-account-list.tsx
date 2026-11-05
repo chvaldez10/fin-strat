@@ -27,7 +27,7 @@ export function BankAccountList({
   onLoadMore,
   loadingMore = false,
   children,
-}: BankAccountListProps) {
+}: Readonly<BankAccountListProps>) {
   const adding = !!children;
   return (
     <section

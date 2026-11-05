@@ -55,24 +55,31 @@ export const importLocal = mutation({
       )
       .unique();
     if (prior) return { alreadyImported: true };
+    const notesById = new Map<string, (typeof args.notes)[number]>();
     for (const note of args.notes) {
       const createdAt = Date.parse(note.createdAt);
       if (!Number.isFinite(createdAt) || !note.id || note.id.length > 120)
         throw new ConvexError("The backup contains an invalid note.");
-      const existing = await ctx.db
-        .query("watchlistCaptures")
-        .withIndex("by_owner_legacy", (q) =>
-          q.eq("ownerId", user._id).eq("legacyId", note.id)
-        )
-        .unique();
-      if (existing) continue;
-      await ctx.db.insert("watchlistCaptures", {
-        ownerId: user._id,
-        text: boundedText(note.text, "Note", 500),
-        createdAt,
-        legacyId: note.id,
-      });
+      // Preserve the first copy, matching the original ordered import.
+      if (!notesById.has(note.id)) notesById.set(note.id, note);
     }
+    await Promise.all(
+      [...notesById.values()].map(async (note) => {
+        const existing = await ctx.db
+          .query("watchlistCaptures")
+          .withIndex("by_owner_legacy", (q) =>
+            q.eq("ownerId", user._id).eq("legacyId", note.id)
+          )
+          .unique();
+        if (existing) return;
+        await ctx.db.insert("watchlistCaptures", {
+          ownerId: user._id,
+          text: boundedText(note.text, "Note", 500),
+          createdAt: Date.parse(note.createdAt),
+          legacyId: note.id,
+        });
+      })
+    );
     await ctx.db.insert("imports", {
       ownerId: user._id,
       key,

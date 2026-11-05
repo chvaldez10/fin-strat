@@ -19,12 +19,12 @@ export function MonthReviewEditor({
   data,
   suggestion,
   onClose,
-}: {
+}: Readonly<{
   month: string;
   data: PlannerData;
   suggestion: number | null;
   onClose: () => void;
-}) {
+}>) {
   const [carryIn, setIn] = useState(amountText(data.carryInCents)),
     [carryOut, setOut] = useState(
       amountText(data.review?.carryOutCents ?? null)

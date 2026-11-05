@@ -26,10 +26,10 @@ export type MoneyPage = (typeof pages)[number]["key"];
 export function MoneyNavigation({
   page,
   month,
-}: {
+}: Readonly<{
   page: MoneyPage;
   month: string;
-}) {
+}>) {
   return (
     <nav
       aria-label="Money pages"

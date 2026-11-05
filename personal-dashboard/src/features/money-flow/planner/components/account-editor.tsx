@@ -26,11 +26,11 @@ export function AccountEditor({
   item,
   month,
   onClose,
-}: {
+}: Readonly<{
   item?: FinancialAccount;
   month: string;
   onClose: () => void;
-}) {
+}>) {
   const [name, setName] = useState(item?.name ?? ""),
     [institution, setInstitution] = useState(item?.institution ?? ""),
     [kind, setKind] = useState<AccountKind>(item?.kind ?? "chequing"),

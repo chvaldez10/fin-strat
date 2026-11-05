@@ -25,13 +25,13 @@ export function PaymentEditor({
   item,
   initial,
   onClose,
-}: {
+}: Readonly<{
   month: string;
   accounts: FinancialAccount[];
   item?: Payment;
   initial?: Partial<PaymentValues>;
   onClose: () => void;
-}) {
+}>) {
   const [value, setValue] = useState<PaymentValues>(() => ({
     ...emptyPayment(month),
     ...item,

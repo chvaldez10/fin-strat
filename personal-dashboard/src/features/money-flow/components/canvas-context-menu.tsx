@@ -17,7 +17,7 @@ export function CanvasContextMenu({
   onClose,
   onAddElement,
   onFitView,
-}: {
+}: Readonly<{
   menu: CanvasContextMenuState;
   onClose: () => void;
   onAddElement: (
@@ -25,7 +25,7 @@ export function CanvasContextMenu({
     position: { x: number; y: number }
   ) => void;
   onFitView: () => void;
-}) {
+}>) {
   return (
     <CanvasMenu
       x={menu.x}

@@ -54,7 +54,7 @@ export function DatePicker({
   contentClassName,
   disabled,
   ...props
-}: DatePickerProps) {
+}: Readonly<DatePickerProps>) {
   const selected = parseDateOnly(value);
   const minimum = parseDateOnly(min);
   const maximum = parseDateOnly(max);

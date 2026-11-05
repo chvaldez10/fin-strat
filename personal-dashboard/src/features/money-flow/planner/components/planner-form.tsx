@@ -18,10 +18,10 @@ export const selectClass =
 export function Field({
   label,
   children,
-}: {
+}: Readonly<{
   label: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">{label}</p>
@@ -35,13 +35,13 @@ export function PlannerSheet({
   onClose,
   pending = false,
   children,
-}: {
+}: Readonly<{
   title: string;
   description: string;
   onClose: () => void;
   pending?: boolean;
   children: ReactNode;
-}) {
+}>) {
   return (
     <Sheet
       open
@@ -100,7 +100,7 @@ export function localToday() {
     calendarDate(value.getFullYear(), value.getMonth(), value.getDate())
   );
 }
-export function FormError({ message }: { message: string }) {
+export function FormError({ message }: Readonly<{ message: string }>) {
   return message ? (
     <p role="alert" className="text-sm text-destructive">
       {message}

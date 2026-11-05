@@ -29,6 +29,10 @@ type-ahead, disabled options, focus restoration, and native form participation
 through `name` and `required`. Label the trigger using its `id` or `aria-label`.
 Native trigger props, refs and test IDs are forwarded. Content renders in a portal.
 
+Component function props are annotated with `Readonly<Props>` (including native
+prop intersections). This protects the prop bindings without freezing objects or
+changing the caller's values at runtime.
+
 ```tsx
 <label htmlFor="account-type">Account type</label>
 <Select name="accountType" defaultValue="chequing" required>

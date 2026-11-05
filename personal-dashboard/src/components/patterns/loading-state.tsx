@@ -13,7 +13,7 @@ export function LoadingState({
   label = "Loading...",
   className,
   ...props
-}: LoadingStateProps) {
+}: Readonly<LoadingStateProps>) {
   if (variant === "dashboard") {
     return (
       <div

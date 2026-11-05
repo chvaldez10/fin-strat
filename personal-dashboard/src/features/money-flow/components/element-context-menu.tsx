@@ -17,13 +17,13 @@ export function ElementContextMenu({
   onEdit,
   onDuplicate,
   onDelete,
-}: {
+}: Readonly<{
   menu: ElementContextMenuState;
   onClose: () => void;
   onEdit: (element: MoneyCanvasNode) => void;
   onDuplicate: (element: MoneyCanvasNode) => void;
   onDelete: (element: MoneyCanvasNode) => void;
-}) {
+}>) {
   const protectedElement = menu.element.data.kind === "chequing";
   return (
     <CanvasMenu

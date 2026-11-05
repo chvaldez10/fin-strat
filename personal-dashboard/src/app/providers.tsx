@@ -78,7 +78,7 @@ function setStoredTheme(theme: Theme) {
   window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
 }
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children }: Readonly<{ children: ReactNode }>) {
   const theme = useSyncExternalStore(
     subscribeToTheme,
     getThemeSnapshot,

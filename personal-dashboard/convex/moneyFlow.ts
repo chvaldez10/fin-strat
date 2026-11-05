@@ -197,6 +197,34 @@ export const saveWorkspace = mutation({
           "Create linked transfers with the dedicated paired operation."
         );
     }
+    const counterpartIds = new Set(
+      current.workspace.transfers
+        .filter((old) => {
+          if (!old.linkedTransferId || !old.counterpartyAccountId) return false;
+          const next = args.workspace.transfers.find(
+            (item) => item.id === old.id
+          );
+          return (
+            !next ||
+            financialSchedule(
+              next as MoneyFlowAccountWorkspace["transfers"][number]
+            ) !==
+              financialSchedule(
+                old as MoneyFlowAccountWorkspace["transfers"][number]
+              )
+          );
+        })
+        .map((old) => old.counterpartyAccountId!)
+    );
+    const targetRecords = new Map(
+      (
+        await Promise.all(
+          [...counterpartIds].map((id) => accountRecord(ctx, document, id))
+        )
+      ).map((record) => [record.accountId, record])
+    );
+    // Several transfers may share a target. Merge them in order after the
+    // independent reads, then write each target exactly once.
     for (const old of current.workspace.transfers) {
       if (!old.linkedTransferId || !old.counterpartyAccountId) continue;
       const next = args.workspace.transfers.find((t) => t.id === old.id);
@@ -212,11 +240,7 @@ export const saveWorkspace = mutation({
           )
       )
         continue;
-      const target = await accountRecord(
-        ctx,
-        document,
-        old.counterpartyAccountId
-      );
+      const target = targetRecords.get(old.counterpartyAccountId)!;
       if (target.revision !== args.counterpartRevisions[target.accountId])
         return {
           status: "conflict" as const,
@@ -260,12 +284,15 @@ export const saveWorkspace = mutation({
         workspace: updated,
       });
     }
-    for (const { record, workspace } of changedTargets.values())
-      await ctx.db.patch(record._id, {
-        workspace: storedAccount(workspace),
-        revision: record.revision + 1,
-        updatedAt: Date.now(),
-      });
+    await Promise.all(
+      [...changedTargets.values()].map(({ record, workspace }) =>
+        ctx.db.patch(record._id, {
+          workspace: storedAccount(workspace),
+          revision: record.revision + 1,
+          updatedAt: Date.now(),
+        })
+      )
+    );
     await ctx.db.patch(current._id, {
       workspace: args.workspace,
       revision: current.revision + 1,
@@ -366,7 +393,7 @@ export const importLocal = mutation({
           );
         priorRevisions.set(account.accountId, account.revision);
       }
-      for (const account of accounts) await ctx.db.delete(account._id);
+      await Promise.all(accounts.map((account) => ctx.db.delete(account._id)));
       await ctx.db.patch(current._id, {
         domainId: imported.id,
         scenario: imported.scenario,
@@ -388,18 +415,21 @@ export const importLocal = mutation({
       });
       current = (await ctx.db.get(id))!;
     }
-    for (const account of imported.accounts)
-      await ctx.db.insert("moneyFlowAccounts", {
-        ownerId: user._id,
-        documentId: current._id,
-        accountId: account.id,
-        workspace: storedAccount(account),
-        revision: Math.max(
-          current.revision + 1,
-          (priorRevisions.get(account.id) ?? -1) + 1
-        ),
-        updatedAt: Date.now(),
-      });
+    await Promise.all(
+      imported.accounts.map((account) =>
+        ctx.db.insert("moneyFlowAccounts", {
+          ownerId: user._id,
+          documentId: current._id,
+          accountId: account.id,
+          workspace: storedAccount(account),
+          revision: Math.max(
+            current.revision + 1,
+            (priorRevisions.get(account.id) ?? -1) + 1
+          ),
+          updatedAt: Date.now(),
+        })
+      )
+    );
     await ctx.db.insert("imports", {
       ownerId: user._id,
       key,

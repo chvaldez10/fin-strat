@@ -4,7 +4,7 @@ import { api } from "@convex/_generated/api";
 import { formatMoney } from "../../calculations";
 import { formatYearMonth } from "../../months";
 
-export function YearView({ year }: { year: number }) {
+export function YearView({ year }: Readonly<{ year: number }>) {
   const rows = useQuery(api.plannerYear.get, { year });
   if (!rows)
     return (

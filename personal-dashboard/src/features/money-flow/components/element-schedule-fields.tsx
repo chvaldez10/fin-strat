@@ -64,12 +64,12 @@ export function ElementScheduleFields({
   idPrefix,
   disabled,
   onChange,
-}: {
+}: Readonly<{
   schedule: ReturnType<typeof useElementSchedule>;
   idPrefix: string;
   disabled: boolean;
   onChange: () => void;
-}) {
+}>) {
   const paymentDay = parseDateOnly(schedule.startDate)?.getUTCDate();
   return (
     <div className="grid gap-3">

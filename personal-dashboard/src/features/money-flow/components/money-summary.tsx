@@ -53,7 +53,7 @@ export const MoneySummary = memo(function MoneySummary({
   onNextMonth,
   onViewModeChange,
   onAccountChange,
-}: MoneySummaryProps) {
+}: Readonly<MoneySummaryProps>) {
   const selectedAccount =
     accounts.find((account) => account.id === selectedAccountId) ?? accounts[0];
   const projectedPositive = totals.projectedBalanceCents >= 0;

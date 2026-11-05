@@ -20,7 +20,7 @@ export const ElementConnection = memo(function ElementConnection({
   targetPosition,
   markerEnd,
   data,
-}: EdgeProps<MoneyCanvasEdge>) {
+}: Readonly<EdgeProps<MoneyCanvasEdge>>) {
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,

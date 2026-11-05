@@ -14,7 +14,7 @@ export function CanvasToolButton({
   children,
   className,
   ...props
-}: ComponentProps<typeof Button> & { label: string }) {
+}: Readonly<ComponentProps<typeof Button> & { label: string }>) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>

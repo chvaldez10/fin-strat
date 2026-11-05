@@ -19,7 +19,7 @@ export function PaymentFields({
   accounts,
   schedule = false,
   lockedKind = false,
-}: {
+}: Readonly<{
   value: PaymentValues;
   onChange: (patch: Partial<PaymentValues>) => void;
   amount: string;
@@ -27,7 +27,7 @@ export function PaymentFields({
   accounts: FinancialAccount[];
   schedule?: boolean;
   lockedKind?: boolean;
-}) {
+}>) {
   return (
     <>
       <Field label="Name">

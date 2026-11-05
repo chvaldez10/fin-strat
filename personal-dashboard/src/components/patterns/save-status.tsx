@@ -39,7 +39,7 @@ export function SaveStatus({
   className,
   children,
   ...props
-}: SaveStatusProps) {
+}: Readonly<SaveStatusProps>) {
   const { label, description, icon: Icon } = states[status];
   return (
     <output

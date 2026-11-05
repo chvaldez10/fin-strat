@@ -10,7 +10,7 @@ type WorkspaceSessionProps = WorkspacePersistenceOptions & {
   onBack: () => void;
 };
 
-export function WorkspaceSession(props: WorkspaceSessionProps) {
+export function WorkspaceSession(props: Readonly<WorkspaceSessionProps>) {
   const lease = useWorkspaceLease(props.root, props.server.workspace.id);
   const { grant, sessionId } = lease;
   const active = lease.status === "active";

@@ -89,7 +89,7 @@ export function MoneyFlowLoading() {
   );
 }
 
-function NodePlaceholder({ primary = false }: { primary?: boolean }) {
+function NodePlaceholder({ primary = false }: Readonly<{ primary?: boolean }>) {
   return (
     <div
       className={`w-40 space-y-4 rounded-lg border border-border bg-background p-4 shadow-sm ${primary ? "w-48 ring-4 ring-border/20" : ""}`}

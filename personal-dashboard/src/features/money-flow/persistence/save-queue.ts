@@ -47,7 +47,7 @@ export class SaveQueue<T> {
     return this.running;
   }
   private async drain(): Promise<boolean> {
-    while (this.state.pending !== null) {
+    if (this.state.pending !== null) {
       const value = this.state.pending,
         sequence = this.sequence;
       this.update({ status: "saving" });
@@ -65,6 +65,9 @@ export class SaveQueue<T> {
         this.update({ status: "failed" });
         return false;
       }
+      // Each continuation uses the revision acknowledged by the previous write.
+      // Never send coalesced snapshots concurrently.
+      return this.drain();
     }
     this.update({ status: "saved" });
     return true;

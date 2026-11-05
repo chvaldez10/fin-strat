@@ -3,8 +3,8 @@ import { MonthlyBudgetSummary } from "./monthly-budget-summary";
 
 export function MonthlySalarySummary({
   totals,
-}: {
+}: Readonly<{
   totals: ReturnType<typeof plannerTotals>;
-}) {
+}>) {
   return <MonthlyBudgetSummary totals={totals} />;
 }

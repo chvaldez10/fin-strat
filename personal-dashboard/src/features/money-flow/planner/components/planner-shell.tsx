@@ -11,13 +11,13 @@ export function PlannerShell({
   description,
   actions,
   children,
-}: {
+}: Readonly<{
   page: Exclude<MoneyPage, "canvas">;
   title: string;
   description: string;
   actions?: ReactNode;
   children: ReactNode;
-}) {
+}>) {
   const { month } = usePlannerMonth();
   return (
     <div className="-m-4 md:-m-6">
@@ -42,10 +42,10 @@ export function PlannerShell({
 export function PlannerLoading({
   error,
   onRetry,
-}: {
+}: Readonly<{
   error: string;
   onRetry: () => void;
-}) {
+}>) {
   return (
     <div className="rounded-2xl border border-border p-8">
       <p aria-live="polite" className="text-sm text-muted-foreground">

@@ -9,7 +9,9 @@ import { useMoneyFlowPlan } from "../../persistence/use-money-flow-plan";
 import { MoneyFlowLoading } from "./money-flow-loading";
 import { WorkspaceSession } from "./workspace-session";
 
-export function AccountWorkspacePage({ accountId }: { accountId: string }) {
+export function AccountWorkspacePage({
+  accountId,
+}: Readonly<{ accountId: string }>) {
   const router = useRouter();
   const { root, accounts, isLoading } = useMoneyFlowPlan();
   const selectedAccount = accounts.find((account) => account.id === accountId);

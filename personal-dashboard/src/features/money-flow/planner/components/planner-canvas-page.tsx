@@ -19,10 +19,10 @@ type Info = NonNullable<FunctionReturnType<typeof api.plannerCanvas.get>>;
 export function PlannerCanvasPage({
   accountId,
   accountControl,
-}: {
+}: Readonly<{
   accountId: string;
   accountControl?: ReactNode;
-}) {
+}>) {
   const planner = usePlanner(),
     legacy = useMoneyFlowPlan(),
     info = useQuery(api.plannerCanvas.get, { accountId });
@@ -64,7 +64,7 @@ function CanvasSession({
   onMonthChange,
   error,
   retry,
-}: {
+}: Readonly<{
   accountControl?: ReactNode;
   root: MoneyFlowPlan;
   info: Info;
@@ -73,7 +73,7 @@ function CanvasSession({
   onMonthChange: (month: string) => void;
   error: string;
   retry: () => void;
-}) {
+}>) {
   const lease = useWorkspaceLease(root, info.account.legacyAccountId!),
     [adding, setAdding] = useState(false);
   const active = lease.status === "active";

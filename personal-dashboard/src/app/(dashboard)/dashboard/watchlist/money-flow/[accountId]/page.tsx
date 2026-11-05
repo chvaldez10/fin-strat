@@ -7,9 +7,9 @@ export const metadata: Metadata = {
 
 export default async function AccountWorkspaceRoute({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ accountId: string }>;
-}) {
+}>) {
   const { accountId } = await params;
   return (
     <div className="-m-4 min-w-0 overflow-hidden md:-m-6">

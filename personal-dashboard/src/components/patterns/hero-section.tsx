@@ -23,7 +23,7 @@ export function HeroSection({
   variant = "centered",
   className,
   ...props
-}: HeroSectionProps) {
+}: Readonly<HeroSectionProps>) {
   if (variant === "split") {
     return (
       <section
@@ -92,10 +92,12 @@ function HeroContent({
   actions,
   align,
   compact = false,
-}: Pick<HeroSectionProps, "eyebrow" | "title" | "description" | "actions"> & {
-  align: "left" | "center";
-  compact?: boolean;
-}) {
+}: Readonly<
+  Pick<HeroSectionProps, "eyebrow" | "title" | "description" | "actions"> & {
+    align: "left" | "center";
+    compact?: boolean;
+  }
+>) {
   return (
     <div
       className={cn(

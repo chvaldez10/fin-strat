@@ -8,7 +8,9 @@ export function MonthlyBudgetSummary({
   totals,
   className,
   ...props
-}: ComponentProps<"section"> & { totals: ReturnType<typeof plannerTotals> }) {
+}: Readonly<
+  ComponentProps<"section"> & { totals: ReturnType<typeof plannerTotals> }
+>) {
   const overBudget = totals.remaining < 0;
   return (
     <section

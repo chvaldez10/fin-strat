@@ -25,11 +25,11 @@ export function ElementSaveFeedback({
   state,
   label,
   confirmation,
-}: {
+}: Readonly<{
   state: ElementSaveState;
   label: string;
   confirmation: string;
-}) {
+}>) {
   return (
     <div className="space-y-2">
       <Button
@@ -62,11 +62,11 @@ export function ElementField({
   label,
   htmlFor,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="space-y-2">
       <label htmlFor={htmlFor} className="text-sm font-medium">

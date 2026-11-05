@@ -11,12 +11,12 @@ export function ElementTransferForm({
   selectedMonth,
   onSave,
   onRemove,
-}: {
+}: Readonly<{
   transfer: MoneyFlowTransfer;
   selectedMonth: YearMonth;
   onSave: (id: string, values: ElementTransferValues) => Promise<boolean>;
   onRemove: () => Promise<boolean>;
-}) {
+}>) {
   const flow = useElementFlow(transfer, selectedMonth);
   const save = useElementSave();
   return (

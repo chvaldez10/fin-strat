@@ -14,7 +14,7 @@ export function CashFlowTable({
   document,
   selectedMonth,
   selectedAccountId,
-}: CashFlowTableProps) {
+}: Readonly<CashFlowTableProps>) {
   const forecast = calculateMoneyFlowForecast(document, selectedAccountId);
   const selectedIndex = forecast.findIndex(
     (month) => month.month === selectedMonth
@@ -138,10 +138,10 @@ export function CashFlowTable({
 function SectionRow({
   label,
   monthCount,
-}: {
+}: Readonly<{
   label: string;
   monthCount: number;
-}) {
+}>) {
   return (
     <tr className="bg-muted/30">
       <th
@@ -164,12 +164,12 @@ function AmountRow({
   values,
   tone,
   selectedIndex,
-}: {
+}: Readonly<{
   label: string;
   values: number[];
   tone: "positive" | "negative";
   selectedIndex: number;
-}) {
+}>) {
   return (
     <BalanceRow
       label={label}
@@ -189,7 +189,7 @@ function BalanceRow({
   emphasized = false,
   strong = false,
   selectedIndex,
-}: {
+}: Readonly<{
   label: string;
   values: number[];
   tone?: "positive" | "negative";
@@ -197,7 +197,7 @@ function BalanceRow({
   emphasized?: boolean;
   strong?: boolean;
   selectedIndex: number;
-}) {
+}>) {
   return (
     <tr className={strong ? "bg-foreground text-background" : undefined}>
       <th

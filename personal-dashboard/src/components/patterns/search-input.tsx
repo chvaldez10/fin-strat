@@ -5,7 +5,10 @@ import { cn } from "@/lib/utils";
 
 type SearchInputProps = Omit<ComponentProps<typeof Input>, "type">;
 
-export function SearchInput({ className, ...props }: SearchInputProps) {
+export function SearchInput({
+  className,
+  ...props
+}: Readonly<SearchInputProps>) {
   return (
     <div className="relative min-w-0">
       <Search

@@ -42,17 +42,25 @@ export const get = query({
           throw new ConvexError(
             "This month has more than 1000 scheduled payments."
           );
-        if (!review?.closed)
+        if (!review?.closed) {
+          const paymentMonths = new Map(
+            await Promise.all(
+              generated.map(async (item) => {
+                const moved = await ctx.db
+                  .query("moneyPlannerPayments")
+                  .withIndex("by_ownerId_and_occurrenceKey", (q) =>
+                    q
+                      .eq("ownerId", user._id)
+                      .eq("occurrenceKey", item.occurrenceKey)
+                  )
+                  .unique();
+                return [item.occurrenceKey, moved?.month] as const;
+              })
+            )
+          );
           for (const item of generated) {
-            const moved = await ctx.db
-              .query("moneyPlannerPayments")
-              .withIndex("by_ownerId_and_occurrenceKey", (q) =>
-                q
-                  .eq("ownerId", user._id)
-                  .eq("occurrenceKey", item.occurrenceKey)
-              )
-              .unique();
-            if (moved && moved.month !== month) continue;
+            const movedMonth = paymentMonths.get(item.occurrenceKey);
+            if (movedMonth && movedMonth !== month) continue;
             rows.set(item.occurrenceKey, {
               ...item.values,
               _id: item.occurrenceKey,
@@ -66,6 +74,7 @@ export const get = query({
               modified: false,
             });
           }
+        }
         for (const item of saved) rows.set(item.occurrenceKey, item);
         return {
           month,

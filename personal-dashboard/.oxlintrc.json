@@ -4,5 +4,9 @@
   "categories": {
     "correctness": "error"
   },
+  "rules": {
+    "no-await-in-loop": "error",
+    "react/no-unknown-property": "error"
+  },
   "ignorePatterns": [".next", "next-env.d.ts"]
 }

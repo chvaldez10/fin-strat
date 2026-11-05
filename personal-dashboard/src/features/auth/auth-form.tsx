@@ -6,7 +6,9 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function AuthForm({ mode }: { mode: "login" | "register" | "recover" }) {
+export function AuthForm({
+  mode,
+}: Readonly<{ mode: "login" | "register" | "recover" }>) {
   const { signIn } = useAuthActions();
   const router = useRouter();
   const search = useSearchParams();

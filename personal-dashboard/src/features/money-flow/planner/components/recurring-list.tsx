@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 export function RecurringList({
   items,
   onEdit,
-}: {
+}: Readonly<{
   items: PlannerData["schedules"];
   onEdit: (item: PlannerData["schedules"][number]) => void;
-}) {
+}>) {
   return (
     <div className="divide-y divide-border">
       {items.length ? (

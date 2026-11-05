@@ -4,12 +4,10 @@ import { Button } from "@/components/ui/button";
 import { MonthPicker } from "@/components/ui/month-picker";
 import { Plus } from "lucide-react";
 import { usePlanner, type PlannerData } from "../use-planner";
-import { schedulePayments, FREQUENCIES } from "../recurrence";
-import { addMonths } from "../../months";
 import { formatMoney } from "../../calculations";
 import { PlannerShell, PlannerLoading } from "./planner-shell";
 import { ScheduleEditor } from "./schedule-editor";
-import { displayDate, paymentAmount } from "./payment-list";
+import { ScheduleCollectionList } from "./schedule-collection-list";
 import { localToday } from "./planner-form";
 import {
   Select,
@@ -26,7 +24,6 @@ const categories = {
       "Plan regular bills such as mortgage, insurance, utilities and car payments.",
     add: "Add recurring payment",
     edit: "Edit recurring payment",
-    count: "Active recurring payments",
     month: "Recurring payment month",
     status: "Recurring payment status",
     next: "Next payment",
@@ -39,7 +36,6 @@ const categories = {
       "Keep services such as YouTube Premium separate from your regular household bills.",
     add: "Add subscription",
     edit: "Edit subscription",
-    count: "Active subscriptions",
     month: "Subscription month",
     status: "Subscription status",
     next: "Next charge",
@@ -51,9 +47,9 @@ const categories = {
 /** Separate page categories share the same schedule records and editor. */
 export function ScheduleCollectionPage({
   category,
-}: {
+}: Readonly<{
   category: keyof typeof categories;
-}) {
+}>) {
   const copy = categories[category];
   const subscription = category === "subscriptions";
   const planner = usePlanner(),
@@ -62,8 +58,8 @@ export function ScheduleCollectionPage({
       PlannerData["schedules"][number] | "new" | null
     >(null),
     [status, setStatus] = useState("active");
-  const asOf =
-    month === localToday().slice(0, 7) ? localToday() : `${month}-31`;
+  const today = localToday();
+  const asOf = month === today.slice(0, 7) ? today : `${month}-31`;
   const schedules = (data?.schedules ?? [])
     .map((current) => {
       const versions =
@@ -92,6 +88,12 @@ export function ScheduleCollectionPage({
     ) ?? [];
   const cost = charges.reduce((sum, item) => sum + (item.amountCents ?? 0), 0),
     unknown = charges.filter((item) => item.amountCents === null).length;
+  const visibleSchedules = schedules.filter(
+    (item) => status === "all" || item.status === status
+  );
+  const activeCount = schedules.filter(
+    (item) => item.status === "active"
+  ).length;
   return (
     <PlannerShell
       page={category}
@@ -110,9 +112,7 @@ export function ScheduleCollectionPage({
         <>
           <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2 border-b border-border pb-5">
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {schedules.filter((item) => item.status === "active").length}
-              </span>{" "}
+              <span className="font-medium text-foreground">{activeCount}</span>{" "}
               active
             </p>
             <p className="text-sm text-muted-foreground">
@@ -147,87 +147,24 @@ export function ScheduleCollectionPage({
             </Select>
           </div>
           <section className="overflow-hidden rounded-2xl border border-border">
-            <div className="divide-y divide-border">
-              {schedules
-                .filter((item) => status === "all" || item.status === status)
-                .map((item) => {
-                  const from =
-                    month === localToday().slice(0, 7)
-                      ? localToday()
-                      : `${month}-01`;
-                  const dates = Array.from({ length: 13 }, (_, i) =>
-                    addMonths(month as `${number}-${number}`, i)
-                  )
-                    .flatMap((m) =>
-                      item.versions.flatMap((version) =>
-                        schedulePayments(version, m)
-                      )
-                    )
-                    .filter((payment) => payment.values.dueDate >= from)
-                    .sort((a, b) =>
-                      a.values.dueDate.localeCompare(b.values.dueDate)
-                    );
-                  const next = dates[0]?.values.dueDate,
-                    account = data.accounts.find(
-                      (a) => a.id === item.accountId
-                    );
-                  return (
-                    <div
-                      key={item._id}
-                      className="flex flex-wrap items-center justify-between gap-5 p-5"
-                    >
-                      <div className="min-w-0">
-                        <h2 className="font-semibold">{item.name}</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {FREQUENCIES[item.frequency]} ·{" "}
-                          {account?.name ?? "Account not assigned"} ·{" "}
-                          {item.status}
-                        </p>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {next
-                            ? `${copy.next}: ${displayDate(next)}, ${next.slice(0, 4)}`
-                            : "No upcoming payment on this schedule"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="font-semibold tabular-nums">
-                            {paymentAmount(item.amountCents)}
-                          </p>
-                          {item.frequency === "yearly" &&
-                            item.amountCents !== null && (
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {formatMoney(Math.round(item.amountCents / 12))}
-                                /month equivalent
-                              </p>
-                            )}
-                          {item.estimated && (
-                            <p className="text-xs text-muted-foreground">
-                              Estimated
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          variant="outline"
-                          onClick={() => setEditor(item.current)}
-                        >
-                          {copy.edit}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              {!schedules.filter(
-                (item) => status === "all" || item.status === status
-              ).length && (
-                <div className="p-8 text-center">
-                  <h2 className="font-semibold">{copy.empty}</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {copy.hint}
-                  </p>
-                </div>
-              )}
-            </div>
+            {visibleSchedules.length === 0 ? (
+              <div className="p-8 text-center">
+                <h2 className="font-semibold">{copy.empty}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {copy.hint}
+                </p>
+              </div>
+            ) : (
+              <ScheduleCollectionList
+                items={visibleSchedules}
+                accounts={data.accounts}
+                month={month}
+                today={today}
+                nextLabel={copy.next}
+                editLabel={copy.edit}
+                onEdit={setEditor}
+              />
+            )}
           </section>
           {editor && (
             <ScheduleEditor

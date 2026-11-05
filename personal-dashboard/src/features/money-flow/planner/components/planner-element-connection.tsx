@@ -8,7 +8,9 @@ import {
 } from "@xyflow/react";
 import { formatMoney } from "../../calculations";
 export type PlannerEdge = Edge<{ amount: number | null }, "planner">;
-export function PlannerElementConnection(props: EdgeProps<PlannerEdge>) {
+export function PlannerElementConnection(
+  props: Readonly<EdgeProps<PlannerEdge>>
+) {
   const [path, x, y] = getSmoothStepPath({ ...props, borderRadius: 20 });
   return (
     <>

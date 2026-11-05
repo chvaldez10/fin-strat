@@ -19,7 +19,7 @@ export function CanvasMenu({
   onClose,
   children,
   testId,
-}: {
+}: Readonly<{
   x: number;
   y: number;
   title: string;
@@ -27,7 +27,7 @@ export function CanvasMenu({
   onClose: () => void;
   children: ReactNode;
   testId: string;
-}) {
+}>) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y });
   useLayoutEffect(() => {
@@ -124,7 +124,7 @@ export function CanvasMenuAction({
   className,
   destructive,
   ...props
-}: ComponentProps<"button"> & { destructive?: boolean }) {
+}: Readonly<ComponentProps<"button"> & { destructive?: boolean }>) {
   return (
     <button
       {...props}

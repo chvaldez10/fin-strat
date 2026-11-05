@@ -14,7 +14,7 @@ export function CanvasViewControls({
   gridVisible,
   onToggleGrid,
   resetLabel = "Restore loaded version",
-}: {
+}: Readonly<{
   onFitView: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -23,7 +23,7 @@ export function CanvasViewControls({
   gridVisible: boolean;
   onToggleGrid: () => void;
   resetLabel?: string;
-}) {
+}>) {
   const { zoom } = useViewport();
   return (
     <section

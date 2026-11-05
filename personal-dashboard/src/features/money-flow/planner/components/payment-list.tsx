@@ -21,12 +21,12 @@ export function PaymentList({
   accounts,
   month,
   onEdit,
-}: {
+}: Readonly<{
   items: Payment[];
   accounts: FinancialAccount[];
   month: string;
   onEdit: (item: Payment) => void;
-}) {
+}>) {
   if (!items.length)
     return (
       <p className="p-6 text-sm text-muted-foreground">
@@ -106,12 +106,12 @@ function PaymentRow({
   accounts,
   month,
   onEdit,
-}: {
+}: Readonly<{
   item: Payment;
   accounts: FinancialAccount[];
   month: string;
   onEdit: (item: Payment) => void;
-}) {
+}>) {
   const [draft, setDraft] = useState<{ text: string; revision: number } | null>(
       null
     ),

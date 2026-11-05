@@ -52,13 +52,18 @@ export function SavedCaptures() {
         )
       )
         return;
-      let already = true;
-      for (let offset = 0; offset < found.length; offset += 200) {
+      // Import bounded batches in order so failures stop subsequent requests.
+      async function importBatch(
+        offset: number,
+        already: boolean
+      ): Promise<boolean> {
+        if (offset >= found.length) return already;
         const result = await importNotes({
           notes: found.slice(offset, offset + 200),
         });
-        already &&= result.alreadyImported;
+        return importBatch(offset + 200, already && result.alreadyImported);
       }
+      const already = await importBatch(0, true);
       setMessage(
         already
           ? "These notes were already imported."

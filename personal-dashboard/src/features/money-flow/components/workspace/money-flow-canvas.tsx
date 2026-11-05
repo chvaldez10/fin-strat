@@ -40,7 +40,7 @@ export function MoneyFlowCanvas({
   gridVisible,
   onToggleGrid,
   onRestore,
-}: {
+}: Readonly<{
   editor: Pick<
     WorkspaceDocument,
     | "flowAreaRef"
@@ -55,7 +55,7 @@ export function MoneyFlowCanvas({
   gridVisible: boolean;
   onToggleGrid: () => void;
   onRestore: () => void;
-}) {
+}>) {
   const {
     flowAreaRef,
     activeDocument,

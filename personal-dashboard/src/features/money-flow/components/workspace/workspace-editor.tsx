@@ -23,7 +23,7 @@ export function WorkspaceEditor({
   access,
   onSwitch,
   onBack,
-}: WorkspaceEditorProps) {
+}: Readonly<WorkspaceEditorProps>) {
   const {
     document: initial,
     editorVersion: epoch,

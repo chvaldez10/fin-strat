@@ -9,7 +9,7 @@ type ThemeToggleProps = {
   className?: string;
 };
 
-export function ThemeToggle({ className }: ThemeToggleProps) {
+export function ThemeToggle({ className }: Readonly<ThemeToggleProps>) {
   const { theme, setTheme } = useDashboardTheme();
   const isDark = theme === "dark";
 

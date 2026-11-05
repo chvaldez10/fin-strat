@@ -9,7 +9,7 @@ type MarketingContainerProps = {
 export function MarketingContainer({
   children,
   className,
-}: MarketingContainerProps) {
+}: Readonly<MarketingContainerProps>) {
   return (
     <div className={cn("container mx-auto px-4", className)}>{children}</div>
   );

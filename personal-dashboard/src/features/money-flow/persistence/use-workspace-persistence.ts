@@ -118,8 +118,8 @@ export function useWorkspacePersistence(
     if (viewRunning.current) return viewRunning.current;
     if (!viewPending.current) return true;
     setViewSaving(true);
-    viewRunning.current = (async () => {
-      while (viewPending.current) {
+    async function saveNextView(): Promise<boolean> {
+      if (viewPending.current) {
         const value = viewPending.current;
         try {
           await withWorkspaceAccess(writeAccess, () =>
@@ -136,9 +136,12 @@ export function useWorkspacePersistence(
           setViewError(true);
           return false;
         }
+        // Keep view writes ordered while coalescing edits made during a save.
+        return saveNextView();
       }
       return true;
-    })().finally(() => {
+    }
+    viewRunning.current = saveNextView().finally(() => {
       viewRunning.current = null;
       setViewSaving(false);
     });

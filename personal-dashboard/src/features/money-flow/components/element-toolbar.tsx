@@ -13,7 +13,7 @@ export function ElementToolbar({
   onDelete,
   onOpenCanvasMenu,
   menuOpen,
-}: {
+}: Readonly<{
   canDuplicateSelection: boolean;
   canDeleteSelection: boolean;
   onAddElement: (kind: Exclude<MoneyNodeKind, "chequing">) => void;
@@ -21,7 +21,7 @@ export function ElementToolbar({
   onDelete: () => void;
   onOpenCanvasMenu: () => void;
   menuOpen: boolean;
-}) {
+}>) {
   return (
     <section
       aria-label="Element actions"

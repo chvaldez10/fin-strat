@@ -16,7 +16,7 @@ export function MoneyFlowWorkspace({
   onChange,
   onAccountChange,
   onSave,
-}: {
+}: Readonly<{
   initialDocument: MoneyFlowDocument;
   accountSummaries: Pick<
     MoneyFlowDocument["accounts"][number],
@@ -25,7 +25,7 @@ export function MoneyFlowWorkspace({
   onChange: (document: MoneyFlowDocument) => void;
   onAccountChange: (accountId: string) => void;
   onSave: () => Promise<boolean>;
-}) {
+}>) {
   const editor = useWorkspaceDocument({
     initialDocument,
     onChange,

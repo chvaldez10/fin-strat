@@ -19,10 +19,10 @@ import {
 export function PaymentStatusEditor({
   item,
   onClose,
-}: {
+}: Readonly<{
   item: Payment;
   onClose: () => void;
-}) {
+}>) {
   const canvas = useCanvasWriteContext();
   const labels = paymentStatusLabels(item.kind);
   const [paidOn, setPaidOn] = useState(item.paidOn ?? localToday()),

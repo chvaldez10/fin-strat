@@ -41,7 +41,7 @@ export function MonthPicker({
   contentClassName,
   disabled,
   ...props
-}: MonthPickerProps) {
+}: Readonly<MonthPickerProps>) {
   const selected = parseMonth(value);
   const [open, setOpen] = useState(false);
   const [year, setYear] = useState(

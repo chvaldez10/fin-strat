@@ -19,7 +19,7 @@ export function ErrorState({
   className,
   children,
   ...props
-}: ErrorStateProps) {
+}: Readonly<ErrorStateProps>) {
   return (
     <div
       className={cn(

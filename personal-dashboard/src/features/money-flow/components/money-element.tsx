@@ -11,7 +11,7 @@ export const MoneyElement = memo(function MoneyElement({
   id,
   data,
   selected,
-}: NodeProps<MoneyCanvasNode>) {
+}: Readonly<NodeProps<MoneyCanvasNode>>) {
   const presentation = ELEMENT_PRESENTATION[data.kind];
   const Icon = presentation.icon;
   const tracked = data.kind === "chequing";

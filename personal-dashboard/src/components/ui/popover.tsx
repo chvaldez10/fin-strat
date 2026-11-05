@@ -13,7 +13,7 @@ function PopoverContent({
   align = "start",
   sideOffset = 8,
   ...props
-}: ComponentProps<typeof PopoverPrimitive.Content>) {
+}: Readonly<ComponentProps<typeof PopoverPrimitive.Content>>) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content

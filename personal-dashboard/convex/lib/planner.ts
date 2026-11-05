@@ -193,46 +193,50 @@ export async function materializeMonth(
     "monthly payments"
   );
   const desired = new Map(generated.map((item) => [item.occurrenceKey, item]));
-  for (const old of existing) {
-    if (!old.seriesId || old.modified || old.status !== "pending") continue;
-    const next = desired.get(old.occurrenceKey);
-    if (!next) await ctx.db.delete(old._id);
-    else if (
-      Object.entries(next.values).some(
-        ([key, value]) => old[key as keyof typeof next.values] !== value
+  await Promise.all(
+    existing.map(async (old) => {
+      if (!old.seriesId || old.modified || old.status !== "pending") return;
+      const next = desired.get(old.occurrenceKey);
+      if (!next) await ctx.db.delete(old._id);
+      else if (
+        Object.entries(next.values).some(
+          ([key, value]) => old[key as keyof typeof next.values] !== value
+        )
       )
-    )
-      await ctx.db.patch(old._id, {
-        ...next.values,
-        revision: old.revision + 1,
-      });
-  }
-  for (const next of generated) {
-    // The unique key follows the original occurrence, including rescheduled
-    // instances now displayed in another month. Never generate a second copy.
-    const prior = await ctx.db
-      .query("moneyPlannerPayments")
-      .withIndex("by_ownerId_and_occurrenceKey", (q) =>
-        q
-          .eq("ownerId", settings.ownerId)
-          .eq("occurrenceKey", next.occurrenceKey)
-      )
-      .unique();
-    if (!prior)
-      await ctx.db.insert("moneyPlannerPayments", {
-        ownerId: settings.ownerId,
-        ...next.values,
-        occurrenceKey: next.occurrenceKey,
-        seriesId: next.seriesId,
-        originalDate: next.originalDate,
-        month,
-        status: "pending",
-        paidOn: null,
-        modified: false,
-        carryForward: month >= settings.startMonth,
-        revision: 0,
-      });
-  }
+        await ctx.db.patch(old._id, {
+          ...next.values,
+          revision: old.revision + 1,
+        });
+    })
+  );
+  await Promise.all(
+    [...desired.values()].map(async (next) => {
+      // The unique key follows the original occurrence, including rescheduled
+      // instances now displayed in another month. Never generate a second copy.
+      const prior = await ctx.db
+        .query("moneyPlannerPayments")
+        .withIndex("by_ownerId_and_occurrenceKey", (q) =>
+          q
+            .eq("ownerId", settings.ownerId)
+            .eq("occurrenceKey", next.occurrenceKey)
+        )
+        .unique();
+      if (!prior)
+        await ctx.db.insert("moneyPlannerPayments", {
+          ownerId: settings.ownerId,
+          ...next.values,
+          occurrenceKey: next.occurrenceKey,
+          seriesId: next.seriesId,
+          originalDate: next.originalDate,
+          month,
+          status: "pending",
+          paidOn: null,
+          modified: false,
+          carryForward: month >= settings.startMonth,
+          revision: 0,
+        });
+    })
+  );
   if (record)
     await ctx.db.patch(record._id, {
       generatedRevision: settings.scheduleRevision,

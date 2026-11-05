@@ -27,7 +27,7 @@ export function AccountSwitcher({
   accounts,
   selectedAccountId,
   onAccountChange,
-}: AccountSwitcherProps) {
+}: Readonly<AccountSwitcherProps>) {
   const selectedAccount =
     accounts.find((account) => account.id === selectedAccountId) ?? accounts[0];
 
@@ -83,7 +83,7 @@ export function AccountSwitcher({
   );
 }
 
-function AccountMark({ institution }: { institution?: string }) {
+function AccountMark({ institution }: Readonly<{ institution?: string }>) {
   const isScotiabank = institution?.toLowerCase().includes("scotia");
 
   return (

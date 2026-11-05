@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { ConvexReactClient } from "convex/react";
 import { ConvexAuthNextjsProvider } from "@convex-dev/auth/nextjs";
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [client] = useState(() => {
     const url = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!url)

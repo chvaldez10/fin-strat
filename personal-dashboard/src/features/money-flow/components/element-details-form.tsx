@@ -23,7 +23,7 @@ export function ElementDetailsForm({
   selectedMonth,
   onSave,
   onRemoveTransfer,
-}: {
+}: Readonly<{
   element: MoneyCanvasNode;
   startingBalanceCents: number;
   isFirstMonth: boolean;
@@ -31,7 +31,7 @@ export function ElementDetailsForm({
   selectedMonth: YearMonth;
   onSave: (id: string, values: ElementEditValues) => Promise<boolean>;
   onRemoveTransfer: (id: string) => Promise<boolean>;
-}) {
+}>) {
   const [label, setLabel] = useState(element.data.label);
   const [note, setNote] = useState(element.data.note ?? "");
   const [balance, setBalance] = useState(

@@ -14,7 +14,7 @@ export function EmptyState({
   children,
   className,
   ...props
-}: EmptyStateProps) {
+}: Readonly<EmptyStateProps>) {
   return (
     <div
       className={cn(

@@ -70,14 +70,14 @@ export function ElementFlowFields({
   month,
   disabled,
   onChange,
-}: {
+}: Readonly<{
   flow: ReturnType<typeof useElementFlow>;
   idPrefix: string;
   amountLabel: string;
   month: YearMonth;
   disabled: boolean;
   onChange: () => void;
-}) {
+}>) {
   return (
     <>
       <ElementField label={amountLabel} htmlFor={`${idPrefix}-amount`}>

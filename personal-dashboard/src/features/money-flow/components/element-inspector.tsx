@@ -45,7 +45,7 @@ export function ElementInspector({
   onSaveElement,
   onSaveTransfer,
   onRemoveTransfer,
-}: ElementInspectorProps) {
+}: Readonly<ElementInspectorProps>) {
   const isMobile = useIsMobile();
 
   if (!selected) {

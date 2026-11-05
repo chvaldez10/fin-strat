@@ -38,7 +38,7 @@ export function CreateAccountForm({
   onCancel,
   planStartMonth,
   className,
-}: CreateAccountFormProps) {
+}: Readonly<CreateAccountFormProps>) {
   const id = useId();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");

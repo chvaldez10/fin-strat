@@ -27,12 +27,12 @@ export function PlannerElementInspector({
   accounts,
   month,
   onClose,
-}: {
+}: Readonly<{
   items: Payment[];
   accounts: FinancialAccount[];
   month: string;
   onClose: () => void;
-}) {
+}>) {
   const [editing, setEditing] = useState<Payment | null>(null);
   const [choice, setChoice] = useState<string | null>(null);
   const mobile = useIsMobile();

@@ -9,11 +9,11 @@ export function WorkspaceSessionBlocked({
   status,
   onBack,
   onTakeControl,
-}: {
+}: Readonly<{
   status: WorkspaceLeaseStatus;
   onBack: () => void;
   onTakeControl: () => void;
-}) {
+}>) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     panel.current?.focus();

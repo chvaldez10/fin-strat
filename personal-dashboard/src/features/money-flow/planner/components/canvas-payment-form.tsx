@@ -35,10 +35,10 @@ function financialSnapshot(item: PaymentValues) {
 export function CanvasPaymentForm({
   item,
   onMore,
-}: {
+}: Readonly<{
   item: Payment;
   onMore: () => void;
-}) {
+}>) {
   const [name, setName] = useState(item.name),
     [amount, setAmount] = useState(amountText(item.amountCents)),
     [date, setDate] = useState(item.dueDate);

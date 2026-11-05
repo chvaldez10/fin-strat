@@ -14,7 +14,9 @@ import { AccountEditor } from "./account-editor";
 import { PaymentEditor } from "./payment-editor";
 import { PaymentList } from "./payment-list";
 
-export function AccountDetailsPage({ accountId }: { accountId: string }) {
+export function AccountDetailsPage({
+  accountId,
+}: Readonly<{ accountId: string }>) {
   const planner = usePlanner(),
     { data, month } = planner;
   const account = data?.accounts.find((item) => item.id === accountId);
@@ -151,12 +153,12 @@ function CreditStatements({
   accounts,
   month,
   onEdit,
-}: {
+}: Readonly<{
   rows: Payment[] | undefined;
   accounts: FinancialAccount[];
   month: string;
   onEdit: (payment: Payment) => void;
-}) {
+}>) {
   if (!rows)
     return (
       <p className="p-5 text-sm text-muted-foreground">Loading statements…</p>

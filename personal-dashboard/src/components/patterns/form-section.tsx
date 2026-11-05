@@ -14,7 +14,7 @@ export function FormSection({
   children,
   className,
   ...props
-}: FormSectionProps) {
+}: Readonly<FormSectionProps>) {
   return (
     <section
       className={cn(

@@ -18,9 +18,9 @@ export function BankAccountsPage() {
 
 function BankAccountsContent({
   data,
-}: {
+}: Readonly<{
   data: ReturnType<typeof useMoneyFlowPlan>;
-}) {
+}>) {
   const { root, accounts, status, loadMore } = data;
   const [adding, setAdding] = useState(false);
   const createAccount = useMutation(api.moneyFlow.createAccount);

@@ -27,22 +27,36 @@ export async function importLegacyPlan(ctx: MutationCtx, ownerId: Id<"users">) {
     );
   const accounts = await accountsFor(ctx, ownerId);
   const series = await seriesFor(ctx, ownerId);
+  const layouts = await Promise.all(
+    oldAccounts.map((old) =>
+      ctx.db
+        .query("moneyPlannerLayouts")
+        .withIndex("by_ownerId_and_accountId", (q) =>
+          q.eq("ownerId", ownerId).eq("accountId", old.accountId)
+        )
+        .unique()
+    )
+  );
+  // Validate and prepare the whole bounded import before starting writes.
+  const writes: Array<() => Promise<unknown>> = [];
   let count = series.length;
   for (const old of oldAccounts) {
     const account = old.workspace;
     checkMoney(account.openingBalanceCents, true);
     if (!accounts.some((item) => item.id === old.accountId))
-      await ctx.db.insert("moneyPlannerAccounts", {
-        ownerId,
-        id: old.accountId,
-        name: account.name,
-        institution: account.institution,
-        kind: account.accountType,
-        balanceCents: account.openingBalanceCents,
-        balanceUpdatedAt: null,
-        legacyAccountId: old.accountId,
-        revision: 0,
-      });
+      writes.push(() =>
+        ctx.db.insert("moneyPlannerAccounts", {
+          ownerId,
+          id: old.accountId,
+          name: account.name,
+          institution: account.institution,
+          kind: account.accountType,
+          balanceCents: account.openingBalanceCents,
+          balanceUpdatedAt: null,
+          legacyAccountId: old.accountId,
+          revision: 0,
+        })
+      );
     const positions: Record<string, { x: number; y: number }> = {};
     for (const transfer of account.transfers) {
       checkMoney(transfer.baseMonthlyAmountCents);
@@ -80,61 +94,62 @@ export async function importLegacyPlan(ctx: MutationCtx, ownerId: Id<"users">) {
       const [endYear, endMonth] = (transfer.endMonth ?? "2000-01")
         .split("-")
         .map(Number);
-      await ctx.db.insert("moneyPlannerSeries", {
-        ownerId,
-        seriesId,
-        name: transfer.label || node?.label || "Imported payment",
-        kind,
-        isSubscription: false,
-        amountCents: transfer.baseMonthlyAmountCents,
-        estimated: false,
-        accountId: old.accountId,
-        counterpartyId: transfer.counterpartyAccountId ?? null,
-        frequency: "monthly",
-        startDate: transfer.startDate ?? `${transfer.startMonth}-01`,
-        endDate:
-          transfer.endDate ??
-          (transfer.endMonth
-            ? formatDateOnly(
-                calendarDate(
-                  endYear,
-                  endMonth - 1,
-                  daysInCalendarMonth(endYear, endMonth - 1)
+      writes.push(() =>
+        ctx.db.insert("moneyPlannerSeries", {
+          ownerId,
+          seriesId,
+          name: transfer.label || node?.label || "Imported payment",
+          kind,
+          isSubscription: false,
+          amountCents: transfer.baseMonthlyAmountCents,
+          estimated: false,
+          accountId: old.accountId,
+          counterpartyId: transfer.counterpartyAccountId ?? null,
+          frequency: "monthly",
+          startDate: transfer.startDate ?? `${transfer.startMonth}-01`,
+          endDate:
+            transfer.endDate ??
+            (transfer.endMonth
+              ? formatDateOnly(
+                  calendarDate(
+                    endYear,
+                    endMonth - 1,
+                    daysInCalendarMonth(endYear, endMonth - 1)
+                  )
                 )
-              )
-            : null),
-        secondDay: null,
-        notes: "Imported monthly plan. Payment status has not been confirmed.",
-        status: "active",
-        effectiveFrom: transfer.startDate ?? `${transfer.startMonth}-01`,
-        effectiveTo: null,
-        revision: 0,
-        legacyKey,
-        monthOverrides: transfer.monthOverrides,
-      });
+              : null),
+          secondDay: null,
+          notes:
+            "Imported monthly plan. Payment status has not been confirmed.",
+          status: "active",
+          effectiveFrom: transfer.startDate ?? `${transfer.startMonth}-01`,
+          effectiveTo: null,
+          revision: 0,
+          legacyKey,
+          monthOverrides: transfer.monthOverrides,
+        })
+      );
     }
-    const layout = await ctx.db
-      .query("moneyPlannerLayouts")
-      .withIndex("by_ownerId_and_accountId", (q) =>
-        q.eq("ownerId", ownerId).eq("accountId", old.accountId)
-      )
-      .unique();
+    const layout = layouts.find((item) => item?.accountId === old.accountId);
     if (!layout) {
       const central = account.nodes.find(
         (item) => item.id === account.centerNodeId
       );
-      await ctx.db.insert("moneyPlannerLayouts", {
-        ownerId,
-        accountId: old.accountId,
-        positions: {
-          ...positions,
-          center: central?.position ?? { x: 500, y: 240 },
-        },
-        viewport: account.viewport,
-        revision: 0,
-      });
+      writes.push(() =>
+        ctx.db.insert("moneyPlannerLayouts", {
+          ownerId,
+          accountId: old.accountId,
+          positions: {
+            ...positions,
+            center: central?.position ?? { x: 500, y: 240 },
+          },
+          viewport: account.viewport,
+          revision: 0,
+        })
+      );
     }
   }
+  await Promise.all(writes.map((write) => write()));
 }
 
 export async function assertLegacyNotMigrated(

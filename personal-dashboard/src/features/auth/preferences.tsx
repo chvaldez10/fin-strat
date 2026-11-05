@@ -23,7 +23,7 @@ export function PreferencesPage() {
     </div>
   );
 }
-function PreferencesForm({ saved }: { saved: Preferences }) {
+function PreferencesForm({ saved }: Readonly<{ saved: Preferences }>) {
   const [draft, setDraft] = useState(saved),
     [pending, setPending] = useState(false),
     [message, setMessage] = useState("");

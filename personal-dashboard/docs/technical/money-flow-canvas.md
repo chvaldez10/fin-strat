@@ -47,6 +47,12 @@ Planner filters and editors reuse the existing Radix `Select` primitive from
 `Select`; navigation and action menus use the existing `DropdownMenu` components.
 Neither shared primitive imports Money routes or financial data.
 
+`ScheduleCollectionPage` owns the category filter and editor state;
+`ScheduleCollectionList` renders the rows and their next scheduled dates. Their
+props are read-only. Independent database operations run in awaited batches;
+save queues and browser-import batches use ordered asynchronous continuations
+so a lint cleanup cannot make revision-dependent writes concurrent.
+
 ```mermaid
 flowchart TD
     Month["Monthly details and checklist"]

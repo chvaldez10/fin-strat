@@ -63,7 +63,7 @@ export function PlannerCanvas({
   layout,
   access,
   onAdd,
-}: {
+}: Readonly<{
   accountControl?: ReactNode;
   summary?: ReactNode;
   account: FinancialAccount;
@@ -75,7 +75,7 @@ export function PlannerCanvas({
   layout: Layout;
   access: WorkspaceWriteAccess;
   onAdd: () => void;
-}) {
+}>) {
   const [positions, setPositions] = useState(layout?.positions ?? {}),
     [grid, setGrid] = useState(true),
     [selected, setSelected] = useState<string | null>(null);
