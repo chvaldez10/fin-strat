@@ -1,196 +1,303 @@
-# Money Flow Architecture
+# How the monthly money planner works
 
-The route `/dashboard/watchlist/money-flow` lists the user's bank accounts.
-`/dashboard/watchlist/money-flow/[accountId]` opens an existing account workspace.
-The list reads account summaries; only an account route subscribes to its graph.
-The [integration record](../plans/money-flow-convex-integration.md) documents
-backend configuration, migration, verification, and operational boundaries.
+Money opens to one month. Its main question is **does salary cover expenses and
+savings?** Subscriptions and accounts have their own pages. The canvas and yearly
+table are optional views of the same financial records.
 
-## Ownership
+This guide describes the running architecture. The
+[refactor plan](../plans/monthly-money-planner.md) records the product decisions;
+the [Convex integration record](../plans/money-flow-convex-integration.md) covers
+authentication and deployment configuration.
 
-- `types.ts`, `months.ts`, `amounts.ts`, `calculations.ts`, `transfers.ts`, `elements.ts`, and
-  `validation.ts`: framework-independent domain contracts and calculations.
-- `canvas-types.ts`: domain/React Flow conversion. Selection, calculated node
-  display data, and React Flow internals are never persisted.
-- `components/workspace/bank-accounts-page.tsx`: account-list loading and creation
-  orchestration. It does not import the canvas or workspace saving machinery.
-- `components/workspace/account-workspace-page.tsx`: selected-graph loading,
-  unavailable states and routing for one account workspace.
-- `components/workspace/workspace-session.tsx`: single-writer session gate and
-  blocked-state composition. Acquires ownership before mounting the editor.
-- `components/workspace/workspace-editor.tsx`: editor composition, save feedback,
-  recovery controls and navigation after a successful persistence flush.
-- `components/workspace/workspace-session-blocked.tsx`: blocked, displaced and
-  interrupted-connection feedback with refresh takeover and back navigation.
-- `persistence/use-money-flow-plan.ts`: authenticated plan metadata and paginated
-  account summaries shared by both pages; no graph subscriptions.
-- `persistence/use-workspace-persistence.ts`: live draft, acknowledged revisions,
-  coalesced saves, viewport debounce, separate view writes, retries, conflict
-  recovery and unload warnings. It has no route or UI dependencies.
-- `persistence/workspace-writer.ts`: Convex workspace-write adapter and counterpart
-  revision acknowledgements, separate from React and presentation.
-- `persistence/use-workspace-lease.ts`: one session claim per mounted route,
-  reactive displacement, heartbeats, conservative expiry and conditional release.
-- `persistence/workspace-write-access.ts`: client write guard and typed server
-  revocation handling, shared by graph and view writes.
-- `persistence/convex-types.ts`: client data contracts derived from the backend API.
-- `components/workspace/bank-account-list.tsx`: bank account cards, opening
-  balances, workspace links, empty state and an explicit account-creation slot.
-  This presentation component has no Convex or authentication dependency.
-- `components/workspace/bank-account-list-loading.tsx`: list-route skeleton,
-  distinct from the canvas workspace's loading layout.
-- `components/workspace/money-flow-loading.tsx`: the same viewport-sized
-  skeleton for route loading, session restoration, and selected-account queries.
-  Placeholders preserve the workspace layout and expose one loading announcement.
-- `components/workspace/create-account-form.tsx`: account fields, exact-cents
-  validation, pending/error feedback, and an asynchronous submission callback.
-  The parent supplies the Convex operation. Shared Select and MonthPicker
-  controls contain no finance or persistence behavior. Existing plans supply a
-  fixed start month so adding an account cannot imply a different scenario date.
-- `persistence/save-queue.ts`: one serial writer per workspace, pending snapshot
-  coalescing, confirmed revisions, retry, and explicit conflict decisions.
-- `components/workspace/money-flow-workspace.tsx`: composes the editor hooks,
-  summary, canvas/table views and local grid preference. Its public document,
-  account-summary and callback contract has no identity or storage dependency.
-- `components/workspace/use-workspace-document.ts`: current domain snapshot,
-  projections, canvas initialization, viewport snapshots, month/mode navigation
-  and restoring the loaded document. View state comes from the active document.
-- `components/workspace/use-element-commands.ts`: element selection and semantic
-  create, connect, duplicate, delete, edit and disconnect commands. Explicit saves
-  await the completed canvas snapshot before requesting persistence confirmation.
-- `components/workspace/use-canvas-interactions.ts`: pointer and keyboard
-  routing, context-menu state, drop positions and viewport controls. It delegates
-  financial edits to element commands and document snapshots to the document hook.
-- `components/workspace/money-flow-canvas.tsx`: uncontrolled React Flow rendering,
-  element toolbar, inspector, grid, viewport controls and context-menu composition.
-  It consumes narrowly typed hook outputs rather than owning editor logic.
-- `components/workspace/canvas-config.ts`: common snap spacing, display-only edge
-  options and motion duration for canvas rendering and commands.
-- `components/money-element.tsx` and `element-connection.tsx`: canvas cards and
-  display-only connections. Card amounts, payment days and connection counts are
-  derived display data, not stored fields.
-- `components/element-inspector.tsx`: composition of the selected canvas
-  element's editor and its additional connection sections.
-- `components/element-details-form.tsx`, `element-transfer-form.tsx`,
-  `element-flow-fields.tsx`, `element-schedule-fields.tsx`, and
-  `element-form-feedback.tsx`: focused editing forms with shared financial
-  validation, schedule controls and acknowledged-save feedback.
-- `components/element-editor-types.ts` and `element-presentation.ts`: canvas
-  editor contracts and consistent element labels, icons and accents.
-- `components/element-toolbar.tsx`, `canvas-view-controls.tsx` and
-  `canvas-tool-button.tsx`: separate element actions from viewport controls.
-- `components/canvas-menu.tsx`: common measured positioning, dismissal, keyboard
-  navigation and focus return for canvas and element context menus. The wrappers
-  supply domain actions; account management and shared UI keep their own names.
-- `persistence/document-codec.ts`: untrusted JSON validation and legacy decoding.
-- `repository.ts`: read-only legacy backup access; not a runtime persistence store.
-- `mock-data.ts`: test fixtures; never an automatic first-run fallback.
-- `convex/moneyFlow.ts`: authenticated root/account queries, bounded writes,
-  revision checks, atomic paired transfers and idempotent imports.
-- `convex/validation.ts`: backend payload bounds and domain validation.
-- `convex/moneyFlowSessions.ts` and `convex/lib/workspaceLease.ts`: authenticated,
-  transactional exclusive write leases, separate from online presence and finance
-  records. `convex/lib/moneyFlowAccess.ts` shares plan/account ownership checks.
+## Start with the pages
 
-## Data model
+All paths below start with `/dashboard/watchlist/money-flow`.
 
-A root holds scenario, selected view, owner and revision. Each account record
-holds its own opening balance, nodes, schedules and viewport plus its revision.
-The client fetches root metadata, paginated summaries, and only the selected
-workspace. Account summaries never return complete graphs.
+| Path                    | What the page does                                                                                         |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `/`                     | Selected month's salary, expenses, savings, payment checklist and carryover. Year view is behind a button. |
+| `/subscriptions`        | Manage recurring services and memberships, including multiple subscriptions to the same provider.          |
+| `/accounts`             | List bank and credit accounts, keeping cash and money owed separate.                                       |
+| `/accounts/[accountId]` | Update a manually recorded balance and review payments. Credit accounts show statements and Paid on dates. |
+| `/[accountId]`          | Monthly canvas for a bank account. Existing canvas URLs still work.                                        |
 
-Amounts are integer cents. Projection months use `YYYY-MM`; optional exact payment
-dates use `YYYY-MM-DD`. Month overrides retain
-intentional zero values. Carry-forward balances, canvas totals and table rows
-come from the same pure calculation functions. Backend writes check ownership
-using the authenticated user rather than imported or client-provided ownership.
+The month is kept in the URL as `?month=YYYY-MM`; without a selection, the planner
+uses the browser's current month. Page navigation preserves the selected month
+where supplied. The server checks supported dates independently.
 
-## Interaction and saving
+```mermaid
+flowchart TD
+    Month["Monthly planner"]
+    Subs["Subscriptions page"]
+    Accounts["Bank and credit account pages"]
+    Canvas["Optional monthly canvas"]
+    Records["Shared records: accounts, schedules and individual payments"]
+    Rules["Pure rules: recurrence, salary coverage and carryover"]
+    Server["Convex: ownership, revisions and storage"]
 
-Each account canvas permits one active editing instance across tabs, browsers and
-devices for its authenticated owner. A normally opened second instance is blocked;
-refreshing the canvas explicitly transfers control and blocks the previous owner.
-The new owner starts from the saved graph returned by the acquisition transaction.
-The previous editor stays mounted but hidden and inert, preserving queued drafts
-in memory; those drafts cannot save after displacement. Refresh loads saved data,
-so unsaved changes from an inactive window are not automatically merged.
+    Month --> Records
+    Subs --> Records
+    Accounts --> Records
+    Canvas -->|Projects records into elements| Records
+    Records --> Rules
+    Records --> Server
+```
 
-Ownership uses a separate `moneyFlowWorkspaceLeases` row per plan/account. Atomic
-claims serialize simultaneous opens. A new session ID and increasing generation
-fence out the old owner; graph and view mutations validate the live token and
-expiry in the same transaction as the write, before revision/conflict handling.
-Existing account revisions, paired-transfer checks and conflict recovery remain.
-The lease lasts 90 seconds and renews every 20 seconds. Unmount conditionally
-releases it; browser crashes and suspended connections recover through expiry or
-explicit refresh. A monotonic browser deadline stops edits conservatively when
-renewal cannot be confirmed. Expired/displaced instances never silently reacquire.
-Reactive queries expose generation/token changes without time-dependent filters.
-React Strict Mode reuses one acquisition promise, and only the first workspace
-claim on an actual document reload may force takeover; SPA navigation cannot.
+The planner does not need React Flow to load. The yearly table is dynamically
+loaded only when opened. Canvas code belongs to its account route.
 
-The new table needs no finance-record migration. Deploy backend schema/functions
-with the session-aware client; old clients without a session token are rejected.
+## The three important records
 
-Pointer movement stays inside React Flow; drag stop and completed commands
-emit domain snapshots. Only visible nodes render. The writer serializes saves
-and coalesces newer snapshots while a request is in flight. It advances only
-from acknowledged revisions and preserves pending data through failures.
-Left or middle dragging empty space pans the viewport; dragging a card moves the
-element. Right-clicking empty space opens an add-element menu at the original
-canvas position, plus a fit-view action. The toolbar's Canvas menu button exposes
-the same actions to keyboard and touch users. Right-clicking an element offers
-edit, duplicate and delete actions, with protected-account actions disabled.
-Menus stay within the available canvas, support arrow/Home/End keys and Escape,
-and return focus on dismissal. New placement and dragging snap to the 24px grid.
-The line grid is visible by default and can be shown or hidden from the canvas
-view controls. Visibility is local to the open workspace and does not change
-snapping or write financial data.
-Viewport movement completion waits 300 ms; account switching flushes it and the
-active writer before loading another graph. Month/mode preferences save separately.
-The workspace's back-to-list action also flushes pending graph, viewport and view
-saves; failures or conflicts keep the editor open for recovery.
+A **schedule** describes what repeats. A **payment** is one occurrence of that
+schedule, or a one-off item. A **monthly review** records confirmed carryover and
+whether the month's plan has been reviewed.
 
-Inspector save buttons wait for the canvas command and server acknowledgement
-before showing success. Pending forms prevent duplicate submissions; failures
-retain the entered values and allow retry. Starts and Ends use the shared custom
-day calendar, with an explicit clear action for an ongoing schedule. Clearing an
-end month or flow label persists the removal rather than restoring the old value.
+For example, a mortgage paid every two weeks has one recurring definition but
+two or three individual payment records in a month. Marking one payment paid
+does not mark the whole series paid.
 
-Connection lines are display-only: they cannot be selected, focused, reconnected,
-edited or deleted on the canvas. All amount, date, override and label edits live
-in the connected element's inspector. Income, expense and transfer destinations
-edit their primary connection alongside the element's label and note; additional
-connections appear as named From/To sections on the same element. The tracked
-account exposes all its connections this way. Connections can be removed from
-their element without deleting the element. Existing graph data is retained.
+| Table                  | Responsibility                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `moneyPlannerSettings` | Tracking start month, migration marker and recurring-schedule revision.                                                                                 |
+| `moneyPlannerAccounts` | Bank/credit account metadata, manual balance, last update and account revision.                                                                         |
+| `moneyPlannerSeries`   | Effective-dated schedule versions. Subscriptions are schedules with `isSubscription`.                                                                   |
+| `moneyPlannerPayments` | Amount, due date, payment account, status, Paid on date and revision for each payment. Card statements are linked payment records, not a separate copy. |
+| `moneyPlannerMonths`   | Confirmed carry-in/out, reviewed status and generation revision.                                                                                        |
+| `moneyPlannerLayouts`  | Canvas positions, pan/zoom and layout revision. No financial amounts.                                                                                   |
 
-Transfers may store exact `startDate` and `endDate` values alongside their
-compatible month bounds. The start day is the recurring monthly payment day;
-shorter months clamp to their last day. End dates are inclusive: a month's payment
-is omitted when its scheduled day falls after the end date. Existing month-only
-records retain their prior calculation until the user edits their schedule; the
-editor shows their first start-month day and last end-month day as defaults.
-The schema addition is optional and requires no rewrite of stored records. Paired
-transfers synchronize exact dates together with their amounts and month bounds.
+Every row belongs to the authenticated user. Account references use stable domain
+IDs so existing account links survive migration. Server mutations validate that
+referenced accounts belong to the user too.
 
-A clean remote revision refreshes the editor. A conflicting save keeps the local
-canvas and offers a deliberate server reload or local-version save. Paired
-transfer amount/schedule edits and deletion check both accounts and commit
-atomically; the counterpart's graph, viewport and labels remain independent.
+```mermaid
+erDiagram
+    moneyPlannerAccounts ||--o{ moneyPlannerPayments : "funds or receives"
+    moneyPlannerSeries ||--o{ moneyPlannerPayments : "generates occurrences"
+    moneyPlannerMonths ||--o{ moneyPlannerPayments : "reviews a month's plan"
+    moneyPlannerAccounts ||--o| moneyPlannerLayouts : "has canvas positions"
 
-The mobile toolbar, inspector sheet, internal table scrolling and semantic theme
-tokens remain part of the feature's supported presentation. Shared UI primitives
-remain independent of finance, authentication, fetching and storage.
+    moneyPlannerSeries {
+        string seriesId
+        string effectiveFrom
+        string effectiveTo
+        string frequency
+        number amountCents
+    }
+    moneyPlannerPayments {
+        string occurrenceKey
+        string originalDate
+        string dueDate
+        string month
+        string paidOn
+        number revision
+    }
+```
 
-## Recovery
+These are logical relationships. A payment can be unassigned to an account or be
+a one-off with no schedule. Several fields, including amounts and dates shown in
+the diagram, can be null.
 
-New users create their own first account; errors do not seed samples. The workspace
-has no browser-data recovery controls. Original browser records remain untouched;
-the authenticated import API and codec remain available for deliberate recovery.
-Imports commit idempotently, and replacing a server plan requires explicit intent
-and matching revisions. Legacy shared graphs retain all nodes/edges in account
-workspace copies instead of dropping data.
+## Follow a month opening
 
-Keep pending/failed drafts open and retry before leaving. Browser unload warns
-when work is outstanding. Save before navigating to another route. See the
-integration record for the completed acceptance checks and remaining boundaries.
+[`usePlanner`](../../src/features/money-flow/planner/use-planner.ts) subscribes to
+`moneyPlanner.getMonth`. If the month needs initialization or regenerated
+schedules, it calls `moneyPlanner.openMonth`.
+
+On the first opening, one transaction creates settings and imports the existing
+plan. Later openings generate only missing payments or eligible pending updates
+for that month. An occurrence key identifies the original schedule/date, so
+opening the same month twice cannot create two copies. A rescheduled occurrence
+keeps its original key even if its due date moves into another month.
+
+`getMonth` combines the selected month's payments, eligible older unpaid bills,
+older bills settled during this month, the monthly review and upcoming dates.
+An old bill appears as the same record; carrying it forward does not clone it.
+Forecast-only records before the tracking start are not assumed to be unpaid debt.
+
+## How the salary check works
+
+The first version is a salary-allocation and cash-planning view:
+
+```text
+commitments = direct bills + card repayments + carried bills + savings
+remaining salary = salary - commitments
+remaining funds = remaining salary + confirmed carry-in cash
+```
+
+Paid commitments still count toward the allocation. Carry-in cash is displayed
+separately and never suppresses an over-salary warning. Internal bank transfers
+are excluded from the all-account commitment total. Savings are counted once as
+an allocation, rather than twice as an allocation and a transfer.
+
+The screen uses the pure calculation function in
+[`totals.ts`](../../src/features/money-flow/planner/totals.ts):
+
+```ts
+const totals = plannerTotals(
+  data.entries,
+  data.accounts,
+  month,
+  data.carryInCents,
+  data.settlements
+);
+
+// totals.remaining: salary after expenses and savings
+// totals.available: includes confirmed carry-in; null when it is unconfirmed
+// totals.unknown: amounts still unknown, rather than zero
+```
+
+Amounts are integer cents in CAD. A payment amount of `0` means an intentional
+zero; a payment amount of `null` means unknown. Unknown and estimated amounts
+make totals provisional. In imported **month overrides**, `null` has a different
+legacy meaning: skip that month's scheduled payment.
+
+These figures are not a reconciled bank balance. Account balances are manual
+snapshots; setting a Paid on date does not automatically change them. Carry-out
+can use a calculated suggestion, but the user confirms it before it becomes
+next month's carry-in. Cash reserved for an unpaid bill is deducted once when
+showing funds after commitments.
+
+## Credit cards and subscriptions share payment records
+
+A subscription paid from a bank account is a direct cash commitment. A
+subscription charged to a credit card is shown as a service cost, but is excluded
+from that direct-cash total. The card repayment is the cash commitment instead.
+Adding both would count the same charge twice.
+
+A card statement is a payment with `kind: "cardPayment"`, a statement month,
+statement balance, due date, planned repayment amount, source bank account and
+destination credit account. There is one payment record per card/statement
+month. The statement month and due/payment months can differ.
+
+```mermaid
+flowchart LR
+    Statement["Credit account: November statement"]
+    Payment["Shared card-payment record: due in December, Paid on date"]
+    Planner["December monthly checklist"]
+    Element["Expense element on the paying bank's December canvas"]
+
+    Statement --> Payment
+    Payment --> Planner
+    Payment --> Element
+```
+
+Editing the amount or Paid on date from either page updates that record.
+[`canvas-projection.ts`](../../src/features/money-flow/planner/canvas-projection.ts)
+groups the bank's monthly payments into display elements. Credit repayments use
+an expense element. Several occurrences of one recurring schedule share one
+element, whose inspector lists the individual payments.
+
+The source record keeps the credit meaning; the canvas type controls appearance:
+
+```ts
+const kind = income
+  ? "income"
+  : first.kind === "savings" || first.kind === "transfer"
+    ? "account"
+    : "expense"; // Includes cardPayment.
+```
+
+Yearly subscription costs appear in full on the billing date. Their monthly
+equivalent is informational and is not added as another monthly payment.
+
+## Recurrence and history
+
+[`recurrence.ts`](../../src/features/money-flow/planner/recurrence.ts) uses calendar
+dates with UTC fields, avoiding daylight-saving shifts. It supports one-off,
+weekly, every-two-weeks, twice-monthly, monthly and yearly schedules.
+
+Every-two-weeks advances by 14 days from an anchor date; it can create three
+payments in one month. Twice-monthly uses two calendar-day slots. Short months
+clamp dates to the last valid day; two slots remain two payments even if both
+clamp to the same date. End dates are optional and inclusive.
+
+Editing one payment updates only that record and marks it as a manual exception.
+Editing a recurring schedule creates an effective-dated version. Generation
+preserves paid items, manual exceptions and reviewed months. Timing changes with
+unresolved custom upcoming payments require those exceptions to be resolved
+first, preventing accidental duplicate obligations.
+
+## Follow an edit from screen to server
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Form as Payment editor or inline amount
+    participant API as plannerPayments.save / setStatus
+    participant DB as Convex database
+    participant Views as Planner, account page and canvas
+
+    User->>Form: Save an amount or Paid on date
+    Form->>API: Payment ID, expected revision and changes
+    API->>DB: Check owner, references and current revision
+    alt Request came from a canvas
+        API->>DB: Check active canvas session too
+    end
+    alt Revision is current and data is valid
+        API->>DB: Update the payment and increment revision
+        DB-->>Views: Live query updates
+        API-->>Form: Confirm saved
+    else Conflict or failure
+        API-->>Form: Error; retain entered values
+    end
+```
+
+Forms prevent duplicate submissions and retain values after failures. Inline
+amount edits remember the revision at the start of editing. An old window cannot
+silently overwrite a newer payment revision. The phone layout shows payment
+cards; wider layouts show a table with inline amounts.
+
+Canvas financial edits use the same payment mutations. Layout writes use a
+separate serial `SaveQueue`, so moving a card cannot overwrite a financial record.
+The existing 90-second canvas lease renews every 20 seconds. A normally opened
+second canvas is blocked; refresh or the explicit takeover button requests
+control. The button requests takeover directly, with a pending state. Server
+guards reject writes from displaced canvas sessions. Ordinary planner/account
+pages use record revisions and do not acquire the canvas layout lock.
+
+## Migration and the original canvas
+
+The initial import copies existing accounts and schedules with stable source
+identities and preserves monthly totals, exact dates, zero/skipped overrides and
+linked transfers. Incoming counterparts are not mistaken for additional salary.
+Original workspace documents remain intact as recovery sources. Imported bank
+balances are labelled unverified opening balances; forecast entries are not
+proof that payments were made.
+
+The current canvas projects shared monthly payments. Stored original positions
+are reused where the imported schedules correspond to old elements. Notes and
+other original graph details remain in the preserved original workspace records.
+Changing payment dates/amounts no longer writes an independent copy of finances
+inside that old graph.
+
+After migration, legacy full-workspace saves, scenario changes and replacement
+imports are rejected. Bank creation from the new accounts API also creates the
+legacy bank identity needed by existing canvas URLs and session guards, in the
+same transaction. No finance records are seeded from screenshots or demo data.
+
+## Where to change things
+
+Feature paths below are relative to `src/features/money-flow/planner/`.
+
+| Change                              | Start here                                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Monthly composition and filters     | `components/monthly-planner-page.tsx`                                                                               |
+| Salary cards and provisional totals | `components/monthly-salary-summary.tsx`, `totals.ts`                                                                |
+| Month loading/navigation            | `use-planner.ts`, `use-planner-month.ts`, `convex/moneyPlanner.ts`                                                  |
+| Payment fields, amounts and Paid on | `components/payment-editor.tsx`, `payment-fields.tsx`, `payment-status-editor.tsx`, `payment-list.tsx`              |
+| Recurring schedules                 | `recurrence.ts`, `components/schedule-editor.tsx`, `convex/plannerSchedules.ts`                                     |
+| Subscriptions                       | `components/subscriptions-page.tsx`                                                                                 |
+| Accounts and statements             | `components/accounts-page.tsx`, `account-details-page.tsx`, `account-editor.tsx`, `convex/plannerAccounts.ts`       |
+| Carryover/review                    | `components/month-review-editor.tsx`, `convex/moneyPlanner.ts`                                                      |
+| Canvas elements and layout          | `canvas-projection.ts`, `components/planner-canvas.tsx`, `planner-element-inspector.tsx`, `convex/plannerCanvas.ts` |
+| Optional year view                  | `components/year-view.tsx`, `convex/plannerYear.ts`                                                                 |
+| Schema, validation and migration    | `convex/plannerSchema.ts`, `convex/lib/planner.ts`, `convex/lib/plannerMigration.ts`                                |
+
+Shared buttons, sheets and date pickers remain in `src/components/ui/`. The
+previous `components/workspace/` editor remains available in source for reference
+but is no longer the routed monthly UI. Generated Convex API files are generated
+by tooling, not hand-edited.
+
+The backend is the configured Personal Dashboard Convex deployment, shared by
+localhost and hosting. The personal-site database is separate. There is no bank
+synchronization or individual credit-card purchase ledger in this version.

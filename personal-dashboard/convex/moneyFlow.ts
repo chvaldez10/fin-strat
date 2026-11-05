@@ -17,6 +17,7 @@ import {
 import type { MoneyFlowAccountWorkspace } from "../src/features/money-flow/types";
 import { ownedDocument, accountRecord } from "./lib/moneyFlowAccess";
 import { assertWorkspaceLease } from "./lib/workspaceLease";
+import { assertLegacyNotMigrated } from "./lib/plannerMigration";
 export const getCurrent = query({
   args: {},
   handler: async (ctx) => {
@@ -72,9 +73,11 @@ export const createAccount = mutation({
     accountType: v.union(v.literal("chequing"), v.literal("savings")),
     openingBalanceCents: v.number(),
     startMonth: v.string(),
+    fromMonthlyPlanner: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
+    if (!args.fromMonthlyPlanner) await assertLegacyNotMigrated(ctx, user._id);
     const name = boundedText(args.name, "Account name"),
       institution = boundedText(args.institution, "Institution");
     if (!Number.isSafeInteger(args.openingBalanceCents))
@@ -163,6 +166,7 @@ export const saveWorkspace = mutation({
   handler: async (ctx, args) => {
     const document = await ownedDocument(ctx, args.documentId);
     await assertWorkspaceLease(ctx, document, args.accountId, args.sessionId);
+    await assertLegacyNotMigrated(ctx, document.ownerId);
     const current = await accountRecord(ctx, document, args.accountId);
     if (current.revision !== args.expectedRevision)
       return {
@@ -306,6 +310,7 @@ export const updateScenario = mutation({
   handler: async (ctx, args) => {
     const document = await ownedDocument(ctx, args.documentId);
     validateScenario(args.scenario);
+    await assertLegacyNotMigrated(ctx, document.ownerId);
     validateView(document.view, args.scenario);
     if (document.revision !== args.expectedRevision)
       throw new ConvexError(
@@ -328,6 +333,7 @@ export const importLocal = mutation({
   handler: async (ctx, args) => {
     const user = await requireUser(ctx),
       imported = validateImport(args.document, user._id);
+    await assertLegacyNotMigrated(ctx, user._id);
     const key =
       "money-flow:" + (await hashToken(JSON.stringify(args.document)));
     const prior = await ctx.db

@@ -1,6 +1,7 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { plannerTables } from "./plannerSchema";
 
 export const role = v.union(v.literal("admin"), v.literal("member"));
 export const scenario = v.object({
@@ -66,6 +67,7 @@ export const preferenceFields = {
 
 export default defineSchema({
   ...authTables,
+  ...plannerTables,
   users: defineTable({
     name: v.optional(v.string()),
     image: v.optional(v.string()),

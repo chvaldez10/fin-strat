@@ -10,7 +10,13 @@ type Grant = Extract<
   { status: "active" }
 >;
 export type WorkspaceLeaseStatus =
-  "checking" | "active" | "blocked" | "displaced" | "expired" | "error";
+  | "checking"
+  | "taking-control"
+  | "active"
+  | "blocked"
+  | "displaced"
+  | "expired"
+  | "error";
 type Session = {
   sessionId: string;
   claim: Promise<FunctionReturnType<typeof api.moneyFlowSessions.acquire>>;
@@ -20,7 +26,7 @@ type Session = {
 };
 let reloadClaimed = false;
 
-/** One attempt per mounted route. Only an actual document reload can take over. */
+/** Normal opens never steal control; document reloads and explicit actions can. */
 export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
   const acquire = useMutation(api.moneyFlowSessions.acquire);
   const renew = useMutation(api.moneyFlowSessions.renew);
@@ -31,6 +37,8 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
   });
   const session = useRef<Session | null>(null);
   const cleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const claiming = useRef(false);
+  const [requestVersion, setRequestVersion] = useState(0);
   const [state, setState] = useState<{
     status: WorkspaceLeaseStatus;
     grant: Grant | null;
@@ -41,23 +49,41 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
     if (session.current) session.current.active = false;
     setState((value) => ({ ...value, status }));
   }, []);
+  const editorSessionId = state.sessionId;
   const canWrite = useCallback(() => {
     const value = session.current;
-    return !!value?.active && value.deadline > performance.now();
+    return (
+      !!value?.active &&
+      value.sessionId === editorSessionId &&
+      value.deadline > performance.now()
+    );
+  }, [editorSessionId]);
+  const onLost = useCallback(() => {
+    // An old editor can finish a rejected request after a newer takeover.
+    if (session.current?.sessionId === editorSessionId) block("displaced");
+  }, [editorSessionId, block]);
+  const takeControl = useCallback(() => {
+    if (claiming.current) return;
+    claiming.current = true;
+    if (session.current) session.current.active = false;
+    session.current = null;
+    setState((value) => ({ ...value, status: "taking-control" }));
+    setRequestVersion((value) => value + 1);
   }, []);
-  const onLost = useCallback(() => block("displaced"), [block]);
 
   useEffect(() => {
     if (cleanupTimer.current) clearTimeout(cleanupTimer.current);
     const canvas = { documentId: root._id, accountId };
     if (!session.current) {
+      claiming.current = true;
       const sessionId = crypto.randomUUID();
       const navigation = performance.getEntriesByType("navigation")[0] as
         PerformanceNavigationTiming | undefined;
       const takeover =
-        !reloadClaimed &&
-        navigation?.type === "reload" &&
-        new URL(navigation.name).pathname === window.location.pathname;
+        requestVersion > 0 ||
+        (!reloadClaimed &&
+          navigation?.type === "reload" &&
+          new URL(navigation.name).pathname === window.location.pathname);
       reloadClaimed = true;
       session.current = {
         sessionId,
@@ -95,11 +121,11 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
       const startedAt = performance.now();
       try {
         const result = await renew({ ...canvas, sessionId: value.sessionId });
-        if (stopped || !value.active) return;
+        if (stopped || session.current !== value || !value.active) return;
         if (result.status === "blocked") block("displaced");
         else acceptDeadline(result, startedAt);
       } catch {
-        if (!stopped) block("error");
+        if (!stopped && session.current === value) block("error");
       } finally {
         renewing = false;
       }
@@ -109,7 +135,8 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
     };
     void value.claim.then(
       (result) => {
-        if (stopped) return;
+        if (stopped || session.current !== value) return;
+        claiming.current = false;
         if (result.status === "blocked") {
           block("blocked");
           return;
@@ -132,7 +159,10 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
         }, 1_000);
       },
       () => {
-        if (!stopped) block("error");
+        if (!stopped && session.current === value) {
+          claiming.current = false;
+          block("error");
+        }
       }
     );
     document.addEventListener("visibilitychange", resume);
@@ -156,7 +186,7 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
           .catch(() => {}); // A closed/offline browser is covered by expiry.
       }, 0);
     };
-  }, [root._id, accountId, acquire, renew, release, block]);
+  }, [root._id, accountId, acquire, renew, release, block, requestVersion]);
 
   const displaced = !!(
     state.grant &&
@@ -166,13 +196,18 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
         current.sessionId !== state.sessionId))
   );
   useEffect(() => {
-    if (displaced && session.current) session.current.active = false;
-  }, [displaced]);
+    if (displaced && session.current?.sessionId === editorSessionId)
+      session.current.active = false;
+  }, [displaced, editorSessionId]);
 
   return {
     ...state,
-    status: displaced ? ("displaced" as const) : state.status,
+    status:
+      displaced && state.status === "active"
+        ? ("displaced" as const)
+        : state.status,
     canWrite,
     onLost,
+    takeControl,
   };
 }

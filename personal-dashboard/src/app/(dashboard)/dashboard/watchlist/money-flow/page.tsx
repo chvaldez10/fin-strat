@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { BankAccountsPage } from "@/features/money-flow/components/workspace/bank-accounts-page";
+import { MonthlyPlannerPage } from "@/features/money-flow/planner/components/monthly-planner-page";
 
 export const metadata: Metadata = {
   title: "Money Flow | Personal Dashboard",
-  description: "Your bank accounts and their monthly cash-flow workspaces.",
+  description:
+    "Monthly salary, expenses, savings, recurring payments and carryover.",
 };
 
 export default function MoneyFlowPage() {
-  return (
-    <div className="-m-4 min-w-0 overflow-hidden md:-m-6">
-      <BankAccountsPage />
-    </div>
-  );
+  return <MonthlyPlannerPage />;
 }

@@ -76,11 +76,16 @@ export function DashboardPageHeader() {
 
               return {
                 href: registeredLabel ? candidateHref : undefined,
-                label: /^\/dashboard\/watchlist\/money-flow\/[^/]+$/.test(
-                  candidateHref
-                )
-                  ? "Workspace"
-                  : (registeredLabel ?? formatSegment(segment)),
+                label:
+                  /^\/dashboard\/watchlist\/money-flow\/accounts\/[^/]+$/.test(
+                    candidateHref
+                  )
+                    ? "Account"
+                    : /^\/dashboard\/watchlist\/money-flow\/(?!accounts$|subscriptions$)[^/]+$/.test(
+                          candidateHref
+                        )
+                      ? "Monthly canvas"
+                      : (registeredLabel ?? formatSegment(segment)),
                 isLast: index === dashboardSegments.length - 1,
               };
             });

@@ -77,7 +77,8 @@ export const publicNavGroups: PublicNavGroup[] = [
       {
         title: "Money",
         href: "/dashboard/watchlist/money-flow",
-        description: "Budget signals, subscriptions, and watchlist items.",
+        description:
+          "Monthly salary, bills, savings, subscriptions and credit accounts.",
         icon: CircleDollarSign,
       },
       {

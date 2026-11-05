@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AccountWorkspacePage } from "@/features/money-flow/components/workspace/account-workspace-page";
+import { PlannerCanvasPage } from "@/features/money-flow/planner/components/planner-canvas-page";
 
 export const metadata: Metadata = {
   title: "Account workspace | Personal Dashboard",
@@ -13,8 +13,7 @@ export default async function AccountWorkspaceRoute({
   const { accountId } = await params;
   return (
     <div className="-m-4 min-w-0 overflow-hidden md:-m-6">
-      <h1 className="sr-only">Bank account cash-flow workspace</h1>
-      <AccountWorkspacePage accountId={accountId} />
+      <PlannerCanvasPage accountId={accountId} />
     </div>
   );
 }

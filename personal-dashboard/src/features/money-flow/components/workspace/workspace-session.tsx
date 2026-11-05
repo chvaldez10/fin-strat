@@ -26,6 +26,7 @@ export function WorkspaceSession(props: WorkspaceSessionProps) {
           aria-hidden={!active || undefined}
         >
           <WorkspaceEditor
+            key={sessionId}
             {...props}
             server={
               props.server.revision >= grant.snapshot.revision
@@ -41,7 +42,11 @@ export function WorkspaceSession(props: WorkspaceSessionProps) {
         </div>
       )}
       {!active && (
-        <WorkspaceSessionBlocked status={lease.status} onBack={props.onBack} />
+        <WorkspaceSessionBlocked
+          status={lease.status}
+          onBack={props.onBack}
+          onTakeControl={lease.takeControl}
+        />
       )}
     </div>
   );
