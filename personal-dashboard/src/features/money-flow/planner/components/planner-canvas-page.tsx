@@ -1,10 +1,8 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import { Button } from "@/components/ui/button";
 import { useMoneyFlowPlan } from "../../persistence/use-money-flow-plan";
 import type { MoneyFlowPlan } from "../../persistence/convex-types";
 import { useWorkspaceLease } from "../../persistence/use-workspace-lease";
@@ -14,36 +12,24 @@ import { PlannerCanvas } from "./planner-canvas";
 import { PlannerLoading, MONEY_PATH } from "./planner-shell";
 import { PaymentEditor } from "./payment-editor";
 import { PlannerWriteContext } from "./planner-write-context";
+import { CanvasBudgetSummary } from "./canvas-budget-summary";
+import { MoneyNavigation } from "./money-navigation";
 
 type Info = NonNullable<FunctionReturnType<typeof api.plannerCanvas.get>>;
-export function PlannerCanvasPage({ accountId }: { accountId: string }) {
+export function PlannerCanvasPage({
+  accountId,
+  accountControl,
+}: {
+  accountId: string;
+  accountControl?: ReactNode;
+}) {
   const planner = usePlanner(),
     legacy = useMoneyFlowPlan(),
     info = useQuery(api.plannerCanvas.get, { accountId });
   return (
     <div className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
-        <div>
-          <h1 className="font-semibold">
-            {info?.account.name ?? "Monthly canvas"}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            The same monthly payments, shown as account flows.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" asChild>
-            <Link href={MONEY_PATH}>Monthly planner</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link
-              href={`${MONEY_PATH}/accounts/${encodeURIComponent(accountId)}`}
-            >
-              Account details
-            </Link>
-          </Button>
-        </div>
-      </header>
+      <MoneyNavigation page="canvas" month={planner.month} />
+      {accountControl && <h1 className="sr-only">Monthly canvas</h1>}
       {!info || !legacy.root ? (
         <PlannerLoading
           error={
@@ -56,6 +42,7 @@ export function PlannerCanvasPage({ accountId }: { accountId: string }) {
         />
       ) : (
         <CanvasSession
+          accountControl={accountControl}
           root={legacy.root}
           info={info}
           data={planner.data}
@@ -69,6 +56,7 @@ export function PlannerCanvasPage({ accountId }: { accountId: string }) {
   );
 }
 function CanvasSession({
+  accountControl,
   root,
   info,
   data,
@@ -77,6 +65,7 @@ function CanvasSession({
   error,
   retry,
 }: {
+  accountControl?: ReactNode;
   root: MoneyFlowPlan;
   info: Info;
   data: PlannerData | undefined;
@@ -117,6 +106,8 @@ function CanvasSession({
         >
           <PlannerCanvas
             key={lease.sessionId}
+            accountControl={accountControl}
+            summary={<CanvasBudgetSummary data={data} month={month} />}
             account={info.account}
             accounts={data.accounts}
             items={data.entries}

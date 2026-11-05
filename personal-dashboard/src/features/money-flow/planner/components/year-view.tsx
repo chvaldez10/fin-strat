@@ -15,9 +15,9 @@ export function YearView({ year }: { year: number }) {
       <div className="p-5">
         <h2 className="font-semibold">{year} at a glance</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Monthly allocations and recurring plans. Use the monthly planner for
-          paid dates and carried bills. Unknown amounts are not treated as
-          confirmed zeroes.
+          Monthly allocations and recurring plans. Use Monthly details for
+          individual scheduled amounts and cash carryover. Unknown amounts are
+          not treated as confirmed zeroes.
         </p>
       </div>
       <div className="overflow-x-auto">

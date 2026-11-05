@@ -13,6 +13,7 @@ export function CanvasViewControls({
   inspectorOpen,
   gridVisible,
   onToggleGrid,
+  resetLabel = "Restore loaded version",
 }: {
   onFitView: () => void;
   onZoomIn: () => void;
@@ -21,6 +22,7 @@ export function CanvasViewControls({
   inspectorOpen: boolean;
   gridVisible: boolean;
   onToggleGrid: () => void;
+  resetLabel?: string;
 }) {
   const { zoom } = useViewport();
   return (
@@ -55,7 +57,7 @@ export function CanvasViewControls({
       <CanvasToolButton label="Fit view" onClick={onFitView}>
         <Focus />
       </CanvasToolButton>
-      <CanvasToolButton label="Restore loaded version" onClick={onReset}>
+      <CanvasToolButton label={resetLabel} onClick={onReset}>
         <RotateCcw />
       </CanvasToolButton>
     </section>

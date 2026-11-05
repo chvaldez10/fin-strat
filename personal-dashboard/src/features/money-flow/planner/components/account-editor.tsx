@@ -1,4 +1,11 @@
 "use client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -13,7 +20,6 @@ import {
   amountValue,
   usePlannerAction,
   FormError,
-  selectClass,
 } from "./planner-form";
 
 export function AccountEditor({
@@ -77,17 +83,20 @@ export function AccountEditor({
             />
           </Field>
           <Field label="Account type">
-            <select
-              aria-label="Account type"
+            <Select
               disabled={!!item}
-              className={selectClass}
               value={kind}
-              onChange={(e) => setKind(e.target.value as AccountKind)}
+              onValueChange={(selected) => setKind(selected as AccountKind)}
             >
-              <option value="chequing">Chequing</option>
-              <option value="savings">Savings</option>
-              <option value="credit">Credit card</option>
-            </select>
+              <SelectTrigger aria-label="Account type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="chequing">Chequing</SelectItem>
+                <SelectItem value="savings">Savings</SelectItem>
+                <SelectItem value="credit">Credit card</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
           <Field
             label={
@@ -105,8 +114,8 @@ export function AccountEditor({
             />
           </Field>
           <p className="text-xs text-muted-foreground">
-            Saving confirms this manual balance as of today. Recording a paid
-            date later does not automatically update it.
+            Saving confirms this manual balance as of today. Scheduled payments
+            do not automatically update it.
           </p>
           <FormError message={action.error} />
           <Button type="submit" className="w-full">

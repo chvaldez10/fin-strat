@@ -1,4 +1,11 @@
 "use client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -17,7 +24,6 @@ import {
   amountText,
   amountValue,
   FormError,
-  selectClass,
 } from "./planner-form";
 
 export function ScheduleEditor({
@@ -25,6 +31,7 @@ export function ScheduleEditor({
   accounts,
   item,
   subscription = false,
+  expenseOnly = false,
   income = false,
   onClose,
 }: {
@@ -32,6 +39,7 @@ export function ScheduleEditor({
   accounts: FinancialAccount[];
   item?: PlannerData["schedules"][number];
   subscription?: boolean;
+  expenseOnly?: boolean;
   income?: boolean;
   onClose: () => void;
 }) {
@@ -61,14 +69,8 @@ export function ScheduleEditor({
     action = usePlannerAction();
   return (
     <PlannerSheet
-      title={
-        item
-          ? "Edit recurring payment"
-          : subscription
-            ? "Add subscription"
-            : "Add recurring payment"
-      }
-      description="Choose an amount per payment and its real billing dates. Paid and reviewed history is preserved."
+      title={`${item ? "Edit" : "Add"} ${value.isSubscription ? "subscription" : value.kind === "income" ? "salary schedule" : value.kind === "expense" ? "recurring payment" : "schedule"}`}
+      description="Choose an amount per payment and its scheduled dates. Reviewed history is preserved."
       onClose={onClose}
       pending={action.busy}
     >
@@ -112,20 +114,24 @@ export function ScheduleEditor({
             onAmountChange={setAmount}
             accounts={accounts}
             schedule
+            lockedKind={subscription || expenseOnly}
           />
           <Field label="Repeats">
-            <select
-              aria-label="Repeats"
-              className={selectClass}
+            <Select
               value={frequency}
-              onChange={(e) => setFrequency(e.target.value as Frequency)}
+              onValueChange={(selected) => setFrequency(selected as Frequency)}
             >
-              {Object.entries(FREQUENCIES).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label="Repeats">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(FREQUENCIES).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field label="First payment / anchor date">
             <DatePicker
@@ -170,22 +176,31 @@ export function ScheduleEditor({
                 />
               </Field>
               <Field label="Status">
-                <select
-                  aria-label="Recurring status"
-                  className={selectClass}
+                <Select
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as typeof status)}
+                  onValueChange={(selected) =>
+                    setStatus(selected as typeof status)
+                  }
                 >
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+                  <SelectTrigger aria-label="Recurring status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
             </>
           )}
           <FormError message={action.error} />
           <Button type="submit" className="w-full">
-            {action.busy ? "Saving…" : "Save recurring payment"}
+            {action.busy
+              ? "Saving…"
+              : value.isSubscription
+                ? "Save subscription"
+                : "Save schedule"}
           </Button>
         </fieldset>
       </form>

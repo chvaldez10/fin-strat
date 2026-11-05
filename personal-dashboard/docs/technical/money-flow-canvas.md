@@ -1,8 +1,9 @@
 # How the monthly money planner works
 
-Money opens to one month. Its main question is **does salary cover expenses and
-savings?** Subscriptions and accounts have their own pages. The canvas and yearly
-table are optional views of the same financial records.
+Money opens to the selected bank account's monthly canvas. Its main question is
+**does salary cover expenses and savings?** A compact summary keeps that context
+above the elements. Monthly details, recurring payments, subscriptions and accounts are secondary
+pages; the yearly table stays behind a button. All views share financial records.
 
 This guide describes the running architecture. The
 [refactor plan](../plans/monthly-money-planner.md) records the product decisions;
@@ -13,29 +14,52 @@ authentication and deployment configuration.
 
 All paths below start with `/dashboard/watchlist/money-flow`.
 
-| Path                    | What the page does                                                                                         |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `/`                     | Selected month's salary, expenses, savings, payment checklist and carryover. Year view is behind a button. |
-| `/subscriptions`        | Manage recurring services and memberships, including multiple subscriptions to the same provider.          |
-| `/accounts`             | List bank and credit accounts, keeping cash and money owed separate.                                       |
-| `/accounts/[accountId]` | Update a manually recorded balance and review payments. Credit accounts show statements and Paid on dates. |
-| `/[accountId]`          | Monthly canvas for a bank account. Existing canvas URLs still work.                                        |
+| Path                    | What the page does                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `/`                     | Main monthly canvas with account switching and salary coverage.                                                     |
+| `/planner`              | Scheduled monthly amounts, confirmed cash carryover and optional year view.                                         |
+| `/recurring`            | Manage household bills such as mortgage, insurance and car payments.                                                |
+| `/subscriptions`        | Manage recurring services and memberships, including multiple subscriptions to the same provider.                   |
+| `/accounts`             | List bank and credit accounts, keeping cash and money owed separate.                                                |
+| `/accounts/[accountId]` | Update a manually recorded balance and review payments. Credit accounts show statement amounts and scheduled dates. |
+| `/[accountId]`          | Monthly canvas for a bank account. Existing canvas URLs still work.                                                 |
 
 The month is kept in the URL as `?month=YYYY-MM`; without a selection, the planner
 uses the browser's current month. Page navigation preserves the selected month
 where supplied. The server checks supported dates independently.
 
+`MoneyNavigation` is shared by the canvas and every detail page. It owns one
+destination list and selected-month links: wide layouts show tabs; narrow layouts
+show the current page with a navigation dropdown. Account details belongs to the
+canvas account toolbar rather than becoming a second navigation bar.
+
+`MonthlyBudgetSummary` presents the same income, expenses, savings and remaining
+amounts in both views. The canvas and monthly wrappers supply the same calculation
+and use `className` to fit their surroundings. The summary includes all accounts;
+the payment-list account filter only filters rows.
+
+Monthly details keeps the payment list visible. Cash carryover, salary/savings
+schedules and next month's dates are collapsed disclosures. Less frequent actions
+(salary setup, review and the optional year view) live in the actions menu.
+
+Planner filters and editors reuse the existing Radix `Select` primitive from
+`src/components/ui/select.tsx`, also used by bank setup. Form selections use
+`Select`; navigation and action menus use the existing `DropdownMenu` components.
+Neither shared primitive imports Money routes or financial data.
+
 ```mermaid
 flowchart TD
-    Month["Monthly planner"]
+    Month["Monthly details and checklist"]
+    Bills["Recurring payments page"]
     Subs["Subscriptions page"]
     Accounts["Bank and credit account pages"]
-    Canvas["Optional monthly canvas"]
+    Canvas["Primary monthly canvas"]
     Records["Shared records: accounts, schedules and individual payments"]
     Rules["Pure rules: recurrence, salary coverage and carryover"]
     Server["Convex: ownership, revisions and storage"]
 
     Month --> Records
+    Bills --> Records
     Subs --> Records
     Accounts --> Records
     Canvas -->|Projects records into elements| Records
@@ -43,8 +67,19 @@ flowchart TD
     Records --> Server
 ```
 
-The planner does not need React Flow to load. The yearly table is dynamically
-loaded only when opened. Canvas code belongs to its account route.
+The monthly details page at `/planner` does not need React Flow to load. The
+yearly table is dynamically loaded only when opened. `CanvasHomePage` selects a
+bank account and reuses `PlannerCanvasPage`, which also serves the existing
+account canvas URLs. The bank choice is remembered in the main canvas URL as
+`?account=...`; changing the month keeps the account's canvas session mounted.
+
+Clicking an element opens `CanvasPaymentForm` directly on the canvas: name,
+amount and payment date. Several occurrences can be selected by date in that
+same inspector. Desktop uses a nonmodal side panel; mobile uses a bottom sheet.
+More details reuses the existing payment editor. Completion controls are removed. The
+original canvas/workspace components remain in the codebase. `AccountSwitcher`,
+`MoneyElement` and `CanvasViewControls` are reused by the main canvas. Restoring
+loaded positions affects layout only.
 
 ## The three important records
 
@@ -53,17 +88,17 @@ schedule, or a one-off item. A **monthly review** records confirmed carryover an
 whether the month's plan has been reviewed.
 
 For example, a mortgage paid every two weeks has one recurring definition but
-two or three individual payment records in a month. Marking one payment paid
-does not mark the whole series paid.
+two or three individual payment records in a month. Editing one occurrence
+does not change the entire series.
 
-| Table                  | Responsibility                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `moneyPlannerSettings` | Tracking start month, migration marker and recurring-schedule revision.                                                                                 |
-| `moneyPlannerAccounts` | Bank/credit account metadata, manual balance, last update and account revision.                                                                         |
-| `moneyPlannerSeries`   | Effective-dated schedule versions. Subscriptions are schedules with `isSubscription`.                                                                   |
-| `moneyPlannerPayments` | Amount, due date, payment account, status, Paid on date and revision for each payment. Card statements are linked payment records, not a separate copy. |
-| `moneyPlannerMonths`   | Confirmed carry-in/out, reviewed status and generation revision.                                                                                        |
-| `moneyPlannerLayouts`  | Canvas positions, pan/zoom and layout revision. No financial amounts.                                                                                   |
+| Table                  | Responsibility                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `moneyPlannerSettings` | Tracking start month, migration marker and recurring-schedule revision.                                                                                                              |
+| `moneyPlannerAccounts` | Bank/credit account metadata, manual balance, last update and account revision.                                                                                                      |
+| `moneyPlannerSeries`   | Effective-dated schedule versions. Subscriptions are schedules with `isSubscription`.                                                                                                |
+| `moneyPlannerPayments` | Amount, scheduled date, account and revision; legacy completion fields are retained but no longer edited in the UI. Card statements are linked payment records, not a separate copy. |
+| `moneyPlannerMonths`   | Confirmed carry-in/out, reviewed status and generation revision.                                                                                                                     |
+| `moneyPlannerLayouts`  | Canvas positions, pan/zoom and layout revision. No financial amounts.                                                                                                                |
 
 Every row belongs to the authenticated user. Account references use stable domain
 IDs so existing account links survive migration. Server mutations validate that
@@ -88,7 +123,7 @@ erDiagram
         string originalDate
         string dueDate
         string month
-        string paidOn
+        string accountId
         number revision
     }
 ```
@@ -109,22 +144,23 @@ for that month. An occurrence key identifies the original schedule/date, so
 opening the same month twice cannot create two copies. A rescheduled occurrence
 keeps its original key even if its due date moves into another month.
 
-`getMonth` combines the selected month's payments, eligible older unpaid bills,
-older bills settled during this month, the monthly review and upcoming dates.
-An old bill appears as the same record; carrying it forward does not clone it.
-Forecast-only records before the tracking start are not assumed to be unpaid debt.
+The server's existing `getMonth` query also returns historical pending and
+settled rows for compatibility. The `usePlanner` adapter exposes only non-skipped
+entries assigned to the selected month. Without completion tracking, an old
+pending record is not evidence of an unpaid debt. Moving a payment's scheduled
+date into another month moves the same record; it does not clone the bill.
 
 ## How the salary check works
 
 The first version is a salary-allocation and cash-planning view:
 
 ```text
-commitments = direct bills + card repayments + carried bills + savings
+commitments = direct bills + card repayments + savings scheduled this month
 remaining salary = salary - commitments
 remaining funds = remaining salary + confirmed carry-in cash
 ```
 
-Paid commitments still count toward the allocation. Carry-in cash is displayed
+Scheduled commitments count toward the allocation regardless of legacy completion status. Carry-in cash is displayed
 separately and never suppresses an over-salary warning. Internal bank transfers
 are excluded from the all-account commitment total. Savings are counted once as
 an allocation, rather than twice as an allocation and a transfer.
@@ -151,11 +187,41 @@ zero; a payment amount of `null` means unknown. Unknown and estimated amounts
 make totals provisional. In imported **month overrides**, `null` has a different
 legacy meaning: skip that month's scheduled payment.
 
-These figures are not a reconciled bank balance. Account balances are manual
-snapshots; setting a Paid on date does not automatically change them. Carry-out
-can use a calculated suggestion, but the user confirms it before it becomes
-next month's carry-in. Cash reserved for an unpaid bill is deducted once when
-showing funds after commitments.
+The UI does not track **paid**, **received** or **completed** states. The former
+`PaymentStatusEditor`, status-label helper, backend mutation and stored history
+are retained for compatibility, but routed pages do not render completion controls.
+Balances remain manual snapshots. Carry-out is manually confirmed; the review
+no longer offers a calculation based on completion dates.
+
+## Separate categories, one schedule table
+
+Recurring household payments and subscriptions have separate management pages.
+Both use `ScheduleCollectionPage` and `ScheduleEditor`, backed by the existing
+`moneyPlannerSeries` table. A category change edits the same schedule rather
+than creating another record. Salary, savings and transfer schedules stay in
+Monthly details.
+
+```ts
+// The same schedule rows power both pages.
+const recurringPayments = schedules.filter(
+  (item) => item.kind === "expense" && !item.isSubscription
+);
+const subscriptions = schedules.filter(
+  (item) => item.kind === "expense" && item.isSubscription
+);
+```
+
+```mermaid
+flowchart LR
+    Bills["/recurring: mortgage, insurance"] --> Series["moneyPlannerSeries"]
+    Subs["/subscriptions: YouTube Premium"] --> Series
+    Series --> Instances["moneyPlannerPayments: dated occurrences"]
+    Instances --> Canvas["Monthly canvas and salary totals"]
+```
+
+The boolean `isSubscription` is the category discriminator; there is no separate
+subscription schedule table or migration. Active/paused/cancelled refers to the
+schedule's future activity, not whether an occurrence was paid.
 
 ## Credit cards and subscriptions share payment records
 
@@ -172,7 +238,7 @@ month. The statement month and due/payment months can differ.
 ```mermaid
 flowchart LR
     Statement["Credit account: November statement"]
-    Payment["Shared card-payment record: due in December, Paid on date"]
+    Payment["Shared card-payment record: scheduled in December"]
     Planner["December monthly checklist"]
     Element["Expense element on the paying bank's December canvas"]
 
@@ -181,7 +247,7 @@ flowchart LR
     Payment --> Element
 ```
 
-Editing the amount or Paid on date from either page updates that record.
+Editing the amount or scheduled date from either page updates that record.
 [`canvas-projection.ts`](../../src/features/money-flow/planner/canvas-projection.ts)
 groups the bank's monthly payments into display elements. Credit repayments use
 an expense element. Several occurrences of one recurring schedule share one
@@ -223,11 +289,11 @@ first, preventing accidental duplicate obligations.
 sequenceDiagram
     actor User
     participant Form as Payment editor or inline amount
-    participant API as plannerPayments.save / setStatus
+    participant API as plannerPayments.save
     participant DB as Convex database
     participant Views as Planner, account page and canvas
 
-    User->>Form: Save an amount or Paid on date
+    User->>Form: Save an amount or scheduled date
     Form->>API: Payment ID, expected revision and changes
     API->>DB: Check owner, references and current revision
     alt Request came from a canvas
@@ -279,19 +345,20 @@ same transaction. No finance records are seeded from screenshots or demo data.
 
 Feature paths below are relative to `src/features/money-flow/planner/`.
 
-| Change                              | Start here                                                                                                          |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Monthly composition and filters     | `components/monthly-planner-page.tsx`                                                                               |
-| Salary cards and provisional totals | `components/monthly-salary-summary.tsx`, `totals.ts`                                                                |
-| Month loading/navigation            | `use-planner.ts`, `use-planner-month.ts`, `convex/moneyPlanner.ts`                                                  |
-| Payment fields, amounts and Paid on | `components/payment-editor.tsx`, `payment-fields.tsx`, `payment-status-editor.tsx`, `payment-list.tsx`              |
-| Recurring schedules                 | `recurrence.ts`, `components/schedule-editor.tsx`, `convex/plannerSchedules.ts`                                     |
-| Subscriptions                       | `components/subscriptions-page.tsx`                                                                                 |
-| Accounts and statements             | `components/accounts-page.tsx`, `account-details-page.tsx`, `account-editor.tsx`, `convex/plannerAccounts.ts`       |
-| Carryover/review                    | `components/month-review-editor.tsx`, `convex/moneyPlanner.ts`                                                      |
-| Canvas elements and layout          | `canvas-projection.ts`, `components/planner-canvas.tsx`, `planner-element-inspector.tsx`, `convex/plannerCanvas.ts` |
-| Optional year view                  | `components/year-view.tsx`, `convex/plannerYear.ts`                                                                 |
-| Schema, validation and migration    | `convex/plannerSchema.ts`, `convex/lib/planner.ts`, `convex/lib/plannerMigration.ts`                                |
+| Change                                   | Start here                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Monthly composition and filters          | `components/monthly-planner-page.tsx`                                                                               |
+| Shared page navigation                   | `components/money-navigation.tsx`, `planner-shell.tsx`, `planner-canvas-page.tsx`                                   |
+| Shared budget summary                    | `components/monthly-budget-summary.tsx`, `monthly-salary-summary.tsx`, `canvas-budget-summary.tsx`, `totals.ts`     |
+| Month loading/navigation                 | `use-planner.ts`, `use-planner-month.ts`, `convex/moneyPlanner.ts`                                                  |
+| Payment fields and scheduled amounts     | `components/payment-editor.tsx`, `payment-fields.tsx`, `payment-list.tsx`                                           |
+| Recurring schedules                      | `recurrence.ts`, `components/schedule-editor.tsx`, `convex/plannerSchedules.ts`                                     |
+| Recurring payment and subscription pages | `components/schedule-collection-page.tsx`, `subscriptions-page.tsx`                                                 |
+| Accounts and statements                  | `components/accounts-page.tsx`, `account-details-page.tsx`, `account-editor.tsx`, `convex/plannerAccounts.ts`       |
+| Carryover/review                         | `components/month-review-editor.tsx`, `convex/moneyPlanner.ts`                                                      |
+| Canvas elements and layout               | `canvas-projection.ts`, `components/planner-canvas.tsx`, `planner-element-inspector.tsx`, `convex/plannerCanvas.ts` |
+| Optional year view                       | `components/year-view.tsx`, `convex/plannerYear.ts`                                                                 |
+| Schema, validation and migration         | `convex/plannerSchema.ts`, `convex/lib/planner.ts`, `convex/lib/plannerMigration.ts`                                |
 
 Shared buttons, sheets and date pickers remain in `src/components/ui/`. The
 previous `components/workspace/` editor remains available in source for reference

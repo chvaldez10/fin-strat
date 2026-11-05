@@ -81,7 +81,7 @@ export function DashboardPageHeader() {
                     candidateHref
                   )
                     ? "Account"
-                    : /^\/dashboard\/watchlist\/money-flow\/(?!accounts$|subscriptions$)[^/]+$/.test(
+                    : /^\/dashboard\/watchlist\/money-flow\/(?!accounts$|subscriptions$|recurring$|planner$)[^/]+$/.test(
                           candidateHref
                         )
                       ? "Monthly canvas"

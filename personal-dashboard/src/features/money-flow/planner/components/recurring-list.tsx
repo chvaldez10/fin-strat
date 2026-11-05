@@ -38,8 +38,8 @@ export function RecurringList({
         ))
       ) : (
         <p className="p-5 text-sm text-muted-foreground">
-          No recurring payments yet. Add a schedule to build each month's
-          payment checklist.
+          No schedules in this group yet. Add a schedule to plan the dates and
+          amounts each month.
         </p>
       )}
     </div>

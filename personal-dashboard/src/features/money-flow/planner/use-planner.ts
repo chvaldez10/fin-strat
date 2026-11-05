@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
@@ -9,6 +9,21 @@ export type PlannerData = FunctionReturnType<typeof api.moneyPlanner.getMonth>;
 export function usePlanner() {
   const { month, setMonth } = usePlannerMonth();
   const data = useQuery(api.moneyPlanner.getMonth, month ? { month } : "skip");
+  // This is a scheduled-month planner, not a completion ledger. Historical
+  // pending rows returned by the legacy query must not accumulate as debt.
+  // Stored completion history remains intact for recovery and old clients.
+  const visibleData = useMemo(
+    () =>
+      data
+        ? {
+            ...data,
+            entries: data.entries.filter(
+              (item) => item.month === month && item.status !== "skipped"
+            ),
+          }
+        : undefined,
+    [data, month]
+  );
   const openMonth = useMutation(api.moneyPlanner.openMonth);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -32,7 +47,7 @@ export function usePlanner() {
   return {
     month,
     setMonth,
-    data,
+    data: visibleData,
     error,
     retry: () => setAttempt((value) => value + 1),
   };

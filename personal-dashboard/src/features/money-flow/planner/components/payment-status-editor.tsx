@@ -6,6 +6,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import type { Payment } from "../types";
+import { paymentStatusLabels } from "../payment-status-labels";
 import { useCanvasWriteContext } from "./planner-write-context";
 import {
   PlannerSheet,
@@ -23,6 +24,7 @@ export function PaymentStatusEditor({
   onClose: () => void;
 }) {
   const canvas = useCanvasWriteContext();
+  const labels = paymentStatusLabels(item.kind);
   const [paidOn, setPaidOn] = useState(item.paidOn ?? localToday()),
     action = usePlannerAction(),
     save = useMutation(api.plannerPayments.setStatus);
@@ -40,13 +42,7 @@ export function PaymentStatusEditor({
     );
   return (
     <PlannerSheet
-      title={
-        item.kind === "income"
-          ? "Record income received"
-          : item.kind === "savings"
-            ? "Record savings completed"
-            : "Record payment"
-      }
+      title={labels.title}
       description={item.name}
       onClose={onClose}
       pending={action.busy}
@@ -59,17 +55,9 @@ export function PaymentStatusEditor({
       >
         <fieldset disabled={action.busy} className="space-y-5">
           <legend className="sr-only">Payment status</legend>
-          <Field
-            label={
-              item.kind === "income"
-                ? "Received on"
-                : item.kind === "savings"
-                  ? "Completed on"
-                  : "Paid on"
-            }
-          >
+          <Field label={labels.date}>
             <DatePicker
-              aria-label="Paid on"
+              aria-label={labels.date}
               className="w-full"
               value={paidOn}
               onValueChange={setPaidOn}
@@ -81,7 +69,7 @@ export function PaymentStatusEditor({
           </p>
           <FormError message={action.error} />
           <Button type="submit" className="w-full">
-            {action.busy ? "Saving…" : "Save paid date"}
+            {action.busy ? "Saving…" : labels.save}
           </Button>
           <div className="flex gap-2">
             <Button
@@ -89,7 +77,7 @@ export function PaymentStatusEditor({
               className="flex-1"
               onClick={() => void update("pending")}
             >
-              Mark unpaid
+              {labels.undo}
             </Button>
             <Button
               variant="outline"

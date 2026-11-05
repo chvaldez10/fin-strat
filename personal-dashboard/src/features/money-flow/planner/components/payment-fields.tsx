@@ -1,4 +1,11 @@
 "use client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { PAYMENT_KINDS } from "../recurrence";
 import type { FinancialAccount, PaymentValues } from "../types";
@@ -34,14 +41,12 @@ export function PaymentFields({
         />
       </Field>
       <Field label="Type">
-        <select
-          aria-label="Payment type"
-          className={selectClass}
+        <Select
           value={value.kind}
           disabled={lockedKind}
-          onChange={(e) =>
+          onValueChange={(selected) =>
             onChange({
-              kind: e.target.value as PaymentValues["kind"],
+              kind: selected as PaymentValues["kind"],
               isSubscription: false,
               accountId: null,
               counterpartyId: null,
@@ -50,14 +55,19 @@ export function PaymentFields({
             })
           }
         >
-          {Object.entries(PAYMENT_KINDS)
-            .filter(([kind]) => !schedule || kind !== "cardPayment")
-            .map(([kind, label]) => (
-              <option key={kind} value={kind}>
-                {label}
-              </option>
-            ))}
-        </select>
+          <SelectTrigger aria-label="Payment type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(PAYMENT_KINDS)
+              .filter(([kind]) => !schedule || kind !== "cardPayment")
+              .map(([kind, label]) => (
+                <SelectItem key={kind} value={kind}>
+                  {label}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
       </Field>
       <Field label={schedule ? "Amount per payment (CAD)" : "Amount (CAD)"}>
         <Input
@@ -84,22 +94,27 @@ export function PaymentFields({
           value.kind === "income" ? "Received into" : "Paid from / charged to"
         }
       >
-        <select
-          aria-label="Payment account"
-          value={value.accountId ?? ""}
-          className={selectClass}
-          onChange={(e) => onChange({ accountId: e.target.value || null })}
+        <Select
+          value={value.accountId ?? "none"}
+          onValueChange={(selected) =>
+            onChange({ accountId: selected === "none" ? null : selected })
+          }
         >
-          <option value="">Choose an account</option>
-          {accounts
-            .filter((a) => value.kind === "expense" || a.kind !== "credit")
-            .map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {a.kind === "credit" ? " · credit card" : ""}
-              </option>
-            ))}
-        </select>
+          <SelectTrigger aria-label="Payment account">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Choose an account</SelectItem>
+            {accounts
+              .filter((a) => value.kind === "expense" || a.kind !== "credit")
+              .map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}
+                  {a.kind === "credit" ? " · credit card" : ""}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
       </Field>
       {(value.kind === "cardPayment" ||
         value.kind === "savings" ||
@@ -111,27 +126,32 @@ export function PaymentFields({
               : "Destination account"
           }
         >
-          <select
-            aria-label="Destination account"
-            className={selectClass}
-            value={value.counterpartyId ?? ""}
-            onChange={(e) =>
-              onChange({ counterpartyId: e.target.value || null })
+          <Select
+            value={value.counterpartyId ?? "none"}
+            onValueChange={(selected) =>
+              onChange({
+                counterpartyId: selected === "none" ? null : selected,
+              })
             }
           >
-            <option value="">Choose an account</option>
-            {accounts
-              .filter((a) =>
-                value.kind === "cardPayment"
-                  ? a.kind === "credit"
-                  : a.kind !== "credit" && a.id !== value.accountId
-              )
-              .map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-          </select>
+            <SelectTrigger aria-label="Destination account">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Choose an account</SelectItem>
+              {accounts
+                .filter((a) =>
+                  value.kind === "cardPayment"
+                    ? a.kind === "credit"
+                    : a.kind !== "credit" && a.id !== value.accountId
+                )
+                .map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
         </Field>
       )}
       {accounts.find((a) => a.id === value.accountId)?.kind === "credit" && (
@@ -141,14 +161,26 @@ export function PaymentFields({
         </p>
       )}
       {value.kind === "expense" && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={value.isSubscription}
-            onChange={(e) => onChange({ isSubscription: e.target.checked })}
-          />
-          Subscription or membership
-        </label>
+        <Field label="Category">
+          <Select
+            value={value.isSubscription ? "subscription" : "payment"}
+            onValueChange={(selected) =>
+              onChange({ isSubscription: selected === "subscription" })
+            }
+          >
+            <SelectTrigger aria-label="Expense category">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="payment">
+                {schedule ? "Recurring payment" : "Expense"}
+              </SelectItem>
+              <SelectItem value="subscription">
+                Subscription or membership
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
       )}
       <Field label="Notes">
         <textarea

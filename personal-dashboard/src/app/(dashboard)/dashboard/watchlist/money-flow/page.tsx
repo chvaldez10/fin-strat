@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MonthlyPlannerPage } from "@/features/money-flow/planner/components/monthly-planner-page";
+import { CanvasHomePage } from "@/features/money-flow/planner/components/canvas-home-page";
 
 export const metadata: Metadata = {
   title: "Money Flow | Personal Dashboard",
@@ -8,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function MoneyFlowPage() {
-  return <MonthlyPlannerPage />;
+  return (
+    <div className="-m-4 min-w-0 overflow-hidden md:-m-6">
+      <CanvasHomePage />
+    </div>
+  );
 }

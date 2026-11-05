@@ -35,7 +35,7 @@ export function MonthReviewEditor({
   return (
     <PlannerSheet
       title="Review month and carryover"
-      description="Confirm cash separately from unpaid bills. Estimates are not a verified bank balance."
+      description="Confirm your actual cash for the month. Scheduled amounts are not a verified bank balance."
       onClose={onClose}
       pending={action.busy}
     >
@@ -66,8 +66,8 @@ export function MonthReviewEditor({
               onChange={(e) => setIn(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Include cash earmarked for unpaid bills. Those bills are deducted
-              once in the planner.
+              Enter the cash available at the start of this month. Payment
+              completion is not tracked automatically.
             </p>
           </Field>
           <Field label="Confirmed cash to carry into next month (CAD)">

@@ -71,7 +71,7 @@ export function projectMonthlyCanvas(
         monthlyAmountCents: amount ?? undefined,
         connectionCount: 1,
         active: true,
-        note: `${first.kind === "cardPayment" ? "Credit card repayment · " : ""}${items.length} payment${items.length === 1 ? "" : "s"} · ${items.filter((item) => item.status === "paid").length} paid. Click to edit.`,
+        note: `${first.kind === "cardPayment" ? "Credit card repayment · " : first.isSubscription ? "Subscription · " : first.kind === "expense" && first.seriesId ? "Recurring payment · " : ""}${items.length} scheduled payment${items.length === 1 ? "" : "s"}. Click to edit.`,
       },
     });
     edges.push({

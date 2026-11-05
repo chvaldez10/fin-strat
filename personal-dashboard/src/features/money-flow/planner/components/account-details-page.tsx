@@ -12,7 +12,6 @@ import type { FinancialAccount, Payment } from "../types";
 import { PlannerShell, PlannerLoading, MONEY_PATH } from "./planner-shell";
 import { AccountEditor } from "./account-editor";
 import { PaymentEditor } from "./payment-editor";
-import { PaymentStatusEditor } from "./payment-status-editor";
 import { PaymentList } from "./payment-list";
 
 export function AccountDetailsPage({ accountId }: { accountId: string }) {
@@ -20,8 +19,7 @@ export function AccountDetailsPage({ accountId }: { accountId: string }) {
     { data, month } = planner;
   const account = data?.accounts.find((item) => item.id === accountId);
   const [editing, setEditing] = useState(false),
-    [payment, setPayment] = useState<Payment | "new" | null>(null),
-    [status, setStatus] = useState<Payment | null>(null);
+    [payment, setPayment] = useState<Payment | "new" | null>(null);
   const rows = useQuery(
     api.plannerAccounts.statements,
     account?.kind === "credit" ? { accountId } : "skip"
@@ -95,7 +93,7 @@ export function AccountDetailsPage({ accountId }: { accountId: string }) {
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {account.kind === "credit"
-                  ? "Statement months, due dates and Paid on dates refer to the same records in your planner. Up to 25 recent statements are shown."
+                  ? "Statement months, amounts and scheduled dates use the same records as your planner. Up to 25 recent statements are shown."
                   : "Includes recurring bills, savings and credit-card payments from this account."}
               </p>
             </div>
@@ -105,7 +103,6 @@ export function AccountDetailsPage({ accountId }: { accountId: string }) {
                 accounts={data.accounts}
                 month={month}
                 onEdit={setPayment}
-                onStatus={setStatus}
               />
             ) : (
               <PaymentList
@@ -115,7 +112,6 @@ export function AccountDetailsPage({ accountId }: { accountId: string }) {
                 accounts={data.accounts}
                 month={month}
                 onEdit={setPayment}
-                onStatus={setStatus}
               />
             )}
           </section>
@@ -145,12 +141,6 @@ export function AccountDetailsPage({ accountId }: { accountId: string }) {
               onClose={() => setPayment(null)}
             />
           )}
-          {status && (
-            <PaymentStatusEditor
-              item={status}
-              onClose={() => setStatus(null)}
-            />
-          )}
         </>
       )}
     </PlannerShell>
@@ -161,13 +151,11 @@ function CreditStatements({
   accounts,
   month,
   onEdit,
-  onStatus,
 }: {
   rows: Payment[] | undefined;
   accounts: FinancialAccount[];
   month: string;
   onEdit: (payment: Payment) => void;
-  onStatus: (payment: Payment) => void;
 }) {
   if (!rows)
     return (
@@ -193,13 +181,12 @@ function CreditStatements({
             accounts={accounts}
             month={month}
             onEdit={onEdit}
-            onStatus={onStatus}
           />
         </div>
       ))}
       {!rows.length && (
         <p className="p-5 text-sm text-muted-foreground">
-          Add a statement to record its amount, due date and when you paid it.
+          Add a statement to record its amount and scheduled payment date.
         </p>
       )}
     </>

@@ -21,13 +21,11 @@ export function PaymentList({
   accounts,
   month,
   onEdit,
-  onStatus,
 }: {
   items: Payment[];
   accounts: FinancialAccount[];
   month: string;
   onEdit: (item: Payment) => void;
-  onStatus: (item: Payment) => void;
 }) {
   if (!items.length)
     return (
@@ -60,17 +58,6 @@ export function PaymentList({
               {item.estimated ? " · estimate" : ""}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onStatus(item)}
-              >
-                {item.paidOn
-                  ? `Paid ${displayDate(item.paidOn)}`
-                  : item.status === "skipped"
-                    ? "Skipped"
-                    : "Mark paid"}
-              </Button>
               <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
                 Edit payment
               </Button>
@@ -85,22 +72,17 @@ export function PaymentList({
           </caption>
           <thead className="border-y border-border bg-muted/30 text-xs text-muted-foreground">
             <tr>
-              {[
-                "Payment",
-                "Amount (CAD)",
-                "Due",
-                "Account",
-                "Status",
-                "Actions",
-              ].map((label) => (
-                <th
-                  key={label}
-                  scope="col"
-                  className="px-4 py-3 text-left font-medium"
-                >
-                  {label}
-                </th>
-              ))}
+              {["Payment", "Amount (CAD)", "Due", "Account", "Actions"].map(
+                (label) => (
+                  <th
+                    key={label}
+                    scope="col"
+                    className="px-4 py-3 text-left font-medium"
+                  >
+                    {label}
+                  </th>
+                )
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -111,7 +93,6 @@ export function PaymentList({
                 accounts={accounts}
                 month={month}
                 onEdit={onEdit}
-                onStatus={onStatus}
               />
             ))}
           </tbody>
@@ -125,13 +106,11 @@ function PaymentRow({
   accounts,
   month,
   onEdit,
-  onStatus,
 }: {
   item: Payment;
   accounts: FinancialAccount[];
   month: string;
   onEdit: (item: Payment) => void;
-  onStatus: (item: Payment) => void;
 }) {
   const [draft, setDraft] = useState<{ text: string; revision: number } | null>(
       null
@@ -160,7 +139,7 @@ function PaymentRow({
             ? `Carried from ${item.month}`
             : PAYMENT_KINDS[item.kind]}
           {item.estimated ? " · estimate" : ""}
-          {cardCharge ? " · paid via card" : ""}
+          {cardCharge ? " · charged to card" : ""}
         </span>
       </th>
       <td className="px-4 py-3">
@@ -227,26 +206,9 @@ function PaymentRow({
         {account?.name ?? "Unassigned"}
       </td>
       <td className="px-4 py-3">
-        <button
-          onClick={() => onStatus(item)}
-          className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring ${item.status === "paid" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-border"}`}
-        >
-          {item.status === "paid"
-            ? `Paid ${displayDate(item.paidOn!)}`
-            : item.status === "skipped"
-              ? "Skipped"
-              : "Not paid"}
-        </button>
-      </td>
-      <td className="px-4 py-3">
         <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
           Edit
         </Button>
-        {item.status === "pending" && (
-          <Button variant="outline" size="sm" onClick={() => onStatus(item)}>
-            Mark paid
-          </Button>
-        )}
       </td>
     </tr>
   );
