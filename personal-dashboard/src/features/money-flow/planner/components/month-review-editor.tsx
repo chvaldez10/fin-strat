@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { PlannerData } from "../use-planner";
 import {
   PlannerSheet,
@@ -25,6 +26,7 @@ export function MonthReviewEditor({
   suggestion: number | null;
   onClose: () => void;
 }>) {
+  const reviewedId = useId();
   const [carryIn, setIn] = useState(amountText(data.carryInCents)),
     [carryOut, setOut] = useState(
       amountText(data.review?.carryOutCents ?? null)
@@ -92,12 +94,15 @@ export function MonthReviewEditor({
               savings is not included automatically.
             </p>
           </Field>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
+          <label
+            htmlFor={reviewedId}
+            className="flex min-h-11 items-start gap-2 py-2 text-sm"
+          >
+            <Checkbox
+              id={reviewedId}
+              className="mt-0.5"
               checked={closed}
-              onChange={(e) => setClosed(e.target.checked)}
+              onCheckedChange={(checked) => setClosed(checked === true)}
             />
             Month reviewed — preserve its planned payments. Uncheck to reopen
             and edit.

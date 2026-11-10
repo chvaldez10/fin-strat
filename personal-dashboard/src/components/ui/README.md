@@ -23,6 +23,30 @@ are forwarded to the rendered control.
 
 ## Form controls
 
+`Checkbox` wraps the installed Radix checkbox with the same semantic theme tokens
+as other controls. Use controlled `checked`/`onCheckedChange` or uncontrolled
+`defaultChecked`. The value can be `true`, `false` or `"indeterminate"`; binary
+consumers should use `checked === true` in their callback. It supports Space to
+toggle, checked/mixed/disabled/invalid states and native form participation through
+`name`, `value`, `required` and `form`. Label it with a wrapping label, `htmlFor`
+and `id`, or `aria-label`. The ref targets the button; native root props, styling
+and test IDs are forwarded. Children and `asChild` are excluded: the component
+owns its check/mixed indicator, and the consumer supplies a separate label.
+
+```tsx
+<label htmlFor="estimate" className="flex min-h-11 items-center gap-2">
+  <Checkbox
+    id="estimate"
+    checked={estimated}
+    onCheckedChange={(checked) => setEstimated(checked === true)}
+  />
+  This amount is an estimate
+</label>
+```
+
+The control uses React, `radix-ui`, `lucide-react`, `cn` and the app's
+Tailwind/semantic theme styles. It has no route, authentication or finance logic.
+
 `Select` composes the installed Radix Select primitive. It supports controlled
 `value`/`onValueChange` or uncontrolled `defaultValue`, keyboard navigation,
 type-ahead, disabled options, focus restoration, and native form participation

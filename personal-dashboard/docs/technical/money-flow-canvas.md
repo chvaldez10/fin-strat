@@ -115,6 +115,32 @@ original canvas/workspace components remain in the codebase. `AccountSwitcher`,
 `MoneyElement` and `CanvasViewControls` are reused by the main canvas. Restoring
 loaded positions affects layout only.
 
+On phones, a one-finger swipe over empty space or a card pans the canvas. Tap a
+card to edit it; enable **Move elements** in the add toolbar to drag cards instead.
+Pinch zoom remains available. Desktop keeps direct card dragging and empty-space
+panning. Phone cards use smaller widths and spacing, with wrapping labels and
+amounts. React Flow measures their rendered sizes and updates connections when
+the viewport crosses a layout breakpoint; zoom scales the whole graph.
+
+The main canvas reuses `ElementToolbar` for income, expense and savings/transfer
+creation. Its `tools` prop chooses the applicable tools, and its children slot adds
+a credit-card button. Legacy consumers retain the default tools, drag behavior
+and optional selection actions. The monthly canvas uses click creation because
+records must be saved before they become graph elements.
+
+`CanvasElementEditor` presets the selected bank and requested payment type.
+The credit-card action creates `kind: "cardPayment"`, with the bank as source,
+the chosen credit account as destination and the selected statement month. One
+existing card is selected automatically; with several cards, the user chooses.
+If no credit account exists, `AccountEditor` creates one with a fixed credit kind
+and returns its database ID through `onSaved`. The flow waits for the live account
+query to supply its domain ID before mounting the payment form. The saved payment
+then appears as an expense element on the paying bank's canvas.
+
+Changing a payment type retains an eligible funding account. A purchase charged
+directly to a card remains separate from the bank-to-card repayment, preventing
+the same cost from being counted twice in cash allocations.
+
 ## The three important records
 
 A **schedule** describes what repeats. A **payment** is one occurrence of that
@@ -351,6 +377,40 @@ cards; wider layouts show a table with inline amounts.
 
 Canvas financial edits use the same payment mutations. Layout writes use a
 separate serial `SaveQueue`, so moving a card cannot overwrite a financial record.
+`usePlannerLayout` owns that queue and the latest positions. Camera gestures stay
+local until one second after the last gesture; another gesture restarts the wait.
+Unchanged snapshots are skipped. Moving an element saves immediately, and view
+control buttons capture their final viewport. Pending camera saves are flushed
+when the page becomes hidden or unmounts, while write permission is still valid.
+Browser shutdown delivery is best effort.
+
+The canvas itself does not subscribe to save progress. `CanvasLayoutStatus`
+isolates queue updates and keeps normal saving quiet. `CanvasMonthPicker`
+subscribes only to the failed/conflict flag, so panning does not disable or
+re-render the date control. Failures retain the draft and show a retry action;
+conflicts require refreshing. Both block month changes until resolved.
+
+```mermaid
+flowchart LR
+    Gesture["Pan or pinch"] --> Local["Local viewport"]
+    Local --> Idle["Wait 1 second after gesture"]
+    Move["Move element"] --> Queue["Serial layout SaveQueue"]
+    Idle --> Queue
+    Queue --> Guard["Lease + revision checks"]
+    Guard --> Layout["Saved layout only"]
+    Queue --> Status["Small status view; date stays usable"]
+```
+
+The event wiring separates camera persistence from element edits:
+
+```tsx
+onMoveStart={persistence.cancelTimer}
+onMoveEnd={(event) => {
+  if (event) persistence.captureViewport();
+}}
+onNodeDragStop={(_, node) => persistence.moveElement(node)}
+```
+
 The existing 90-second canvas lease renews every 20 seconds. A normally opened
 second canvas is blocked; refresh or the explicit takeover button requests
 control. The button requests takeover directly, with a pending state. Server
@@ -393,6 +453,7 @@ Feature paths below are relative to `src/features/money-flow/planner/`.
 | Accounts and statements                  | `components/accounts-page.tsx`, `account-details-page.tsx`, `account-editor.tsx`, `convex/plannerAccounts.ts`       |
 | Carryover/review                         | `components/month-review-editor.tsx`, `convex/moneyPlanner.ts`                                                      |
 | Canvas elements and layout               | `canvas-projection.ts`, `components/planner-canvas.tsx`, `planner-element-inspector.tsx`, `convex/plannerCanvas.ts` |
+| Camera persistence and save feedback     | `use-planner-layout.ts`, `components/canvas-layout-status.tsx`                                                      |
 | Optional year view                       | `components/year-view.tsx`, `convex/plannerYear.ts`                                                                 |
 | Schema, validation and migration         | `convex/plannerSchema.ts`, `convex/lib/planner.ts`, `convex/lib/plannerMigration.ts`                                |
 

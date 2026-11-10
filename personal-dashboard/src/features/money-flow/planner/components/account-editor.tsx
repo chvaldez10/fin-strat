@@ -26,20 +26,30 @@ export function AccountEditor({
   item,
   month,
   onClose,
+  fixedKind,
+  onSaved,
 }: Readonly<{
   item?: FinancialAccount;
   month: string;
   onClose: () => void;
+  /** Restrict a focused creation flow to one account type. */
+  fixedKind?: AccountKind;
+  /** When supplied, the consumer handles the next view after a successful save. */
+  onSaved?: (id: Id<"moneyPlannerAccounts">) => void;
 }>) {
   const [name, setName] = useState(item?.name ?? ""),
     [institution, setInstitution] = useState(item?.institution ?? ""),
-    [kind, setKind] = useState<AccountKind>(item?.kind ?? "chequing"),
+    [kind, setKind] = useState<AccountKind>(
+      item?.kind ?? fixedKind ?? "chequing"
+    ),
     [balance, setBalance] = useState(amountText(item?.balanceCents ?? 0));
   const save = useMutation(api.plannerAccounts.save),
     action = usePlannerAction();
+  const creationTitle =
+    fixedKind === "credit" ? "Add credit card" : "Add account";
   return (
     <PlannerSheet
-      title={item ? "Update account" : "Add account"}
+      title={item ? "Update account" : creationTitle}
       description="Track bank cash and credit balances separately. Balances are entered manually."
       onClose={onClose}
       pending={action.busy}
@@ -47,19 +57,19 @@ export function AccountEditor({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void action.run(
-            () =>
-              save({
-                id: item ? (item._id as Id<"moneyPlannerAccounts">) : null,
-                expectedRevision: item?.revision ?? 0,
-                name,
-                institution,
-                kind,
-                balanceCents: amountValue(balance, kind !== "credit") ?? 0,
-                month,
-              }),
-            onClose
-          );
+          void action.run(async () => {
+            const id = await save({
+              id: item ? (item._id as Id<"moneyPlannerAccounts">) : null,
+              expectedRevision: item?.revision ?? 0,
+              name,
+              institution,
+              kind,
+              balanceCents: amountValue(balance, kind !== "credit") ?? 0,
+              month,
+            });
+            if (onSaved) onSaved(id);
+            else onClose();
+          });
         }}
       >
         <fieldset disabled={action.busy} className="space-y-5">
@@ -84,7 +94,7 @@ export function AccountEditor({
           </Field>
           <Field label="Account type">
             <Select
-              disabled={!!item}
+              disabled={!!item || !!fixedKind}
               value={kind}
               onValueChange={(selected) => setKind(selected as AccountKind)}
             >

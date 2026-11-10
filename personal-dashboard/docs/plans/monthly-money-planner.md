@@ -62,6 +62,22 @@ Click a canvas element to edit its name, amount and scheduled date directly in
 the inspector. Several occurrences in a month can be selected individually.
 More details opens the existing shared payment editor. Edges are display-only.
 Empty-space left dragging pans; the grid can be toggled from canvas controls.
+On phones, swiping over cards also pans by default. **Move elements** switches
+card dragging on; tapping still opens the editor and pinching zooms. Cards use
+compact phone dimensions and wrap long content while retaining desktop sizing.
+
+Camera saves wait until one second after gestures stop and skip unchanged
+snapshots. Element moves save immediately. Normal layout saving stays quiet and
+does not disable the month picker. Failed saves show Retry; failures and conflicts
+block month changes until resolved. Pending camera state is flushed on hiding or
+leaving the page when the canvas still has write permission; shutdown delivery
+is best effort.
+
+The canvas add toolbar provides income, expense, savings/transfer and credit-card
+payment actions. Credit-card payments keep the selected bank as their funding
+account and appear as expense elements. If needed, create the credit account
+within that flow before entering its monthly payment. Existing shared toolbar
+components and legacy consumers remain available.
 
 The selected month is carried in `?month=YYYY-MM`. The main canvas account is
 remembered with `?account=...`. Both pages for repeating expenses use the same

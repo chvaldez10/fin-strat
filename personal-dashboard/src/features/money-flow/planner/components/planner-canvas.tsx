@@ -1,37 +1,28 @@
 "use client";
-import {
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
   BackgroundVariant,
   MarkerType,
   type ReactFlowInstance,
-  type Viewport,
 } from "@xyflow/react";
-import { useMutation } from "convex/react";
-import { api } from "@convex/_generated/api";
-import type { FunctionReturnType } from "convex/server";
 import type { MoneyFlowPlan } from "../../persistence/convex-types";
 import type { WorkspaceWriteAccess } from "../../persistence/workspace-write-access";
-import { withWorkspaceAccess } from "../../persistence/workspace-write-access";
-import { SaveQueue } from "../../persistence/save-queue";
 import type { MoneyCanvasNode } from "../../canvas-types";
 import { MoneyElement } from "../../components/money-element";
 import { CanvasViewControls } from "../../components/canvas-view-controls";
+import { ElementToolbar } from "../../components/element-toolbar";
+import { CanvasToolButton } from "../../components/canvas-tool-button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus, Settings2 } from "lucide-react";
-import { MonthPicker } from "@/components/ui/month-picker";
+import { CreditCard, Move, Settings2 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePlannerLayout, type PlannerLayout } from "../use-planner-layout";
+import { CanvasLayoutStatus, CanvasMonthPicker } from "./canvas-layout-status";
 import { projectMonthlyCanvas } from "../canvas-projection";
-import type { FinancialAccount, Payment } from "../types";
+import type { FinancialAccount, Payment, PaymentKind } from "../types";
 import {
   PlannerElementConnection,
   type PlannerEdge,
@@ -40,9 +31,6 @@ import { PlannerElementInspector } from "./planner-element-inspector";
 import { MONEY_PATH } from "./money-navigation";
 import { monthLink } from "../use-planner-month";
 
-type Layout = NonNullable<
-  FunctionReturnType<typeof api.plannerCanvas.get>
->["layout"];
 const nodeTypes = {
   income: MoneyElement,
   expense: MoneyElement,
@@ -51,6 +39,11 @@ const nodeTypes = {
   note: MoneyElement,
 };
 const edgeTypes = { planner: PlannerElementConnection };
+const plannerTools = [
+  { kind: "income", label: "Add income" },
+  { kind: "expense", label: "Add expense" },
+  { kind: "account", label: "Add savings or transfer" },
+] as const;
 export function PlannerCanvas({
   accountControl,
   summary,
@@ -72,47 +65,24 @@ export function PlannerCanvas({
   month: string;
   onMonthChange: (month: string) => void;
   root: MoneyFlowPlan;
-  layout: Layout;
+  layout: PlannerLayout;
   access: WorkspaceWriteAccess;
-  onAdd: () => void;
+  onAdd: (kind: PaymentKind) => void;
 }>) {
-  const [positions, setPositions] = useState(layout?.positions ?? {}),
-    [grid, setGrid] = useState(true),
-    [selected, setSelected] = useState<string | null>(null);
-  const [loadedLayout] = useState(() => ({
-    positions: layout?.positions ?? {},
-    viewport: layout?.viewport ?? { x: 0, y: 0, zoom: 0.8 },
-  }));
+  const mobile = useIsMobile();
+  const [arranging, setArranging] = useState(false);
+  const [grid, setGrid] = useState(true);
+  const [selected, setSelected] = useState<string | null>(null);
   const instance =
-      useRef<ReactFlowInstance<MoneyCanvasNode, PlannerEdge>>(null),
-    save = useMutation(api.plannerCanvas.saveLayout);
-  const [queue] = useState(
-    () =>
-      new SaveQueue(
-        layout?.revision ?? 0,
-        async (
-          values: {
-            positions: Record<string, { x: number; y: number }>;
-            viewport: Viewport;
-          },
-          revision: number
-        ) =>
-          withWorkspaceAccess(access, () =>
-            save({
-              documentId: root._id,
-              accountId: account.legacyAccountId!,
-              sessionId: access.sessionId,
-              expectedRevision: revision,
-              values,
-            })
-          )
-      )
-  );
-  const state = useSyncExternalStore(
-    queue.subscribe,
-    queue.getSnapshot,
-    queue.getSnapshot
-  );
+    useRef<ReactFlowInstance<MoneyCanvasNode, PlannerEdge>>(null);
+  const persistence = usePlannerLayout({
+    account,
+    root,
+    layout,
+    access,
+    instance,
+  });
+  const { positions } = persistence;
   const projection = useMemo(
     () => projectMonthlyCanvas(account, items, positions),
     [account, items, positions]
@@ -130,43 +100,6 @@ export function PlannerCanvas({
     });
     flow.setEdges(projection.edges as PlannerEdge[]);
   }, [projection]);
-  function capture() {
-    const flow = instance.current;
-    if (!flow || !access.canWrite()) return;
-    queue.enqueue({
-      positions: {
-        ...positions,
-        ...Object.fromEntries(
-          flow.getNodes().map((node) => [node.id, node.position])
-        ),
-      },
-      viewport: flow.getViewport(),
-    });
-  }
-  async function restorePositions() {
-    const flow = instance.current;
-    if (!flow) return;
-    flow.setNodes((current) =>
-      current.map((node) => ({
-        ...node,
-        position: loadedLayout.positions[node.id] ?? node.position,
-      }))
-    );
-    setPositions(loadedLayout.positions);
-    await flow.setViewport(loadedLayout.viewport);
-    window.requestAnimationFrame(() => {
-      if (!access.canWrite()) return;
-      queue.enqueue({
-        positions: {
-          ...loadedLayout.positions,
-          ...Object.fromEntries(
-            flow.getNodes().map((node) => [node.id, node.position])
-          ),
-        },
-        viewport: flow.getViewport(),
-      });
-    });
-  }
   return (
     <TooltipProvider>
       <div className="flex min-h-0 flex-1 flex-col">
@@ -192,44 +125,51 @@ export function PlannerCanvas({
               </Button>
             </div>
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
-              <MonthPicker
-                aria-label="Canvas month"
-                className="min-w-0 flex-1 sm:w-auto sm:min-w-44 sm:flex-none"
-                disabled={state.pending !== null}
-                value={month}
-                onValueChange={(value) => {
-                  if (state.status === "saved") onMonthChange(value);
-                }}
+              <CanvasMonthPicker
+                queue={persistence.queue}
+                month={month}
+                onMonthChange={onMonthChange}
               />
-              <Button variant="outline" onClick={onAdd}>
-                <Plus aria-hidden="true" />
-                Add payment
-              </Button>
             </div>
           </div>
-          <span
-            className={`${state.status === "saved" ? "sr-only sm:not-sr-only" : ""} text-xs text-muted-foreground`}
-            aria-live="polite"
-          >
-            {state.status === "saved"
-              ? "Layout saved"
-              : state.status === "saving"
-                ? "Saving layout…"
-                : "Layout not saved"}
-          </span>
-          {state.status === "failed" && (
-            <Button size="sm" onClick={() => void queue.retry()}>
-              Retry layout save
-            </Button>
-          )}
-          {state.status === "conflict" && (
-            <p className="text-xs text-destructive">
-              Layout changed elsewhere. Refresh to load its saved positions.
-            </p>
-          )}
+          <CanvasLayoutStatus
+            queue={persistence.queue}
+            onRetry={persistence.retry}
+          />
         </div>
         {summary}
-        <div className="relative min-h-64 flex-1">
+        <div className="relative min-h-64 flex-1 touch-none overscroll-contain">
+          <ElementToolbar
+            tools={plannerTools}
+            draggable={false}
+            onAddElement={(kind) => {
+              if (kind === "account") onAdd("savings");
+              else if (kind === "income" || kind === "expense") onAdd(kind);
+            }}
+          >
+            <CanvasToolButton
+              label="Add credit card payment"
+              onClick={() => onAdd("cardPayment")}
+            >
+              <CreditCard aria-hidden="true" />
+            </CanvasToolButton>
+            {mobile && (
+              <>
+                <span
+                  className="mx-1 h-6 w-px shrink-0 bg-border"
+                  aria-hidden="true"
+                />
+                <CanvasToolButton
+                  label="Move elements"
+                  aria-pressed={arranging}
+                  variant={arranging ? "secondary" : "ghost"}
+                  onClick={() => setArranging((value) => !value)}
+                >
+                  <Move aria-hidden="true" />
+                </CanvasToolButton>
+              </>
+            )}
+          </ElementToolbar>
           <ReactFlow<MoneyCanvasNode, PlannerEdge>
             defaultNodes={projection.nodes}
             defaultEdges={projection.edges as PlannerEdge[]}
@@ -238,14 +178,11 @@ export function PlannerCanvas({
             onInit={(flow) => {
               instance.current = flow;
             }}
-            onNodeDragStop={(_, node) => {
-              setPositions((current) => ({
-                ...current,
-                [node.id]: node.position,
-              }));
-              capture();
+            onNodeDragStop={(_, node) => persistence.moveElement(node)}
+            onMoveStart={persistence.cancelTimer}
+            onMoveEnd={(event) => {
+              if (event) persistence.captureViewport();
             }}
-            onMoveEnd={capture}
             onNodeClick={(_, node) => {
               if (node.id !== "center") setSelected(node.id);
             }}
@@ -263,7 +200,14 @@ export function PlannerCanvas({
             edgesFocusable={false}
             deleteKeyCode={null}
             selectionOnDrag={false}
-            panOnDrag={[0, 1]}
+            panOnDrag={mobile ? true : [0, 1]}
+            nodesDraggable={!mobile || arranging}
+            nodeDragThreshold={mobile ? 10 : 3}
+            nodeClickDistance={mobile ? 8 : 0}
+            paneClickDistance={mobile ? 8 : 0}
+            zoomOnPinch
+            zoomOnDoubleClick={!mobile}
+            preventScrolling
             minZoom={0.3}
             maxZoom={2}
             snapToGrid
@@ -282,16 +226,33 @@ export function PlannerCanvas({
               inspectorOpen={!!selected}
               gridVisible={grid}
               onToggleGrid={() => setGrid((value) => !value)}
-              onFitView={() => void instance.current?.fitView({ padding: 0.2 })}
-              onZoomIn={() => void instance.current?.zoomIn()}
-              onZoomOut={() => void instance.current?.zoomOut()}
-              onReset={() => void restorePositions()}
+              onFitView={() =>
+                void instance.current
+                  ?.fitView({ padding: 0.2 })
+                  .then(persistence.captureViewport)
+              }
+              onZoomIn={() =>
+                void instance.current
+                  ?.zoomIn()
+                  .then(persistence.captureViewport)
+              }
+              onZoomOut={() =>
+                void instance.current
+                  ?.zoomOut()
+                  .then(persistence.captureViewport)
+              }
+              onReset={() => void persistence.restorePositions()}
               resetLabel="Restore loaded positions"
             />
           </ReactFlow>
           <p className="pointer-events-none absolute bottom-20 left-4 hidden max-w-[calc(100%-2rem)] rounded-lg border border-border bg-background/90 px-3 py-2 text-xs text-muted-foreground md:block">
             Drag empty space to pan. Click an element to edit.
           </p>
+          {mobile && arranging && (
+            <output className="pointer-events-none absolute bottom-24 left-4 rounded-lg border border-border bg-background/95 px-3 py-2 text-xs text-muted-foreground">
+              Drag elements to move them. Turn off Move elements to pan.
+            </output>
+          )}
           {selected && projection.groups.get(selected) && (
             <PlannerElementInspector
               items={projection.groups.get(selected)!}

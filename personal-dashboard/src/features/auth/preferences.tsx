@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useUser } from "./use-user";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 type Preferences = {
   reducedMotion: boolean;
   weeklyReview: boolean;
@@ -24,6 +25,7 @@ export function PreferencesPage() {
   );
 }
 function PreferencesForm({ saved }: Readonly<{ saved: Preferences }>) {
+  const preferenceId = useId();
   const [draft, setDraft] = useState(saved),
     [pending, setPending] = useState(false),
     [message, setMessage] = useState("");
@@ -57,13 +59,17 @@ function PreferencesForm({ saved }: Readonly<{ saved: Preferences }>) {
           ["showMoney", "Show Money Flow on overview"],
         ] as const
       ).map(([key, label]) => (
-        <label key={key} className="flex items-center justify-between gap-4">
+        <label
+          key={key}
+          htmlFor={`${preferenceId}-${key}`}
+          className="flex min-h-11 items-center justify-between gap-4"
+        >
           {label}
-          <input
-            type="checkbox"
+          <Checkbox
+            id={`${preferenceId}-${key}`}
             checked={draft[key]}
-            onChange={(event) =>
-              setDraft({ ...draft, [key]: event.target.checked })
+            onCheckedChange={(checked) =>
+              setDraft({ ...draft, [key]: checked === true })
             }
           />
         </label>

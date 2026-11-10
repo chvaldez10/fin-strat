@@ -1,4 +1,5 @@
 "use client";
+import { useId } from "react";
 import {
   Select,
   SelectContent,
@@ -7,9 +8,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PAYMENT_KINDS } from "../recurrence";
 import type { FinancialAccount, PaymentValues } from "../types";
 import { Field, selectClass } from "./planner-form";
+
+const sourceAccountLabels: Partial<Record<PaymentValues["kind"], string>> = {
+  income: "Received into",
+  cardPayment: "Pay from bank account",
+};
 
 export function PaymentFields({
   value,
@@ -28,6 +35,7 @@ export function PaymentFields({
   schedule?: boolean;
   lockedKind?: boolean;
 }>) {
+  const estimateId = useId();
   return (
     <>
       <Field label="Name">
@@ -44,16 +52,24 @@ export function PaymentFields({
         <Select
           value={value.kind}
           disabled={lockedKind}
-          onValueChange={(selected) =>
+          onValueChange={(selected) => {
+            const kind = selected as PaymentValues["kind"];
+            const source = accounts.find(
+              (account) => account.id === value.accountId
+            );
+            const accountId =
+              source && (kind === "expense" || source.kind !== "credit")
+                ? source.id
+                : null;
             onChange({
-              kind: selected as PaymentValues["kind"],
+              kind,
               isSubscription: false,
-              accountId: null,
+              accountId,
               counterpartyId: null,
               statementMonth: null,
               statementAmountCents: null,
-            })
-          }
+            });
+          }}
         >
           <SelectTrigger aria-label="Payment type">
             <SelectValue />
@@ -81,18 +97,21 @@ export function PaymentFields({
           Leave blank if unknown. Zero means an intentional $0 amount.
         </p>
       </Field>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
+      <label
+        htmlFor={estimateId}
+        className="flex min-h-11 items-center gap-2 text-sm"
+      >
+        <Checkbox
+          id={estimateId}
           checked={value.estimated}
-          onChange={(e) => onChange({ estimated: e.target.checked })}
+          onCheckedChange={(checked) =>
+            onChange({ estimated: checked === true })
+          }
         />
         This amount is an estimate
       </label>
       <Field
-        label={
-          value.kind === "income" ? "Received into" : "Paid from / charged to"
-        }
+        label={sourceAccountLabels[value.kind] ?? "Paid from / charged to"}
       >
         <Select
           value={value.accountId ?? "none"}
@@ -128,11 +147,18 @@ export function PaymentFields({
         >
           <Select
             value={value.counterpartyId ?? "none"}
-            onValueChange={(selected) =>
+            onValueChange={(selected) => {
+              const card = accounts.find(
+                (account) =>
+                  account.id === selected && account.kind === "credit"
+              );
               onChange({
                 counterpartyId: selected === "none" ? null : selected,
-              })
-            }
+                ...(value.kind === "cardPayment" && card && !value.name.trim()
+                  ? { name: `${card.name} payment` }
+                  : {}),
+              });
+            }}
           >
             <SelectTrigger aria-label="Destination account">
               <SelectValue />

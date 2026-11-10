@@ -19,18 +19,28 @@ import {
   FormError,
 } from "./planner-form";
 
+const paymentTitles = {
+  income: "Add income",
+  expense: "Add expense",
+  savings: "Add savings",
+  transfer: "Add transfer",
+  cardPayment: "Add credit card payment",
+} as const;
+
 export function PaymentEditor({
   month,
   accounts,
   item,
   initial,
   onClose,
+  lockedKind = false,
 }: Readonly<{
   month: string;
   accounts: FinancialAccount[];
   item?: Payment;
   initial?: Partial<PaymentValues>;
   onClose: () => void;
+  lockedKind?: boolean;
 }>) {
   const [value, setValue] = useState<PaymentValues>(() => ({
     ...emptyPayment(month),
@@ -46,9 +56,11 @@ export function PaymentEditor({
   const canvas = useCanvasWriteContext();
   const change = (patch: Partial<PaymentValues>) =>
     setValue((v) => ({ ...v, ...patch }));
+  const saveLabel =
+    value.kind === "cardPayment" ? "Save card payment" : "Save payment";
   return (
     <PlannerSheet
-      title={item ? "Edit this payment" : "Add a payment"}
+      title={item ? "Edit this payment" : paymentTitles[value.kind]}
       description="Changes apply to this payment. Use recurring payments to change the series."
       onClose={onClose}
       pending={action.busy}
@@ -94,6 +106,7 @@ export function PaymentEditor({
             amount={amount}
             onAmountChange={setAmount}
             accounts={accounts}
+            lockedKind={lockedKind}
           />
           <Field label="Due date">
             <DatePicker
@@ -124,7 +137,7 @@ export function PaymentEditor({
           )}
           <FormError message={action.error} />
           <Button type="submit" className="w-full">
-            {action.busy ? "Saving…" : "Save payment"}
+            {action.busy ? "Saving…" : saveLabel}
           </Button>
         </fieldset>
       </form>

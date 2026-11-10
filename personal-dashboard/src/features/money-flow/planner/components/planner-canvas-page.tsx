@@ -13,7 +13,8 @@ import {
 } from "../use-planner";
 import { PlannerCanvas } from "./planner-canvas";
 import { PlannerLoading, MONEY_PATH } from "./planner-shell";
-import { PaymentEditor } from "./payment-editor";
+import { CanvasElementEditor } from "./canvas-element-editor";
+import type { PaymentKind } from "../types";
 import { PlannerWriteContext } from "./planner-write-context";
 import { CanvasBudgetSummary } from "./canvas-budget-summary";
 
@@ -76,7 +77,7 @@ function CanvasSession({
   retry: () => void;
 }>) {
   const lease = useWorkspaceLease(root, info.account.legacyAccountId!),
-    [adding, setAdding] = useState(false);
+    [adding, setAdding] = useState<PaymentKind | null>(null);
   const active = lease.status === "active";
   if (lease.status === "checking")
     return <PlannerLoading error="" onRetry={retry} />;
@@ -121,14 +122,16 @@ function CanvasSession({
               canWrite: lease.canWrite,
               onLost: lease.onLost,
             }}
-            onAdd={() => setAdding(true)}
+            onAdd={setAdding}
           />
           {adding && (
-            <PaymentEditor
+            <CanvasElementEditor
+              key={adding}
+              kind={adding}
               month={month}
               accounts={data.accounts}
-              initial={{ accountId: info.account.id }}
-              onClose={() => setAdding(false)}
+              sourceAccountId={info.account.id}
+              onClose={() => setAdding(null)}
             />
           )}
         </PlannerWriteContext>

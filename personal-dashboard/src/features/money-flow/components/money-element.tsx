@@ -20,10 +20,10 @@ export const MoneyElement = memo(function MoneyElement({
     <div
       data-testid={`money-flow-node-${id}`}
       className={cn(
-        "group w-60 rounded-2xl border bg-card p-4 text-card-foreground shadow-sm transition-[border-color,box-shadow] hover:shadow-md",
+        "group w-52 rounded-2xl border bg-card p-3 text-card-foreground shadow-sm transition-[border-color,box-shadow] hover:shadow-md md:w-60 md:p-4",
         presentation.border,
         tracked &&
-          "w-72 border-foreground/15 bg-foreground text-background shadow-lg shadow-black/10",
+          "w-60 border-foreground/15 bg-foreground text-background shadow-lg shadow-black/10 md:w-72",
         selected &&
           "ring-2 ring-ring ring-offset-4 ring-offset-background shadow-md"
       )}
@@ -38,14 +38,14 @@ export const MoneyElement = memo(function MoneyElement({
           )}
         />
       )}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2 md:gap-3">
         <span
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-xl",
+            "flex size-8 shrink-0 items-center justify-center rounded-xl md:size-10",
             tracked ? "bg-background/10 text-background" : presentation.accent
           )}
         >
-          <Icon className="size-5" aria-hidden="true" />
+          <Icon className="size-4 md:size-5" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <p
@@ -57,7 +57,7 @@ export const MoneyElement = memo(function MoneyElement({
             {presentation.label}
           </p>
           <p
-            className="mt-1 truncate text-sm font-semibold tracking-tight"
+            className="mt-1 line-clamp-2 wrap-anywhere text-sm font-semibold tracking-tight"
             title={data.label}
           >
             {data.label}
@@ -83,10 +83,10 @@ export const MoneyElement = memo(function MoneyElement({
           </div>
         )}
       {!tracked && !note && (
-        <div className="mt-5">
+        <div className="mt-3 md:mt-5">
           <p
             className={cn(
-              "text-2xl font-semibold tracking-tight tabular-nums",
+              "wrap-anywhere text-xl font-semibold tracking-tight tabular-nums md:text-2xl",
               typeof data.monthlyAmountCents !== "number" &&
                 "text-base text-muted-foreground"
             )}
@@ -110,7 +110,7 @@ export const MoneyElement = memo(function MoneyElement({
       {data.note && (
         <p
           className={cn(
-            "mt-3 line-clamp-3 text-xs leading-relaxed",
+            "mt-3 line-clamp-3 wrap-anywhere text-xs leading-relaxed",
             tracked ? "text-background/65" : "text-muted-foreground"
           )}
         >
