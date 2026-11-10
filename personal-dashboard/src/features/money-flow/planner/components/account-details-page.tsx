@@ -28,7 +28,6 @@ export function AccountDetailsPage({
   );
   return (
     <PlannerShell
-      page="accounts"
       title={account?.name ?? "Account details"}
       description="Review monthly payments and keep your manually recorded balance up to date."
       actions={

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,11 @@ const pages = [
 ] as const;
 export type MoneyPage = (typeof pages)[number]["key"];
 
+export function moneyPageForPathname(pathname: string): MoneyPage {
+  const segment = pathname.slice(MONEY_PATH.length).split("/")[1];
+  return pages.find((item) => item.suffix === `/${segment}`)?.key ?? "canvas";
+}
+
 /** All Money views use these same destinations and selected-month links. */
 export function MoneyNavigation({
   page,
@@ -30,6 +36,7 @@ export function MoneyNavigation({
   page: MoneyPage;
   month: string;
 }>) {
+  const pathname = usePathname();
   return (
     <nav
       aria-label="Money pages"
@@ -40,6 +47,11 @@ export function MoneyNavigation({
           <Link
             key={item.key}
             href={monthLink(`${MONEY_PATH}${item.suffix}`, month)}
+            prefetch={true}
+            onNavigate={(event) => {
+              if (pathname === `${MONEY_PATH}${item.suffix}`)
+                event.preventDefault();
+            }}
             aria-current={page === item.key ? "page" : undefined}
             className={cn(
               "inline-flex min-h-12 items-center border-b-2 border-transparent text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
@@ -73,6 +85,11 @@ export function MoneyNavigation({
               <DropdownMenuItem key={item.key} asChild className="min-h-11">
                 <Link
                   href={monthLink(`${MONEY_PATH}${item.suffix}`, month)}
+                  prefetch={true}
+                  onNavigate={(event) => {
+                    if (pathname === `${MONEY_PATH}${item.suffix}`)
+                      event.preventDefault();
+                  }}
                   aria-current={page === item.key ? "page" : undefined}
                 >
                   {item.label}

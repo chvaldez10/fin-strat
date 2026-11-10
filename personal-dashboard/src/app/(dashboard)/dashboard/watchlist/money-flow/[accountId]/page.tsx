@@ -11,9 +11,5 @@ export default async function AccountWorkspaceRoute({
   params: Promise<{ accountId: string }>;
 }>) {
   const { accountId } = await params;
-  return (
-    <div className="-m-4 min-w-0 overflow-hidden md:-m-6">
-      <PlannerCanvasPage accountId={accountId} />
-    </div>
-  );
+  return <PlannerCanvasPage accountId={accountId} />;
 }

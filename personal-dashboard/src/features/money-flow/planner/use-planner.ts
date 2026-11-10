@@ -1,12 +1,40 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import { usePlannerMonth } from "./use-planner-month";
+import type { useMoneyFlowPlan } from "../persistence/use-money-flow-plan";
 
 export type PlannerData = FunctionReturnType<typeof api.moneyPlanner.getMonth>;
+export const PlannerContext = createContext<Readonly<{
+  planner: ReturnType<typeof usePlannerState>;
+  metadata: ReturnType<typeof useMoneyFlowPlan>;
+}> | null>(null);
+
 export function usePlanner() {
+  const context = useContext(PlannerContext);
+  if (!context)
+    throw new Error("usePlanner requires the Money planner provider.");
+  return context.planner;
+}
+
+export function usePlannerMetadata() {
+  const context = useContext(PlannerContext);
+  if (!context)
+    throw new Error("usePlannerMetadata requires the Money planner provider.");
+  return context.metadata;
+}
+
+/** Owned by the persistent Money layout, not by individual route pages. */
+export function usePlannerState() {
   const { month, setMonth } = usePlannerMonth();
   const data = useQuery(api.moneyPlanner.getMonth, month ? { month } : "skip");
   // This is a scheduled-month planner, not a completion ledger. Historical
@@ -30,7 +58,7 @@ export function usePlanner() {
   const ready = data?.ready,
     scheduleRevision = data?.scheduleRevision;
   useEffect(() => {
-    if (!month || ready) return;
+    if (!month || ready !== false) return;
     let stopped = false;
     void openMonth({ month }).then(
       () => {
@@ -44,13 +72,17 @@ export function usePlanner() {
       stopped = true;
     };
   }, [month, ready, scheduleRevision, attempt, openMonth]);
-  return {
-    month,
-    setMonth,
-    data: visibleData,
-    error,
-    retry: () => setAttempt((value) => value + 1),
-  };
+  const retry = useCallback(() => setAttempt((value) => value + 1), []);
+  return useMemo(
+    () => ({
+      month,
+      setMonth,
+      data: visibleData,
+      error,
+      retry,
+    }),
+    [month, setMonth, visibleData, error, retry]
+  );
 }
 export function errorMessage(error: unknown) {
   if (

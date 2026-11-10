@@ -96,7 +96,6 @@ export function ScheduleCollectionPage({
   ).length;
   return (
     <PlannerShell
-      page={category}
       title={copy.title}
       description={copy.description}
       actions={

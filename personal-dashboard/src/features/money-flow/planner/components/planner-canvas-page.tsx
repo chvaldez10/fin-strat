@@ -3,17 +3,19 @@ import { useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import { useMoneyFlowPlan } from "../../persistence/use-money-flow-plan";
 import type { MoneyFlowPlan } from "../../persistence/convex-types";
 import { useWorkspaceLease } from "../../persistence/use-workspace-lease";
 import { WorkspaceSessionBlocked } from "../../components/workspace/workspace-session-blocked";
-import { usePlanner, type PlannerData } from "../use-planner";
+import {
+  usePlanner,
+  usePlannerMetadata,
+  type PlannerData,
+} from "../use-planner";
 import { PlannerCanvas } from "./planner-canvas";
 import { PlannerLoading, MONEY_PATH } from "./planner-shell";
 import { PaymentEditor } from "./payment-editor";
 import { PlannerWriteContext } from "./planner-write-context";
 import { CanvasBudgetSummary } from "./canvas-budget-summary";
-import { MoneyNavigation } from "./money-navigation";
 
 type Info = NonNullable<FunctionReturnType<typeof api.plannerCanvas.get>>;
 export function PlannerCanvasPage({
@@ -24,11 +26,10 @@ export function PlannerCanvasPage({
   accountControl?: ReactNode;
 }>) {
   const planner = usePlanner(),
-    legacy = useMoneyFlowPlan(),
+    legacy = usePlannerMetadata(),
     info = useQuery(api.plannerCanvas.get, { accountId });
   return (
-    <div className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col">
-      <MoneyNavigation page="canvas" month={planner.month} />
+    <div className="flex min-h-0 flex-1 flex-col">
       {accountControl && <h1 className="sr-only">Monthly canvas</h1>}
       {!info || !legacy.root ? (
         <PlannerLoading

@@ -1,9 +1,7 @@
-import { MoneyFlowLoading } from "@/features/money-flow/components/workspace/money-flow-loading";
+import { LoadingState } from "@/components/patterns/loading-state";
 
 export default function Loading() {
   return (
-    <div className="-m-4 min-w-0 overflow-hidden md:-m-6">
-      <MoneyFlowLoading />
-    </div>
+    <LoadingState label="Opening Money view…" className="min-h-40 flex-1" />
   );
 }

@@ -80,7 +80,6 @@ export function MonthlyPlannerPage() {
       .sort((a, b) => a.dueDate.localeCompare(b.dueDate)) ?? [];
   return (
     <PlannerShell
-      page="month"
       title="Monthly details"
       description="Your scheduled spending and savings, in one place."
       actions={

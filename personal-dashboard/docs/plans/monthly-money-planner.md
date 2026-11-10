@@ -1,6 +1,6 @@
 # Monthly money planner
 
-Status: implemented November 3, updated November 4, 2026. The
+Status: implemented November 3, updated November 9, 2026. The
 [technical guide](../technical/money-flow-canvas.md) describes the running
 architecture, modules and save flow.
 
@@ -20,6 +20,12 @@ Monthly details prioritizes scheduled payments; cash carryover, other schedules
 and upcoming dates are collapsed until needed. Secondary setup/review/year-view
 actions sit in a menu. Planner filters and editors reuse the existing shared
 `Select` component instead of styling raw select fields independently.
+
+November 9: the Money layout owns navigation and live month/account metadata
+subscriptions. Switching pages keeps those mounted, avoiding repeated full-view
+loading states. Clicking the current destination does nothing; other destinations
+use prefetched client-side navigation. Initial loading and canvas lease checks
+still apply. No separate browser finance cache is introduced.
 
 The November 4 simplification removes manual **paid / received / completed**
 controls throughout the canvas, monthly details and account pages. This replaces

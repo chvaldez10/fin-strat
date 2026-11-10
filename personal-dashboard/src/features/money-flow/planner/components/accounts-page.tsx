@@ -16,7 +16,6 @@ export function AccountsPage() {
   const { data, month } = planner;
   return (
     <PlannerShell
-      page="accounts"
       title="Your accounts"
       description="Bank cash and credit balances, with one place to check payment dates."
       actions={

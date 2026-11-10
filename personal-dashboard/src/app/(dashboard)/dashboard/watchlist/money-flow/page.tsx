@@ -8,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function MoneyFlowPage() {
-  return (
-    <div className="-m-4 min-w-0 overflow-hidden md:-m-6">
-      <CanvasHomePage />
-    </div>
-  );
+  return <CanvasHomePage />;
 }

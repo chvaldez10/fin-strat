@@ -28,10 +28,38 @@ The month is kept in the URL as `?month=YYYY-MM`; without a selection, the plann
 uses the browser's current month. Page navigation preserves the selected month
 where supplied. The server checks supported dates independently.
 
-`MoneyNavigation` is shared by the canvas and every detail page. It owns one
-destination list and selected-month links: wide layouts show tabs; narrow layouts
-show the current page with a navigation dropdown. Account details belongs to the
-canvas account toolbar rather than becoming a second navigation bar.
+The Money route has a persistent `layout.tsx`. It mounts `PlannerProvider` and
+`MoneyWorkspace` once, above the individual pages and their loading boundaries.
+`MoneyWorkspace` owns `MoneyNavigation`: wide layouts show tabs; narrow layouts
+show the current page with a navigation dropdown. The selected page comes from
+the pathname. Account details belongs to the canvas account toolbar.
+
+`PlannerProvider` keeps the selected month's live Convex subscription and bank
+metadata subscriptions active while moving between Money pages. `usePlanner`
+and `usePlannerMetadata` read that context instead of starting page-owned copies.
+The provider waits for an explicit `ready: false` query result before initializing
+a month. Loading query data alone does not start a mutation.
+
+Navigation uses Next.js client links with full-route prefetching in production.
+Clicking the current top-level destination is a no-op; links from nested account
+pages still return to the account list. Browser Back/Forward and month links keep
+working. A cold route can show a small content-only loading state while the nav
+remains mounted. First visits still need route code and initial data; localhost
+development mode does not perform Next.js automatic link prefetching.
+
+The provider is scoped to this route layout, with no module/global finance cache
+or local-storage copy. Leaving Money tears down its subscriptions. The canvas
+editor still unmounts when leaving its page and checks its server lease again on
+return; keeping reads warm must not keep an inactive editor's write permission.
+
+```mermaid
+flowchart TD
+    Layout["Persistent Money layout"] --> Provider["PlannerProvider: live month + metadata"]
+    Provider --> Workspace["MoneyWorkspace: persistent navigation"]
+    Workspace --> Page["Selected page or content loading state"]
+    Page --> Context["usePlanner / usePlannerMetadata"]
+    Context --> Provider
+```
 
 `MonthlyBudgetSummary` presents the same income, expenses, savings and remaining
 amounts in both views. The canvas and monthly wrappers supply the same calculation
@@ -140,9 +168,11 @@ the diagram, can be null.
 
 ## Follow a month opening
 
-[`usePlanner`](../../src/features/money-flow/planner/use-planner.ts) subscribes to
-`moneyPlanner.getMonth`. If the month needs initialization or regenerated
-schedules, it calls `moneyPlanner.openMonth`.
+The persistent provider uses
+[`usePlannerState`](../../src/features/money-flow/planner/use-planner.ts) to
+subscribe to `moneyPlanner.getMonth`. If the month needs initialization or
+regenerated schedules, it calls `moneyPlanner.openMonth`. Pages consume the
+result through `usePlanner`; changing pages does not restart that subscription.
 
 On the first opening, one transaction creates settings and imports the existing
 plan. Later openings generate only missing payments or eligible pending updates

@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { AccountSwitcher } from "../../components/account-switcher";
 import { MoneyFlowLoading } from "../../components/workspace/money-flow-loading";
-import { useMoneyFlowPlan } from "../../persistence/use-money-flow-plan";
-import { usePlanner } from "../use-planner";
+import { usePlanner, usePlannerMetadata } from "../use-planner";
 import { useCanvasAccount } from "../use-canvas-account";
 import { monthLink } from "../use-planner-month";
 import { PlannerCanvasPage } from "./planner-canvas-page";
@@ -15,7 +14,7 @@ import { AccountEditor } from "./account-editor";
 
 export function CanvasHomePage() {
   const planner = usePlanner(),
-    legacy = useMoneyFlowPlan(),
+    legacy = usePlannerMetadata(),
     choice = useCanvasAccount();
   const [adding, setAdding] = useState(false);
   const banks = legacy.accounts.map((account) => {
