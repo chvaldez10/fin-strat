@@ -2,25 +2,32 @@
 
 import { memo } from "react";
 import {
-  BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
+  useNodesData,
   type EdgeProps,
 } from "@xyflow/react";
 import { formatMoney } from "../calculations";
-import type { MoneyCanvasEdge } from "../canvas-types";
+import type { MoneyCanvasEdge, MoneyCanvasNode } from "../canvas-types";
+import { ElementConnectionPath } from "./element-connection-path";
+import { ELEMENT_PRESENTATION } from "./element-presentation";
 
 export const ElementConnection = memo(function ElementConnection({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
   targetY,
   sourcePosition,
   targetPosition,
-  markerEnd,
   data,
 }: Readonly<EdgeProps<MoneyCanvasEdge>>) {
+  const connected = useNodesData<MoneyCanvasNode>([source, target]);
+  const sourceKind = connected.find((node) => node.id === source)?.data.kind;
+  const targetKind = connected.find((node) => node.id === target)?.data.kind;
+  const kind = sourceKind === "income" ? "income" : (targetKind ?? "chequing");
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -34,16 +41,11 @@ export const ElementConnection = memo(function ElementConnection({
 
   return (
     <>
-      <BaseEdge
+      <ElementConnectionPath
+        color={ELEMENT_PRESENTATION[kind].connection}
         data-testid={`money-flow-edge-${id}`}
         id={id}
         path={edgePath}
-        markerEnd={markerEnd}
-        style={{
-          strokeWidth: 1.75,
-          stroke: "var(--muted-foreground)",
-          opacity: 0.5,
-        }}
       />
       <EdgeLabelRenderer>
         <div

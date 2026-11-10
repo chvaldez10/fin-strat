@@ -1,0 +1,41 @@
+.flow {
+  --flow-effective-duration: var(--flow-duration);
+  pointer-events: none;
+  offset-anchor: 0px 0px;
+  offset-rotate: auto;
+  opacity: 0;
+  animation: flow-toward-element var(--flow-effective-duration) linear infinite;
+  animation-delay: calc(
+    var(--flow-effective-duration) * var(--flow-delay-ratio)
+  );
+}
+
+@keyframes flow-toward-element {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  12%,
+  88% {
+    opacity: var(--flow-opacity);
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+:global(html[data-reduce-motion]) .flow {
+  /* Keep the requested direction cue, overriding the app's global motion reset. */
+  --flow-effective-duration: var(--flow-reduced-duration);
+  animation-duration: var(--flow-effective-duration) !important;
+  animation-iteration-count: infinite !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow {
+    --flow-effective-duration: var(--flow-reduced-duration);
+    animation-duration: var(--flow-effective-duration) !important;
+    animation-iteration-count: infinite !important;
+  }
+}

@@ -83,7 +83,7 @@ export function projectMonthlyCanvas(
       focusable: false,
       reconnectable: false,
       deletable: false,
-      data: { amount },
+      data: { amount, kind },
     });
   }
   return { nodes, edges, groups };

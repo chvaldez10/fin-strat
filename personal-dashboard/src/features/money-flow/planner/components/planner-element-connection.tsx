@@ -1,27 +1,29 @@
 "use client";
 import {
-  BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
   type Edge,
   type EdgeProps,
 } from "@xyflow/react";
 import { formatMoney } from "../../calculations";
-export type PlannerEdge = Edge<{ amount: number | null }, "planner">;
+import { ElementConnectionPath } from "../../components/element-connection-path";
+import { ELEMENT_PRESENTATION } from "../../components/element-presentation";
+import type { MoneyNodeKind } from "../../types";
+export type PlannerEdge = Edge<
+  { amount: number | null; kind: MoneyNodeKind },
+  "planner"
+>;
 export function PlannerElementConnection(
   props: Readonly<EdgeProps<PlannerEdge>>
 ) {
   const [path, x, y] = getSmoothStepPath({ ...props, borderRadius: 20 });
   return (
     <>
-      <BaseEdge
+      <ElementConnectionPath
+        color={ELEMENT_PRESENTATION[props.data?.kind ?? "chequing"].connection}
+        id={props.id}
+        data-testid={`money-flow-edge-${props.id}`}
         path={path}
-        markerEnd={props.markerEnd}
-        style={{
-          stroke: "var(--muted-foreground)",
-          strokeWidth: 1.5,
-          opacity: 0.5,
-        }}
       />
       <EdgeLabelRenderer>
         <span

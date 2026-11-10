@@ -115,6 +115,38 @@ original canvas/workspace components remain in the codebase. `AccountSwitcher`,
 `MoneyElement` and `CanvasViewControls` are reused by the main canvas. Restoring
 loaded positions affects layout only.
 
+Both connection renderers reuse `ElementConnectionPath`: a static line and end
+arrow show direction, with two small moving arrowheads travelling from source to
+target and rotating around bends. The line, end arrow and moving arrowheads share
+the element's palette: emerald for income, rose for expenses (including card
+repayments), and sky blue for savings/transfers. These colors come from
+`ELEMENT_PRESENTATION`, alongside the card/handle styles. The monthly projection
+supplies the element kind; the original renderer reads the connected nodes.
+Arrowheads fade at each end, keeping the solid connection easy to follow. Salary
+flows into the bank; outgoing expenses, savings and card payments flow toward
+their elements. CSS motion paths animate without React state or layout saves. OS reduced
+motion and the app's Reduce motion preference keep the direction cue visible at
+an eight-second cycle instead of the normal three seconds. This
+connection-specific exception overrides the global motion reset; other motion
+preferences remain unchanged. Connections remain display-only.
+
+To tweak connections, edit
+`src/features/money-flow/components/element-connection-config.ts`. This one config
+controls both canvas renderers: travel time, arrow count/size/stroke, line
+thickness, opacity, end-arrow size and colors. Durations are in seconds (lower is
+faster), sizes use graph coordinates and opacity runs from 0 to 1. Changing the
+arrow count spaces them evenly; use 0 for a solid line with only its end arrow.
+Keep durations positive and arrow count a nonnegative whole number.
+
+```ts
+// Example tweaks inside ELEMENT_CONNECTION_CONFIG:
+durationSeconds: 2,              // faster arrows
+reducedMotionDurationSeconds: 5, // still visible with Reduce motion
+arrowCount: 3,                   // three evenly spaced arrowheads
+arrowSize: 10,                   // larger arrowheads
+lineWidth: 2,                    // thicker connection
+```
+
 On phones, a one-finger swipe over empty space or a card pans the canvas. Tap a
 card to edit it; enable **Move elements** in the add toolbar to drag cards instead.
 Pinch zoom remains available. Desktop keeps direct card dragging and empty-space
