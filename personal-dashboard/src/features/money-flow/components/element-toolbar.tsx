@@ -16,6 +16,8 @@ export function ElementToolbar({
   menuOpen,
   tools = ELEMENT_TOOLS,
   draggable = true,
+  addLabel = "Add",
+  showToolLabels = false,
   children,
 }: Readonly<{
   canDuplicateSelection?: boolean;
@@ -30,6 +32,8 @@ export function ElementToolbar({
     label: string;
   }>[];
   draggable?: boolean;
+  addLabel?: string;
+  showToolLabels?: boolean;
   children?: ReactNode;
 }>) {
   return (
@@ -38,15 +42,18 @@ export function ElementToolbar({
       data-testid="money-flow-tools"
       className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-20 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-card/95 p-1.5 text-card-foreground shadow-lg shadow-black/5 backdrop-blur md:bottom-auto md:left-5 md:top-5 md:translate-x-0"
     >
-      <span className="hidden px-2 text-xs font-medium text-muted-foreground md:block">
-        Add
-      </span>
+      {addLabel && (
+        <span className="hidden px-2 text-xs font-medium text-muted-foreground md:block">
+          {addLabel}
+        </span>
+      )}
       {tools.map((tool) => {
         const Icon = ELEMENT_PRESENTATION[tool.kind].icon;
         return (
           <CanvasToolButton
             key={tool.kind}
             label={tool.label}
+            className={showToolLabels ? "lg:w-auto lg:px-2.5" : undefined}
             draggable={draggable}
             onDragStart={(event) => {
               event.dataTransfer.setData("application/x-money-node", tool.kind);
@@ -54,7 +61,12 @@ export function ElementToolbar({
             }}
             onClick={() => onAddElement(tool.kind)}
           >
-            <Icon />
+            <Icon aria-hidden="true" />
+            {showToolLabels && (
+              <span aria-hidden="true" className="hidden lg:inline">
+                {tool.label}
+              </span>
+            )}
           </CanvasToolButton>
         );
       })}

@@ -9,8 +9,12 @@ const layoutValues = v.object({
   positions: v.record(v.string(), v.object({ x: v.number(), y: v.number() })),
   viewport: v.object({ x: v.number(), y: v.number(), zoom: v.number() }),
 });
+const layoutScope = v.optional(v.literal("activity"));
+// Bank IDs are nonempty. The empty key holds the all-accounts layout.
+const layoutKey = (accountId: string, scope?: "activity") =>
+  scope === "activity" ? "" : accountId;
 export const get = query({
-  args: { accountId: v.string() },
+  args: { accountId: v.string(), scope: layoutScope },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx),
       account = (await accountsFor(ctx, user._id)).find(
@@ -19,7 +23,9 @@ export const get = query({
     const layout = await ctx.db
       .query("moneyPlannerLayouts")
       .withIndex("by_ownerId_and_accountId", (q) =>
-        q.eq("ownerId", user._id).eq("accountId", args.accountId)
+        q
+          .eq("ownerId", user._id)
+          .eq("accountId", layoutKey(args.accountId, args.scope))
       )
       .unique();
     return account ? { account, layout } : null;
@@ -30,6 +36,7 @@ export const saveLayout = mutation({
     documentId: v.id("moneyFlowDocuments"),
     accountId: v.string(),
     sessionId: v.string(),
+    scope: layoutScope,
     expectedRevision: v.number(),
     values: layoutValues,
   },
@@ -64,7 +71,9 @@ export const saveLayout = mutation({
     const current = await ctx.db
       .query("moneyPlannerLayouts")
       .withIndex("by_ownerId_and_accountId", (q) =>
-        q.eq("ownerId", document.ownerId).eq("accountId", args.accountId)
+        q
+          .eq("ownerId", document.ownerId)
+          .eq("accountId", layoutKey(args.accountId, args.scope))
       )
       .unique();
     if (current && current.revision !== args.expectedRevision)
@@ -83,7 +92,7 @@ export const saveLayout = mutation({
     else
       await ctx.db.insert("moneyPlannerLayouts", {
         ownerId: document.ownerId,
-        accountId: args.accountId,
+        accountId: layoutKey(args.accountId, args.scope),
         ...values,
         revision,
       });

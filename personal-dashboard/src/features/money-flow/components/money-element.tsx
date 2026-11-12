@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "../calculations";
 import type { MoneyCanvasNode } from "../canvas-types";
@@ -12,8 +13,11 @@ export const MoneyElement = memo(function MoneyElement({
   data,
   selected,
 }: Readonly<NodeProps<MoneyCanvasNode>>) {
-  const presentation = ELEMENT_PRESENTATION[data.kind];
-  const Icon = presentation.icon;
+  const creditCard = data.variant === "credit-card";
+  const expenseAccount = creditCard || data.variant === "debit-account";
+  const presentation =
+    ELEMENT_PRESENTATION[expenseAccount ? "expense" : data.kind];
+  const Icon = creditCard ? CreditCard : presentation.icon;
   const tracked = data.kind === "chequing";
   const note = data.kind === "note";
   return (
@@ -28,7 +32,7 @@ export const MoneyElement = memo(function MoneyElement({
           "ring-2 ring-ring ring-offset-4 ring-offset-background shadow-md"
       )}
     >
-      {!note && data.kind !== "income" && (
+      {!note && !expenseAccount && data.kind !== "income" && (
         <Handle
           type="target"
           position={Position.Left}
@@ -54,7 +58,7 @@ export const MoneyElement = memo(function MoneyElement({
               tracked ? "text-background/60" : "text-muted-foreground"
             )}
           >
-            {presentation.label}
+            {data.caption ?? presentation.label}
           </p>
           <p
             className="mt-1 line-clamp-2 wrap-anywhere text-sm font-semibold tracking-tight"
@@ -96,11 +100,12 @@ export const MoneyElement = memo(function MoneyElement({
               : "Set an amount"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {data.active === false
-              ? "Not scheduled this month"
-              : data.paymentDay
-                ? `Monthly · Day ${data.paymentDay}`
-                : "Monthly cash flow"}
+            {data.amountCaption ??
+              (data.active === false
+                ? "Not scheduled this month"
+                : data.paymentDay
+                  ? `Monthly · Day ${data.paymentDay}`
+                  : "Monthly cash flow")}
             {(data.connectionCount ?? 0) > 1
               ? ` · ${data.connectionCount} connections`
               : ""}
@@ -117,16 +122,18 @@ export const MoneyElement = memo(function MoneyElement({
           {data.note}
         </p>
       )}
-      {!note && data.kind !== "expense" && (
-        <Handle
-          type="source"
-          position={Position.Right}
-          className={cn(
-            "size-3! border-[3px]! border-card!",
-            presentation.handle
-          )}
-        />
-      )}
+      {!note &&
+        !expenseAccount &&
+        (data.kind !== "expense" || data.showOutput) && (
+          <Handle
+            type="source"
+            position={Position.Right}
+            className={cn(
+              "size-3! border-[3px]! border-card!",
+              presentation.handle
+            )}
+          />
+        )}
     </div>
   );
 });

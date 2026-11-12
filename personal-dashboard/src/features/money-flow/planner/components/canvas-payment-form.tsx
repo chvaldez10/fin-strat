@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import type { Payment, PaymentValues } from "../types";
+import { ActivityDeleteButton } from "./activity-delete-confirmation";
 import { useCanvasWriteContext } from "./planner-write-context";
 import {
   Field,
@@ -35,9 +36,11 @@ function financialSnapshot(item: PaymentValues) {
 export function CanvasPaymentForm({
   item,
   onMore,
+  onDelete,
 }: Readonly<{
   item: Payment;
   onMore: () => void;
+  onDelete?: () => void;
 }>) {
   const [name, setName] = useState(item.name),
     [amount, setAmount] = useState(amountText(item.amountCents)),
@@ -91,6 +94,11 @@ export function CanvasPaymentForm({
     >
       <fieldset disabled={action.busy} className="space-y-4">
         <legend className="sr-only">Selected element payment</legend>
+        {onDelete && (
+          <ActivityDeleteButton onClick={onDelete}>
+            Delete scheduled {item.kind === "income" ? "income" : "payment"}…
+          </ActivityDeleteButton>
+        )}
         <Field label="Name">
           <Input
             aria-label="Element name"

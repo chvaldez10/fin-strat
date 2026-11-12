@@ -26,21 +26,29 @@ export type PlannerLayoutValues = {
   positions: Record<string, { x: number; y: number }>;
   viewport: Viewport;
 };
+export type CanvasPlacement = (positions: PlannerLayoutValues["positions"]) => {
+  x: number;
+  y: number;
+};
 const CAMERA_SAVE_DELAY_MS = 1000;
 
 /** Camera gestures stay local until idle; element moves still save immediately. */
 export function usePlannerLayout({
   account,
+  scope,
   root,
   layout,
   access,
   instance,
+  viewportToSave,
 }: Readonly<{
   account: FinancialAccount;
+  scope?: "activity";
   root: MoneyFlowPlan;
   layout: PlannerLayout;
   access: WorkspaceWriteAccess;
   instance: RefObject<ReactFlowInstance<MoneyCanvasNode, PlannerEdge> | null>;
+  viewportToSave?: (current: Viewport) => Viewport;
 }>) {
   const save = useMutation(api.plannerCanvas.saveLayout);
   const [positions, setPositions] = useState(layout?.positions ?? {});
@@ -62,6 +70,7 @@ export function usePlannerLayout({
             save({
               documentId: root._id,
               accountId: account.legacyAccountId!,
+              scope,
               sessionId: access.sessionId,
               expectedRevision: revision,
               values,
@@ -93,7 +102,8 @@ export function usePlannerLayout({
         flow.getNodes().map((node) => [node.id, node.position])
       ),
     };
-    const viewport = flow.getViewport();
+    const currentViewport = flow.getViewport();
+    const viewport = viewportToSave?.(currentViewport) ?? currentViewport;
     return {
       positions: knownPositions.current,
       viewport: {
@@ -102,7 +112,7 @@ export function usePlannerLayout({
         zoom: Math.round(viewport.zoom * 10000) / 10000,
       },
     };
-  }, [canWrite, instance]);
+  }, [canWrite, instance, viewportToSave]);
   const captureViewport = useCallback(() => {
     pending.current = readLayout();
     cancelTimer();
@@ -121,25 +131,64 @@ export function usePlannerLayout({
     },
     [readLayout, flushPending]
   );
-  const restorePositions = useCallback(async () => {
-    const flow = instance.current;
-    if (!flow || !canWrite()) return;
-    cancelTimer();
-    knownPositions.current = loaded.positions;
-    flow.setNodes((current) =>
-      current.map((node) => ({
-        ...node,
-        position: loaded.positions[node.id] ?? node.position,
-      }))
-    );
-    setPositions(loaded.positions);
-    await flow.setViewport(loaded.viewport);
-    requestAnimationFrame(() => {
-      if (!mounted.current || !canWrite()) return;
-      pending.current = readLayout();
+  const placeElement = useCallback(
+    (id: string, positionFor: CanvasPlacement) => {
+      const layout = readLayout();
+      if (!layout || layout.positions[id]) return false;
+      const positions = {
+        ...layout.positions,
+        [id]: positionFor(layout.positions),
+      };
+      knownPositions.current = positions;
+      setPositions(positions);
+      pending.current = { ...layout, positions };
       flushPending();
-    });
-  }, [instance, canWrite, cancelTimer, loaded, readLayout, flushPending]);
+      return true;
+    },
+    [readLayout, flushPending]
+  );
+  const removePlacement = useCallback(
+    (id: string) => {
+      const layout = readLayout();
+      if (!layout?.positions[id]) return;
+      const positions = { ...layout.positions };
+      delete positions[id];
+      knownPositions.current = positions;
+      setPositions(positions);
+      pending.current = { ...layout, positions };
+      flushPending();
+    },
+    [readLayout, flushPending]
+  );
+  const restorePositions = useCallback(
+    async (fit = false) => {
+      const flow = instance.current;
+      if (!flow || !canWrite()) return;
+      cancelTimer();
+      const restored = Object.fromEntries(
+        Object.entries(knownPositions.current).map(([id, position]) => [
+          id,
+          loaded.positions[id] ?? position,
+        ])
+      );
+      knownPositions.current = restored;
+      flow.setNodes((current) =>
+        current.map((node) => ({
+          ...node,
+          position: restored[node.id] ?? node.position,
+        }))
+      );
+      setPositions(restored);
+      if (fit) await flow.fitView({ padding: 0.2 });
+      else await flow.setViewport(loaded.viewport);
+      requestAnimationFrame(() => {
+        if (!mounted.current || !canWrite()) return;
+        pending.current = readLayout();
+        flushPending();
+      });
+    },
+    [instance, canWrite, cancelTimer, loaded, readLayout, flushPending]
+  );
   useEffect(() => {
     mounted.current = true;
     const onHidden = () => {
@@ -162,6 +211,8 @@ export function usePlannerLayout({
     positions,
     queue,
     moveElement,
+    placeElement,
+    removePlacement,
     captureViewport,
     cancelTimer,
     restorePositions,

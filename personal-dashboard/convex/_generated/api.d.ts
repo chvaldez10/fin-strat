@@ -8,9 +8,11 @@
  * @module
  */
 
+import type * as activitySchema from "../activitySchema.js";
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as invitations from "../invitations.js";
+import type * as lib_activity from "../lib/activity.js";
 import type * as lib_moneyFlowAccess from "../lib/moneyFlowAccess.js";
 import type * as lib_planner from "../lib/planner.js";
 import type * as lib_plannerMigration from "../lib/plannerMigration.js";
@@ -20,6 +22,7 @@ import type * as moneyFlowSessions from "../moneyFlowSessions.js";
 import type * as moneyPlanner from "../moneyPlanner.js";
 import type * as permissions from "../permissions.js";
 import type * as plannerAccounts from "../plannerAccounts.js";
+import type * as plannerActivity from "../plannerActivity.js";
 import type * as plannerCanvas from "../plannerCanvas.js";
 import type * as plannerPayments from "../plannerPayments.js";
 import type * as plannerSchedules from "../plannerSchedules.js";
@@ -37,9 +40,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  activitySchema: typeof activitySchema;
   auth: typeof auth;
   http: typeof http;
   invitations: typeof invitations;
+  "lib/activity": typeof lib_activity;
   "lib/moneyFlowAccess": typeof lib_moneyFlowAccess;
   "lib/planner": typeof lib_planner;
   "lib/plannerMigration": typeof lib_plannerMigration;
@@ -49,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   moneyPlanner: typeof moneyPlanner;
   permissions: typeof permissions;
   plannerAccounts: typeof plannerAccounts;
+  plannerActivity: typeof plannerActivity;
   plannerCanvas: typeof plannerCanvas;
   plannerPayments: typeof plannerPayments;
   plannerSchedules: typeof plannerSchedules;

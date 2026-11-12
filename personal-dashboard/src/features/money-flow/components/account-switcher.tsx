@@ -21,12 +21,16 @@ type AccountSwitcherProps = {
   >[];
   selectedAccountId: string;
   onAccountChange: (accountId: string) => void;
+  ariaLabel?: string;
+  disabled?: boolean;
 };
 
 export function AccountSwitcher({
   accounts,
   selectedAccountId,
   onAccountChange,
+  ariaLabel = "Switch bank account",
+  disabled,
 }: Readonly<AccountSwitcherProps>) {
   const selectedAccount =
     accounts.find((account) => account.id === selectedAccountId) ?? accounts[0];
@@ -38,7 +42,8 @@ export function AccountSwitcher({
           type="button"
           variant="outline"
           className="h-11 w-full min-w-0 justify-between gap-2 px-2.5 sm:w-64 md:h-10"
-          aria-label="Switch bank account"
+          aria-label={ariaLabel}
+          disabled={disabled}
         >
           <AccountMark institution={selectedAccount?.institution} />
           <span className="min-w-0 flex-1 truncate text-left font-medium">

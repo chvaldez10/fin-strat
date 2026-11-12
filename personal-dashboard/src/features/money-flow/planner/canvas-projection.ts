@@ -1,6 +1,7 @@
 import type { MoneyCanvasNode } from "../canvas-types";
 import type { FinancialAccount, Payment } from "./types";
 import { formatMoney } from "../calculations";
+import type { PlannerEdge } from "./components/planner-element-connection";
 
 export function projectMonthlyCanvas(
   account: FinancialAccount,
@@ -48,7 +49,7 @@ export function projectMonthlyCanvas(
       },
     },
   ];
-  const edges = [];
+  const edges: PlannerEdge[] = [];
   for (const [id, items] of groups) {
     const first = items[0],
       income = first.kind === "income",

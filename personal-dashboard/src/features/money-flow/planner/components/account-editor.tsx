@@ -45,6 +45,7 @@ export function AccountEditor({
     [balance, setBalance] = useState(amountText(item?.balanceCents ?? 0));
   const save = useMutation(api.plannerAccounts.save),
     action = usePlannerAction();
+  const [revision] = useState(item?.revision ?? 0);
   const creationTitle =
     fixedKind === "credit" ? "Add credit card" : "Add account";
   return (
@@ -60,7 +61,7 @@ export function AccountEditor({
           void action.run(async () => {
             const id = await save({
               id: item ? (item._id as Id<"moneyPlannerAccounts">) : null,
-              expectedRevision: item?.revision ?? 0,
+              expectedRevision: revision,
               name,
               institution,
               kind,

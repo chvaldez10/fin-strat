@@ -15,7 +15,11 @@ import type {
 
 export type MoneyCanvasNodeData = Record<string, unknown> & {
   kind: MoneyNodeKind;
+  variant?: "credit-card" | "debit-account";
   label: string;
+  caption?: string;
+  amountCaption?: string;
+  showOutput?: boolean;
   note?: string;
   startingBalanceCents?: number;
   projectedBalanceCents?: number;

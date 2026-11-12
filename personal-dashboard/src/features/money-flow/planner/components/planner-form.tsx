@@ -1,5 +1,13 @@
 "use client";
-import { useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Sheet,
   SheetContent,
@@ -29,34 +37,101 @@ export function Field({
     </div>
   );
 }
+function PlannerSheetFrame({
+  onDismiss,
+  children,
+}: Readonly<{ onDismiss: () => void; children: ReactNode }>) {
+  return (
+    <Sheet
+      open
+      onOpenChange={(open) => {
+        if (!open) onDismiss();
+      }}
+    >
+      <SheetContent className="w-full gap-0 sm:max-w-lg">
+        {children}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+const SheetHostContext = createContext<
+  ((dismiss: () => void) => () => void) | null
+>(null);
+
+/** Keeps the portal and backdrop open while its active PlannerSheet changes. */
+export function PlannerSheetHost({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  const dismiss = useRef<(() => void) | null>(null);
+  const registerDismiss = useCallback((handler: () => void) => {
+    dismiss.current = handler;
+    return () => {
+      if (dismiss.current === handler) dismiss.current = null;
+    };
+  }, []);
+  return (
+    <PlannerSheetFrame onDismiss={() => dismiss.current?.()}>
+      <SheetHostContext value={registerDismiss}>{children}</SheetHostContext>
+    </PlannerSheetFrame>
+  );
+}
+
 export function PlannerSheet({
   title,
   description,
   onClose,
   pending = false,
+  active = true,
   children,
 }: Readonly<{
   title: string;
   description: string;
   onClose: () => void;
   pending?: boolean;
+  active?: boolean;
   children: ReactNode;
 }>) {
-  return (
-    <Sheet
-      open
-      onOpenChange={(open) => {
-        if (!open && !pending) onClose();
-      }}
-    >
-      <SheetContent className="w-full gap-0 sm:max-w-lg">
+  const registerDismiss = useContext(SheetHostContext);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    if (!registerDismiss || !active) return;
+    return registerDismiss(() => {
+      if (!pending) onClose();
+    });
+  }, [registerDismiss, active, onClose, pending]);
+  useLayoutEffect(() => {
+    if (registerDismiss && active)
+      titleRef.current?.focus({ preventScroll: true });
+  }, [registerDismiss, active]);
+  const contents = (
+    <>
+      {active && (
         <SheetHeader className="border-b border-border pr-12">
-          <SheetTitle>{title}</SheetTitle>
+          <SheetTitle
+            ref={titleRef}
+            tabIndex={registerDismiss ? -1 : undefined}
+          >
+            {title}
+          </SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
-      </SheetContent>
-    </Sheet>
+      )}
+      <div hidden={!active} className="min-h-0 flex-1 overflow-y-auto p-5">
+        {children}
+      </div>
+    </>
+  );
+  return registerDismiss ? (
+    contents
+  ) : (
+    <PlannerSheetFrame
+      onDismiss={() => {
+        if (!pending) onClose();
+      }}
+    >
+      {contents}
+    </PlannerSheetFrame>
   );
 }
 export function usePlannerAction() {

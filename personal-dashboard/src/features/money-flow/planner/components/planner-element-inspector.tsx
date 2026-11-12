@@ -1,8 +1,5 @@
 "use client";
 import { useState } from "react";
-import { X } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "@/components/ui/button";
 import type { FinancialAccount, Payment } from "../types";
 import {
   Select,
@@ -11,13 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { CanvasInspector } from "./canvas-inspector";
 import { PaymentEditor } from "./payment-editor";
 import { displayDate, paymentAmount } from "./payment-list";
 import { CanvasPaymentForm } from "./canvas-payment-form";
@@ -35,7 +26,6 @@ export function PlannerElementInspector({
 }>) {
   const [editing, setEditing] = useState<Payment | null>(null);
   const [choice, setChoice] = useState<string | null>(null);
-  const mobile = useIsMobile();
   const item = items.find((payment) => payment._id === choice) ?? items[0];
   if (!item) return null;
   const title =
@@ -92,47 +82,13 @@ export function PlannerElementInspector({
   );
   return (
     <>
-      {mobile ? (
-        <Sheet
-          open
-          onOpenChange={(open) => {
-            if (!open) onClose();
-          }}
-        >
-          <SheetContent
-            side="bottom"
-            data-testid="money-flow-inspector"
-            className="max-h-[85dvh] overflow-y-auto pb-[env(safe-area-inset-bottom)]"
-          >
-            <SheetHeader>
-              <SheetTitle>{title}</SheetTitle>
-              <SheetDescription>
-                Edit the selected payment on your canvas.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="px-4 pb-5">{content}</div>
-          </SheetContent>
-        </Sheet>
-      ) : (
-        <aside
-          aria-label="Money flow inspector"
-          data-testid="money-flow-inspector"
-          className="absolute inset-y-4 right-4 z-20 w-80 overflow-y-auto overscroll-contain rounded-2xl border border-border/70 bg-card text-card-foreground shadow-xl shadow-black/5"
-        >
-          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 px-5 py-4 backdrop-blur">
-            <h2 className="font-semibold">{title}</h2>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="Close element editor"
-              onClick={onClose}
-            >
-              <X aria-hidden="true" />
-            </Button>
-          </header>
-          <div className="p-5">{content}</div>
-        </aside>
-      )}
+      <CanvasInspector
+        title={title}
+        description="Edit the selected payment on your canvas."
+        onClose={onClose}
+      >
+        {content}
+      </CanvasInspector>
       {dialogs}
     </>
   );

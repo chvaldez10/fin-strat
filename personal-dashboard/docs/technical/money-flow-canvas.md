@@ -1,14 +1,123 @@
 # How the monthly money planner works
 
-Money opens to the selected bank account's monthly canvas. Its main question is
-**does salary cover expenses and savings?** A compact summary keeps that context
-above the elements. Monthly details, recurring payments, subscriptions and accounts are secondary
-pages; the yearly table stays behind a button. All views share financial records.
+Money opens to a monthly activity canvas across all bank and credit accounts.
+The header shows Income, Used and Net. **Used** opens the recorded expenses,
+refunds and savings contributions included in that total. **Net** subtracts
+Used from the Income shown. When Income falls back to scheduled pay, Net is
+labeled with that basis. The scheduled canvas and
+Monthly details retain cash planning, with the yearly view in Monthly details.
+
+The overview canvas has Income, Expenses and Savings around the bank account
+chosen in **Overview bank**. That choice is saved as the preferred bank, and
+the monthly totals cover all accounts. The floating toolbar logs income,
+expenses and savings directly from the canvas. Choose **Add element** to
+name your own category or place an existing one. **Common elements** offers
+optional starting points with a blank amount. A fresh Expenses or Savings
+canvas starts without preset category cards. A category appears when you add
+it, record activity against it, or set aside a monthly amount. On Overview,
+added categories connect to Expenses or Savings. Placement is saved with the
+canvas layout.
+Press Enter on a focused element to open it. Right-click or press Shift+F10
+for quick actions.
+**Hide card…** appears in the menu and the category editor. It removes the
+card from the current view and keeps its monthly amounts and transactions.
+**Expenses** opens a canvas with bank accounts, credit cards and spending
+categories. **Hide card…** in an account card's menu or activity panel
+removes the card from Expenses and keeps the account, its activity and monthly
+totals. Use **Add element** in Expenses to restore a hidden account card.
+Choose **View transactions** in Expenses or Savings to see that month's
+transactions even when the cards are hidden. **Used** shows expenses and
+savings together and breaks down its total above the recorded transactions.
+The activity sheet stays open when you open a transaction or confirm a
+deletion. Returning to the list keeps its tab, account filter and scroll position.
+Click an account to see its transactions and scheduled charges. Click a recorded expense to
+change its category tag, or create a category such as **Groceries (necessity)**
+under **More → Monthly amounts**. To delete an individual transaction, choose
+**View transactions** and use **Delete** next to the entry. The confirmation
+shows the amount and date. Deleting an entry updates the monthly totals and
+returns any matched import to **Needs review**. **Savings** opens the savings categories.
+**More → Transfers** lists bank transfers and card repayments.
+
+Each view restores its camera when you return during the session. The overview
+camera, element positions and account-card visibility are saved with the
+existing canvas layout. A reserved layout key records each hidden card, so
+restoring one also recovers its previous position.
 
 This guide describes the running architecture. The
 [refactor plan](../plans/monthly-money-planner.md) records the product decisions;
 the [Convex integration record](../plans/money-flow-convex-integration.md) covers
 authentication and deployment configuration.
+
+## Record what happened
+
+Use **Log expense** or **Log savings** on the toolbar for purchases, tithes,
+e-transfers and contributions.
+Choose the account, posted date, amount and category. **Log income**
+on the toolbar records money received. Clicking a category on the canvas opens its recorded
+activity and amount set aside. **More → Monthly amounts** sets the optional
+overall spending limit or a category amount. Category names carry across months;
+each month owns its amounts.
+
+The income card and overview show scheduled income when a month has an
+outstanding plan and no recorded income. The received amount appears alongside
+it. Click either to open the same editor and choose an entry if there are
+several. **Delete scheduled income…** skips the selected occurrence and keeps
+future occurrences scheduled. Use **Log as received** when the money arrives. The unallocated
+income calculation uses recorded receipts.
+
+| Transaction                                                  | Effect on the activity overview                                           |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Card or debit purchase, including a tithe sent by e-transfer | Adds to the spending category in the posted month.                        |
+| Refund                                                       | Reduces spending in the selected expense category.                        |
+| TFSA contribution                                            | Adds to savings contributed and uses that category's allocation.          |
+| Card repayment or transfer between bank accounts             | Records the movement between accounts. Spending was recorded at purchase. |
+
+```text
+unallocated = recorded income - net spending - savings contributed
+              - remaining category allocations
+spending limit remaining = optional monthly spending limit - net spending
+```
+
+The scheduled outflow total is a separate view of recorded plans. In **Scheduled
+payments**, **Log transaction** uses the payment as a starting point, with a
+posted date and actual amount. Imported and manual entries can also be linked
+from their editor. Linked occurrences leave the list of scheduled items still
+to record. Account balances are the manual snapshots from Accounts, with
+balance dates on the account pages.
+
+### Review bank and card activity
+
+Choose **More → Import CSV** for a single account. The CSV needs Date,
+Description and Amount columns, YYYY-MM-DD dates, and signed CAD amounts. Pick
+the sign used for money out and verify the preview. The import includes up to
+500 rows from the selected month and reports rows from other months. Review each
+imported row to categorize and log it, match a transaction already recorded
+with the same account side, date and amount, or ignore it. An imported row
+affects spending after it is logged. Both sides of a transfer can match the
+same recorded transaction. Repeat imports with the same row values and
+occurrence counts are skipped.
+
+**Reviewed through** is a date you confirm after checking your accounts. A new
+unreviewed import on or before that date clears the confirmation. The app
+supports manual entry and CSV review.
+
+```mermaid
+flowchart LR
+    File["Bank or card CSV"] --> Review["Needs review"]
+    Manual["Log activity"] --> Ledger["Recorded transactions"]
+    Review -->|Categorize or match| Ledger
+    Schedule["Scheduled payment"] -->|Log transaction| Ledger
+    Ledger --> Totals["Monthly canvas totals"]
+    Amounts["This month's limits and allocations"] --> Totals
+```
+
+`plannerActivity` owns the activity mutations. The additive
+`moneyActivityEntries`, `moneyActivityMonths`, `moneyActivityCategories` and
+`moneyActivityImports` tables preserve existing plans, statements and account
+records. Existing scheduled amounts remain in the plan. Actual totals start
+with transactions you record. Activity positions use their own layout under the
+existing canvas lease. The activity and scheduled canvases share
+`PlannerCanvasFrame` for panning, zoom, selection and layout persistence.
 
 ## Start with the pages
 
@@ -16,7 +125,8 @@ All paths below start with `/dashboard/watchlist/money-flow`.
 
 | Path                    | What the page does                                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `/`                     | Main monthly canvas with account switching and salary coverage.                                                     |
+| `/`                     | Monthly activity canvas across all accounts, with spending and allocations.                                         |
+| `/upcoming`             | Scheduled bank canvas with account switching and salary coverage.                                                   |
 | `/planner`              | Scheduled monthly amounts, confirmed cash carryover and optional year view.                                         |
 | `/recurring`            | Manage household bills such as mortgage, insurance and car payments.                                                |
 | `/subscriptions`        | Manage recurring services and memberships, including multiple subscriptions to the same provider.                   |
@@ -104,7 +214,7 @@ flowchart TD
 The monthly details page at `/planner` does not need React Flow to load. The
 yearly table is dynamically loaded only when opened. `CanvasHomePage` selects a
 bank account and reuses `PlannerCanvasPage`, which also serves the existing
-account canvas URLs. The bank choice is remembered in the main canvas URL as
+account canvas URLs. The bank choice is remembered in the scheduled canvas URL as
 `?account=...`; changing the month keeps the account's canvas session mounted.
 
 Clicking an element opens `CanvasPaymentForm` directly on the canvas: name,
@@ -154,7 +264,7 @@ panning. Phone cards use smaller widths and spacing, with wrapping labels and
 amounts. React Flow measures their rendered sizes and updates connections when
 the viewport crosses a layout breakpoint; zoom scales the whole graph.
 
-The main canvas reuses `ElementToolbar` for income, expense and savings/transfer
+The scheduled canvas reuses `ElementToolbar` for income, expense and savings/transfer
 creation. Its `tools` prop chooses the applicable tools, and its children slot adds
 a credit-card button. Legacy consumers retain the default tools, drag behavior
 and optional selection actions. The monthly canvas uses click creation because
@@ -458,7 +568,7 @@ Original workspace documents remain intact as recovery sources. Imported bank
 balances are labelled unverified opening balances; forecast entries are not
 proof that payments were made.
 
-The current canvas projects shared monthly payments. Stored original positions
+The scheduled canvas projects shared monthly payments. Stored original positions
 are reused where the imported schedules correspond to old elements. Notes and
 other original graph details remain in the preserved original workspace records.
 Changing payment dates/amounts no longer writes an independent copy of finances
