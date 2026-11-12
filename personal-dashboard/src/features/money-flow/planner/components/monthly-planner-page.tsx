@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
@@ -28,10 +29,13 @@ import {
 import { formatMoney } from "../../calculations";
 import { addMonths } from "../../months";
 import { usePlanner, type PlannerData } from "../use-planner";
+import { MONEY_PATH, monthLink } from "../../routes";
 import { plannerTotals } from "../totals";
 import type { Payment } from "../types";
 import { PlannerShell, PlannerLoading } from "./planner-shell";
-import { PaymentList, paymentAmount, displayDate } from "./payment-list";
+
+import { PaymentList } from "./payment-list";
+import { paymentAmount, displayDate } from "../../formatting";
 import { PaymentEditor } from "./payment-editor";
 import { ScheduleEditor } from "./schedule-editor";
 import { MonthReviewEditor } from "./month-review-editor";
@@ -49,10 +53,10 @@ type Editor =
   | {
       type: "schedule";
       item?: PlannerData["schedules"][number];
-      income?: boolean;
     }
   | { type: "review" }
   | null;
+const monthlyScheduleKinds = ["income", "savings", "transfer"] as const;
 
 export function MonthlyPlannerPage() {
   const planner = usePlanner();
@@ -80,42 +84,34 @@ export function MonthlyPlannerPage() {
       .sort((a, b) => a.dueDate.localeCompare(b.dueDate)) ?? [];
   return (
     <PlannerShell
-      title="Monthly details"
-      description="Your scheduled spending and savings, in one place."
+      title="Monthly plan"
+      description="Review scheduled income and payments for the selected month."
       actions={
         <>
           <Button
             onClick={() => setEditor({ type: "payment" })}
             disabled={!data?.ready}
           >
-            <Plus aria-hidden="true" /> Add payment
+            <Plus aria-hidden="true" /> Add one-time payment
           </Button>
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="icon"
-                aria-label="More monthly actions"
+                aria-label="Monthly plan options"
                 disabled={!data?.ready}
               >
                 <MoreHorizontal aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem
-                onSelect={() => setEditor({ type: "schedule", income: true })}
-              >
-                Add salary
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => setEditor({ type: "schedule" })}
-              >
-                Add savings or transfer schedule
+              <DropdownMenuItem asChild>
+                <Link href={monthLink(`${MONEY_PATH}/upcoming`, month)}>
+                  Open scheduled canvas
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setEditor({ type: "review" })}>
-                Review month & carryover
-              </DropdownMenuItem>
               <DropdownMenuCheckboxItem
                 checked={showYear}
                 onCheckedChange={setYear}
@@ -242,20 +238,20 @@ export function MonthlyPlannerPage() {
                   aria-hidden="true"
                 />
               </summary>
-              <div className="pb-4">
-                <RecurringList
-                  items={data.schedules.filter(
-                    (item) => item.kind !== "expense"
-                  )}
-                  onEdit={(item) => setEditor({ type: "schedule", item })}
-                />
+              <div className="space-y-3 pb-4">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setEditor({ type: "schedule" })}
                 >
                   <Plus aria-hidden="true" /> Add schedule
                 </Button>
+                <RecurringList
+                  items={data.schedules.filter((item) =>
+                    monthlyScheduleKinds.some((kind) => kind === item.kind)
+                  )}
+                  onEdit={(item) => setEditor({ type: "schedule", item })}
+                />
               </div>
             </details>
             <details className="group">
@@ -308,7 +304,7 @@ export function MonthlyPlannerPage() {
               month={month}
               accounts={data.accounts}
               item={editor.item}
-              income={editor.income}
+              allowedKinds={monthlyScheduleKinds}
               onClose={close}
             />
           )}

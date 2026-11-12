@@ -4,15 +4,15 @@ Money opens to a monthly activity canvas across all bank and credit accounts.
 The header shows Income, Used and Net. **Used** opens the recorded expenses,
 refunds and savings contributions included in that total. **Net** subtracts
 Used from the Income shown. When Income falls back to scheduled pay, Net is
-labeled with that basis. The scheduled canvas and
-Monthly details retain cash planning, with the yearly view in Monthly details.
+labeled with that basis. The scheduled canvas and **Monthly plan** retain cash
+planning, with the yearly view in Monthly plan.
 
 The overview canvas has Income, Expenses and Savings around the bank account
 chosen in **Overview bank**. That choice is saved as the preferred bank, and
 the monthly totals cover all accounts. The floating toolbar logs income,
 expenses and savings directly from the canvas. Choose **Add element** to
-name your own category or place an existing one. **Common elements** offers
-optional starting points with a blank amount. A fresh Expenses or Savings
+name your own category or choose one from **Your categories** or **Common
+categories** in the same picker. A fresh Expenses or Savings
 canvas starts without preset category cards. A category appears when you add
 it, record activity against it, or set aside a monthly amount. On Overview,
 added categories connect to Expenses or Savings. Placement is saved with the
@@ -22,9 +22,14 @@ for quick actions.
 **Hide card…** appears in the menu and the category editor. It removes the
 card from the current view and keeps its monthly amounts and transactions.
 **Expenses** opens a canvas with bank accounts, credit cards and spending
-categories. **Hide card…** in an account card's menu or activity panel
+categories. Visible account cards automatically connect to Expenses.
+Expenses shows recorded spending alongside planned card payments. A credit
+card with no recorded spending can display its planned payment or recorded
+balance owed. Its caption identifies the amount. The Scheduled tab in Expenses
+includes card payments.
+**Hide card…** in an account card's menu or activity panel
 removes the card from Expenses and keeps the account, its activity and monthly
-totals. Use **Add element** in Expenses to restore a hidden account card.
+totals. Use **Add element → Restore hidden accounts** in Expenses to restore a card.
 Choose **View transactions** in Expenses or Savings to see that month's
 transactions even when the cards are hidden. **Used** shows expenses and
 savings together and breaks down its total above the recorded transactions.
@@ -176,7 +181,7 @@ amounts in both views. The canvas and monthly wrappers supply the same calculati
 and use `className` to fit their surroundings. The summary includes all accounts;
 the payment-list account filter only filters rows.
 
-Monthly details keeps the payment list visible. Cash carryover, salary/savings
+Monthly plan keeps the payment list visible. Cash carryover, salary/savings
 schedules and next month's dates are collapsed disclosures. Less frequent actions
 (salary setup, review and the optional year view) live in the actions menu.
 
@@ -193,7 +198,7 @@ so a lint cleanup cannot make revision-dependent writes concurrent.
 
 ```mermaid
 flowchart TD
-    Month["Monthly details and checklist"]
+    Month["Monthly plan"]
     Bills["Recurring payments page"]
     Subs["Subscriptions page"]
     Accounts["Bank and credit account pages"]
@@ -222,12 +227,19 @@ amount and payment date. Several occurrences can be selected by date in that
 same inspector. Desktop uses a nonmodal side panel; mobile uses a bottom sheet.
 More details reuses the existing payment editor. Completion controls are removed. The
 original canvas/workspace components remain in the codebase. `AccountSwitcher`,
-`MoneyElement` and `CanvasViewControls` are reused by the main canvas. Restoring
-loaded positions affects layout only.
+`MoneyElement`, `CanvasInspector`, `CanvasGridBackground` and `CanvasViewControls`
+are shared by the canvases and live in the feature's top-level `components`
+folder. Shared route, amount and formatting helpers live at the feature root.
+Restoring loaded positions affects layout only.
 
 Both connection renderers reuse `ElementConnectionPath`: a static line and end
-arrow show direction, with two small moving arrowheads travelling from source to
-target and rotating around bends. The line, end arrow and moving arrowheads share
+arrow show direction, with small moving arrowheads travelling from source to
+target and rotating around bends. The background, drag snapping and connection
+routes share the 24-pixel grid in graph coordinates. Card handles snap to the
+grid row closest to each card's vertical center. Connections use the same
+measured card height and position to find that row. The final segment
+is straight for the fixed arrow, and moving arrowheads fade before reaching it.
+The line, end arrow and moving arrowheads share
 the element's palette: emerald for income, rose for expenses (including card
 repayments), and sky blue for savings/transfers. These colors come from
 `ELEMENT_PRESENTATION`, alongside the card/handle styles. The monthly projection
@@ -403,7 +415,7 @@ Recurring household payments and subscriptions have separate management pages.
 Both use `ScheduleCollectionPage` and `ScheduleEditor`, backed by the existing
 `moneyPlannerSeries` table. A category change edits the same schedule rather
 than creating another record. Salary, savings and transfer schedules stay in
-Monthly details.
+Monthly plan.
 
 ```ts
 // The same schedule rows power both pages.
@@ -452,6 +464,11 @@ flowchart LR
 ```
 
 Editing the amount or scheduled date from either page updates that record.
+In the Accounts table, enter the planned payment amount and choose **Save**.
+Older card payments use their displayed month if a statement month was never
+stored.
+Account details show the selected statement month first. **Other statements**
+keeps the remaining recent payments available for editing.
 [`canvas-projection.ts`](../../src/features/money-flow/planner/canvas-projection.ts)
 groups the bank's monthly payments into display elements. Credit repayments use
 an expense element. Several occurrences of one recurring schedule share one

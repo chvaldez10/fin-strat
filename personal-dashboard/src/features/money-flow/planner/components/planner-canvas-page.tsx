@@ -5,14 +5,15 @@ import { api } from "@convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import type { MoneyFlowPlan } from "../../persistence/convex-types";
 import { useWorkspaceLease } from "../../persistence/use-workspace-lease";
-import { WorkspaceSessionBlocked } from "../../components/workspace/workspace-session-blocked";
+import { WorkspaceSessionBlocked } from "../../components/workspace-session-blocked";
 import {
   usePlanner,
   usePlannerMetadata,
   type PlannerData,
 } from "../use-planner";
 import { PlannerCanvas } from "./planner-canvas";
-import { PlannerLoading, MONEY_PATH } from "./planner-shell";
+import { PlannerLoading } from "./planner-shell";
+import { MONEY_PATH } from "../../routes";
 import { CanvasElementEditor } from "./canvas-element-editor";
 import type { PaymentKind } from "../types";
 import { PlannerWriteContext } from "./planner-write-context";

@@ -1,7 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-export { MONEY_PATH } from "./money-navigation";
 
 export function PlannerShell({
   title,

@@ -27,6 +27,3 @@ export function usePlannerMonth() {
   }, []);
   return { month, setMonth };
 }
-export function monthLink(path: string, month: string) {
-  return month ? `${path}?month=${encodeURIComponent(month)}` : path;
-}

@@ -6,7 +6,7 @@ import { addMonths } from "../../months";
 import { FREQUENCIES, schedulePayments } from "../recurrence";
 import type { FinancialAccount } from "../types";
 import type { PlannerData } from "../use-planner";
-import { displayDate, paymentAmount } from "./payment-list";
+import { displayDate, paymentAmount } from "../../formatting";
 
 type ScheduleRecord = PlannerData["schedules"][number];
 export type CollectionSchedule = Readonly<

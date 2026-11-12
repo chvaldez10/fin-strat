@@ -8,13 +8,9 @@ import { DatePicker } from "@/components/ui/date-picker";
 import type { Payment } from "../types";
 import { paymentStatusLabels } from "../payment-status-labels";
 import { useCanvasWriteContext } from "./planner-write-context";
-import {
-  PlannerSheet,
-  Field,
-  usePlannerAction,
-  localToday,
-  FormError,
-} from "./planner-form";
+import { PlannerSheet, usePlannerAction, FormError } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { localToday } from "../../formatting";
 
 export function PaymentStatusEditor({
   item,

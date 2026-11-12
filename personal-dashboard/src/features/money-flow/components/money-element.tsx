@@ -6,12 +6,15 @@ import { CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "../calculations";
 import type { MoneyCanvasNode } from "../canvas-types";
+import { canvasHandleRow } from "./canvas-grid";
 import { ELEMENT_PRESENTATION } from "./element-presentation";
 
 export const MoneyElement = memo(function MoneyElement({
   id,
   data,
   selected,
+  height,
+  positionAbsoluteY,
 }: Readonly<NodeProps<MoneyCanvasNode>>) {
   const creditCard = data.variant === "credit-card";
   const expenseAccount = creditCard || data.variant === "debit-account";
@@ -20,6 +23,10 @@ export const MoneyElement = memo(function MoneyElement({
   const Icon = creditCard ? CreditCard : presentation.icon;
   const tracked = data.kind === "chequing";
   const note = data.kind === "note";
+  const handleTop = height
+    ? canvasHandleRow(positionAbsoluteY, height) - positionAbsoluteY
+    : undefined;
+
   return (
     <div
       data-testid={`money-flow-node-${id}`}
@@ -32,10 +39,11 @@ export const MoneyElement = memo(function MoneyElement({
           "ring-2 ring-ring ring-offset-4 ring-offset-background shadow-md"
       )}
     >
-      {!note && !expenseAccount && data.kind !== "income" && (
+      {!note && data.kind !== "income" && (
         <Handle
           type="target"
           position={Position.Left}
+          style={{ top: handleTop }}
           className={cn(
             "size-3! border-[3px]! border-card!",
             presentation.handle
@@ -128,6 +136,7 @@ export const MoneyElement = memo(function MoneyElement({
           <Handle
             type="source"
             position={Position.Right}
+            style={{ top: handleTop }}
             className={cn(
               "size-3! border-[3px]! border-card!",
               presentation.handle

@@ -17,14 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { PaymentFields, emptyPayment } from "./payment-fields";
-import {
-  PlannerSheet,
-  Field,
-  usePlannerAction,
-  amountText,
-  amountValue,
-  FormError,
-} from "./planner-form";
+import { PlannerSheet, usePlannerAction, FormError } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { amountText, amountValue } from "../../amounts";
 
 export function ScheduleEditor({
   month,
@@ -32,7 +27,7 @@ export function ScheduleEditor({
   item,
   subscription = false,
   expenseOnly = false,
-  income = false,
+  allowedKinds,
   onClose,
 }: Readonly<{
   month: string;
@@ -40,12 +35,12 @@ export function ScheduleEditor({
   item?: PlannerData["schedules"][number];
   subscription?: boolean;
   expenseOnly?: boolean;
-  income?: boolean;
+  allowedKinds?: readonly PaymentValues["kind"][];
   onClose: () => void;
 }>) {
   const [value, setValue] = useState<PaymentValues>(() => ({
     ...emptyPayment(month),
-    kind: income ? "income" : "expense",
+    kind: allowedKinds?.[0] ?? "expense",
     isSubscription: subscription,
     ...item,
     dueDate: item?.startDate ?? `${month}-01`,
@@ -115,6 +110,7 @@ export function ScheduleEditor({
             accounts={accounts}
             schedule
             lockedKind={subscription || expenseOnly}
+            allowedKinds={allowedKinds}
           />
           <Field label="Repeats">
             <Select

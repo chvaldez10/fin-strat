@@ -8,9 +8,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CanvasInspector } from "./canvas-inspector";
+import { CanvasInspector } from "../../components/canvas-inspector";
 import { PaymentEditor } from "./payment-editor";
-import { displayDate, paymentAmount } from "./payment-list";
+import { displayDate, paymentAmount } from "../../formatting";
 import { CanvasPaymentForm } from "./canvas-payment-form";
 
 export function PlannerElementInspector({

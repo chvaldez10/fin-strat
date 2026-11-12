@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PAYMENT_KINDS } from "../recurrence";
 import type { FinancialAccount, PaymentValues } from "../types";
-import { Field, selectClass } from "./planner-form";
+import { selectClass } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
 
 const sourceAccountLabels: Partial<Record<PaymentValues["kind"], string>> = {
   income: "Received into",
@@ -26,6 +27,7 @@ export function PaymentFields({
   accounts,
   schedule = false,
   lockedKind = false,
+  allowedKinds,
 }: Readonly<{
   value: PaymentValues;
   onChange: (patch: Partial<PaymentValues>) => void;
@@ -34,6 +36,7 @@ export function PaymentFields({
   accounts: FinancialAccount[];
   schedule?: boolean;
   lockedKind?: boolean;
+  allowedKinds?: readonly PaymentValues["kind"][];
 }>) {
   const estimateId = useId();
   return (
@@ -76,7 +79,12 @@ export function PaymentFields({
           </SelectTrigger>
           <SelectContent>
             {Object.entries(PAYMENT_KINDS)
-              .filter(([kind]) => !schedule || kind !== "cardPayment")
+              .filter(
+                ([kind]) =>
+                  (!schedule || kind !== "cardPayment") &&
+                  (!allowedKinds ||
+                    allowedKinds.some((allowed) => allowed === kind))
+              )
               .map(([kind, label]) => (
                 <SelectItem key={kind} value={kind}>
                   {label}

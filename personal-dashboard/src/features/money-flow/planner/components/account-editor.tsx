@@ -13,14 +13,9 @@ import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AccountKind, FinancialAccount } from "../types";
-import {
-  PlannerSheet,
-  Field,
-  amountText,
-  amountValue,
-  usePlannerAction,
-  FormError,
-} from "./planner-form";
+import { PlannerSheet, usePlannerAction, FormError } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { amountText, amountValue } from "../../amounts";
 
 export function AccountEditor({
   item,

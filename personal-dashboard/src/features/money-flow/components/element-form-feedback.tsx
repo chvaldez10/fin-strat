@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -54,25 +54,6 @@ export function ElementSaveFeedback({
           conflict above.
         </p>
       )}
-    </div>
-  );
-}
-
-export function ElementField({
-  label,
-  htmlFor,
-  children,
-}: Readonly<{
-  label: string;
-  htmlFor: string;
-  children: ReactNode;
-}>) {
-  return (
-    <div className="space-y-2">
-      <label htmlFor={htmlFor} className="text-sm font-medium">
-        {label}
-      </label>
-      {children}
     </div>
   );
 }

@@ -1,10 +1,5 @@
 "use client";
-import {
-  Background,
-  BackgroundVariant,
-  ConnectionLineType,
-  ReactFlow,
-} from "@xyflow/react";
+import { ConnectionLineType, ReactFlow } from "@xyflow/react";
 import {
   toCanvasEdges,
   type MoneyCanvasNode,
@@ -17,7 +12,9 @@ import { ElementContextMenu } from "../element-context-menu";
 import { ElementToolbar } from "../element-toolbar";
 import { CanvasViewControls } from "../canvas-view-controls";
 import { CanvasContextMenu } from "../canvas-context-menu";
-import { DEFAULT_EDGE_OPTIONS, SNAP_GRID } from "./canvas-config";
+import { DEFAULT_EDGE_OPTIONS } from "./canvas-config";
+import { SNAP_GRID } from "../canvas-grid";
+import { CanvasGridBackground } from "../canvas-grid-background";
 import { getAccountWorkspace, getCanvasNodes } from "./workspace-document";
 import type { WorkspaceDocument } from "./use-workspace-document";
 import type { ElementCommands } from "./use-element-commands";
@@ -127,14 +124,7 @@ export function MoneyFlowCanvas({
         maxZoom={2}
         proOptions={{ hideAttribution: false }}
       >
-        {gridVisible && (
-          <Background
-            variant={BackgroundVariant.Lines}
-            gap={24}
-            lineWidth={1}
-            color="color-mix(in oklab, var(--foreground) 20%, transparent)"
-          />
-        )}
+        {gridVisible && <CanvasGridBackground />}
         <CanvasViewControls
           inspectorOpen={!!selected}
           gridVisible={gridVisible}

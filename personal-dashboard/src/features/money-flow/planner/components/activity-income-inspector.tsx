@@ -9,7 +9,7 @@ import type { FinancialAccount, Payment } from "../types";
 import { ActivityEntryEditor } from "./activity-entry-editor";
 import { ActivityScheduledRemoval } from "./activity-scheduled-removal";
 import { ActivitySelect } from "./activity-select";
-import { CanvasInspector } from "./canvas-inspector";
+import { CanvasInspector } from "../../components/canvas-inspector";
 import { CanvasPaymentForm } from "./canvas-payment-form";
 import { PaymentEditor } from "./payment-editor";
 import { PlannerSheet } from "./planner-form";

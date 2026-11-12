@@ -25,3 +25,8 @@ export const ELEMENT_CONNECTION_CONFIG = {
     note: "var(--color-amber-500)",
   },
 } as const;
+
+// SVG markers scale with the edge stroke. Leave room for the whole arrowhead.
+export const END_ARROW_CLEARANCE =
+  ELEMENT_CONNECTION_CONFIG.endArrowSize * ELEMENT_CONNECTION_CONFIG.lineWidth +
+  2;

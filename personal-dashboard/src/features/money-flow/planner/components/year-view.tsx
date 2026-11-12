@@ -15,7 +15,7 @@ export function YearView({ year }: Readonly<{ year: number }>) {
       <div className="p-5">
         <h2 className="font-semibold">{year} at a glance</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Monthly allocations and recurring plans. Use Monthly details for
+          Monthly allocations and recurring plans. Use the Monthly plan for
           individual scheduled amounts and cash carryover. Unknown amounts are
           not treated as confirmed zeroes.
         </p>

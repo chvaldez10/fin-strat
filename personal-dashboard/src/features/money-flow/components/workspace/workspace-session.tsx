@@ -1,9 +1,9 @@
 "use client";
 import type { WorkspacePersistenceOptions } from "../../persistence/use-workspace-persistence";
 import { useWorkspaceLease } from "../../persistence/use-workspace-lease";
-import { MoneyFlowLoading } from "./money-flow-loading";
+import { MoneyFlowLoading } from "../money-flow-loading";
 import { WorkspaceEditor } from "./workspace-editor";
-import { WorkspaceSessionBlocked } from "./workspace-session-blocked";
+import { WorkspaceSessionBlocked } from "../workspace-session-blocked";
 
 type WorkspaceSessionProps = WorkspacePersistenceOptions & {
   onSwitch: (accountId: string) => void;

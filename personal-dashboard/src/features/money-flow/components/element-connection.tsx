@@ -1,16 +1,12 @@
 "use client";
 
 import { memo } from "react";
-import {
-  EdgeLabelRenderer,
-  getSmoothStepPath,
-  useNodesData,
-  type EdgeProps,
-} from "@xyflow/react";
+import { EdgeLabelRenderer, useNodesData, type EdgeProps } from "@xyflow/react";
 import { formatMoney } from "../calculations";
 import type { MoneyCanvasEdge, MoneyCanvasNode } from "../canvas-types";
 import { ElementConnectionPath } from "./element-connection-path";
 import { ELEMENT_PRESENTATION } from "./element-presentation";
+import { useGridConnectionPath } from "./use-grid-connection-path";
 
 export const ElementConnection = memo(function ElementConnection({
   id,
@@ -28,7 +24,9 @@ export const ElementConnection = memo(function ElementConnection({
   const sourceKind = connected.find((node) => node.id === source)?.data.kind;
   const targetKind = connected.find((node) => node.id === target)?.data.kind;
   const kind = sourceKind === "income" ? "income" : (targetKind ?? "chequing");
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [edgePath, labelX, labelY] = useGridConnectionPath({
+    source,
+    target,
     sourceX,
     sourceY,
     targetX,
@@ -36,7 +34,6 @@ export const ElementConnection = memo(function ElementConnection({
     sourcePosition,
     targetPosition,
     borderRadius: 24,
-    offset: 32,
   });
 
   return (

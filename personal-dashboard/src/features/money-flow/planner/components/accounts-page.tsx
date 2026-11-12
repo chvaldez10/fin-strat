@@ -6,20 +6,21 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { formatMoney } from "../../calculations";
 import { usePlanner } from "../use-planner";
-import { PlannerShell, PlannerLoading, MONEY_PATH } from "./planner-shell";
+import { PlannerShell, PlannerLoading } from "./planner-shell";
+
 import { AccountEditor } from "./account-editor";
-import { monthLink } from "../use-planner-month";
+import { MONEY_PATH, monthLink } from "../../routes";
 
 export function AccountsPage() {
   const planner = usePlanner(),
-    [adding, setAdding] = useState(false);
+    [adding, setAdding] = useState<"account" | "credit" | null>(null);
   const { data, month } = planner;
   return (
     <PlannerShell
-      title="Your accounts"
-      description="Bank cash and credit balances, with one place to check payment dates."
+      title="Accounts"
+      description="Update bank balances and card debt. Open a card to manage its statement payments."
       actions={
-        <Button onClick={() => setAdding(true)} disabled={!data?.ready}>
+        <Button onClick={() => setAdding("account")} disabled={!data?.ready}>
           <Plus aria-hidden="true" />
           Add account
         </Button>
@@ -37,16 +38,9 @@ export function AccountsPage() {
             );
             return (
               <section key={group} className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    {group === "credit" ? "Credit cards" : "Bank accounts"}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {group === "credit"
-                      ? "Balances owed are kept separate from available cash."
-                      : "Open an account to see its monthly payments and canvas."}
-                  </p>
-                </div>
+                <h2 className="text-lg font-semibold">
+                  {group === "credit" ? "Credit cards" : "Bank accounts"}
+                </h2>
                 {accounts.length ? (
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {accounts.map((account) => (
@@ -107,8 +101,13 @@ export function AccountsPage() {
                         : "Choose where income arrives and bills are paid."
                     }
                     action={
-                      <Button variant="outline" onClick={() => setAdding(true)}>
-                        Add account
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          setAdding(group === "credit" ? "credit" : "account")
+                        }
+                      >
+                        {group === "credit" ? "Add credit card" : "Add account"}
                       </Button>
                     }
                   />
@@ -117,7 +116,11 @@ export function AccountsPage() {
             );
           })}
           {adding && (
-            <AccountEditor month={month} onClose={() => setAdding(false)} />
+            <AccountEditor
+              month={month}
+              fixedKind={adding === "credit" ? "credit" : undefined}
+              onClose={() => setAdding(null)}
+            />
           )}
         </>
       )}

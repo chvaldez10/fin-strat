@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CanvasInspector } from "./canvas-inspector";
+import { CanvasInspector } from "../../components/canvas-inspector";
 import { FormError, PlannerSheet } from "./planner-form";
 
 export function ActivityDeleteButton({

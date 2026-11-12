@@ -9,21 +9,23 @@ import { Input } from "@/components/ui/input";
 import { formatMoney } from "../../calculations";
 import type { ActivityData } from "../activity-data";
 import type { ActivitySummary } from "../activity-projection";
-import type { ActivityCategory, CategoryKind } from "../activity";
-import { ActivitySelect } from "./activity-select";
-import { CanvasInspector } from "./canvas-inspector";
 import {
-  Field,
-  FormError,
-  PlannerSheet,
-  amountText,
-  amountValue,
-  usePlannerAction,
-} from "./planner-form";
+  DEFAULT_CATEGORIES,
+  type ActivityCategory,
+  type CategoryKind,
+} from "../activity";
+import { ActivitySelect } from "./activity-select";
+import { CanvasInspector } from "../../components/canvas-inspector";
+import { FormError, PlannerSheet, usePlannerAction } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { amountText, amountValue } from "../../amounts";
 import { useCanvasWriteContext } from "./planner-write-context";
 
 const spendingLimit = "monthly-limit";
 const newCategory = "new-category";
+const commonCategoryIds = new Set(
+  DEFAULT_CATEGORIES.map((category) => category.id)
+);
 
 export function ActivityPlanEditor({
   month,
@@ -42,7 +44,6 @@ export function ActivityPlanEditor({
   bucket?: ActivitySummary["buckets"][number];
   add?: Readonly<{
     kind?: CategoryKind;
-    category?: ActivityCategory;
     onPlace: (category: ActivityCategory) => void;
   }>;
   beforeForm?: ReactNode;
@@ -53,14 +54,14 @@ export function ActivityPlanEditor({
   onView: (category: ActivityCategory) => void;
 }>) {
   const [choice, setChoice] = useState(
-    bucket?.id ?? add?.category?.id ?? (add ? newCategory : spendingLimit)
+    bucket?.id ?? (add ? newCategory : spendingLimit)
   );
   const [amount, setAmount] = useState(
     amountText(
       bucket
         ? bucket.planned
         : add
-          ? (data.plan?.allocations[add.category?.id ?? ""] ?? null)
+          ? null
           : (data.plan?.spendingLimitCents ?? null)
     )
   );
@@ -74,20 +75,36 @@ export function ActivityPlanEditor({
   const chosen = bucket ?? data.categories.find((item) => item.id === choice);
   const amountLabel =
     choice === spendingLimit ? "Spending limit (CAD)" : "Set aside (CAD)";
-  const options = [
-    ...(!add ? [{ id: spendingLimit, name: "Overall spending limit" }] : []),
-    ...data.categories.filter(
-      (category) => !add?.kind || category.kind === add.kind
-    ),
-    { id: newCategory, name: "New category…" },
-  ];
+  const custom = { id: newCategory, name: "New category" };
+  const categories = data.categories.filter(
+    (category) => !add?.kind || category.kind === add.kind
+  );
+  const options = add
+    ? [custom]
+    : [
+        { id: spendingLimit, name: "Overall spending limit" },
+        ...categories,
+        custom,
+      ];
+  const groups = add
+    ? [
+        {
+          label: "Your categories",
+          options: categories.filter((item) => !commonCategoryIds.has(item.id)),
+        },
+        {
+          label: "Common categories",
+          options: categories.filter((item) => commonCategoryIds.has(item.id)),
+        },
+      ]
+    : undefined;
   const Container = presentation === "canvas" ? CanvasInspector : PlannerSheet;
   return (
     <Container
       title={bucket?.name ?? (add ? "Add element" : "Monthly amounts")}
       description={
         add
-          ? `Add a category for ${month}. Set an amount aside if you want.`
+          ? "Choose an existing category or create your own."
           : `Edit amounts for ${month}. Leave an amount blank to clear it.`
       }
       onClose={onClose}
@@ -186,6 +203,7 @@ export function ActivityPlanEditor({
               label={add ? "Category" : "Amount for"}
               value={choice}
               options={options}
+              groups={groups}
               onChange={(value) => {
                 setChoice(value);
                 setAmount(

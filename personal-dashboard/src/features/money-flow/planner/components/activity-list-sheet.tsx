@@ -20,12 +20,8 @@ import type {
 import type { FinancialAccount, Payment } from "../types";
 import { ActivityDeleteButton } from "./activity-delete-confirmation";
 import { ActivitySelect } from "./activity-select";
-import {
-  FormError,
-  PlannerSheet,
-  localToday,
-  usePlannerAction,
-} from "./planner-form";
+import { FormError, PlannerSheet, usePlannerAction } from "./planner-form";
+import { localToday } from "../../formatting";
 import type { ActivityFilter } from "./activity-summary";
 import { useCanvasWriteContext } from "./planner-write-context";
 
@@ -170,10 +166,7 @@ export function ActivityListSheet({
     .filter(
       (row) =>
         (matchesFilter(row.kind, filter?.type) ||
-          (filter?.type === "spending" &&
-            filter.accountId &&
-            row.kind === "cardPayment" &&
-            row.counterpartyId === filter.accountId)) &&
+          (filter?.type === "spending" && row.kind === "cardPayment")) &&
         (account === "all" ||
           row.accountId === account ||
           row.counterpartyId === account)

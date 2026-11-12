@@ -17,8 +17,7 @@ import type {
   IncomeDisplay,
 } from "../activity-projection";
 import type { FinancialAccount, Payment } from "../types";
-import { monthLink } from "../use-planner-month";
-import { MONEY_PATH } from "./money-navigation";
+import { MONEY_PATH, monthLink } from "../../routes";
 
 export type ActivityFilter = {
   type?: "income" | "spending" | "savings" | "used" | "transfers";
@@ -179,17 +178,8 @@ export function ActivitySummary({
           className="rounded-sm hover:text-foreground focus-visible:outline-ring"
           onClick={onScheduled}
         >
-          Scheduled outflows {provisional ? "≈ " : ""}
+          Upcoming payments {provisional ? "≈ " : ""}
           {formatMoney(upcoming)}
-        </button>
-        <button
-          type="button"
-          className="rounded-sm hover:text-foreground focus-visible:outline-ring"
-          onClick={onReview}
-        >
-          {data.plan?.reviewedThrough
-            ? `Reviewed through ${data.plan.reviewedThrough}`
-            : "Review bank activity"}
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-2 px-4 pb-2 sm:px-6">
@@ -201,7 +191,7 @@ export function ActivitySummary({
               disabled={!canLog}
               onClick={onLog}
             >
-              <Plus aria-hidden="true" /> Log money out
+              <Plus aria-hidden="true" /> Log expense
             </Button>
           )
         ) : (
@@ -215,7 +205,7 @@ export function ActivitySummary({
           variant="outline"
           onClick={() => onActivity()}
         >
-          Activity
+          Transactions
         </Button>
         {data.pending.length > 0 && (
           <Button
@@ -224,7 +214,7 @@ export function ActivitySummary({
             variant="outline"
             onClick={onReview}
           >
-            Review ({data.pending.length})
+            Review imports ({data.pending.length})
           </Button>
         )}
         <DropdownMenu>
@@ -248,12 +238,11 @@ export function ActivitySummary({
             >
               Import CSV
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onReview}>
-              Review bank activity
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onScheduled}>
-              Scheduled payments
-            </DropdownMenuItem>
+            {data.pending.length === 0 && (
+              <DropdownMenuItem onSelect={onReview}>
+                Review imports
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={onTransfers}>
               Transfers
             </DropdownMenuItem>

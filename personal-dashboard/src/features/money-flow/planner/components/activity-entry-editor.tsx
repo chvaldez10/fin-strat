@@ -22,16 +22,11 @@ import type { FinancialAccount, Payment } from "../types";
 import { ActivityDeleteButton } from "./activity-delete-confirmation";
 import { ActivityEntryRemoval } from "./activity-entry-removal";
 import { ActivitySelect } from "./activity-select";
-import { CanvasInspector } from "./canvas-inspector";
-import {
-  Field,
-  FormError,
-  PlannerSheet,
-  amountText,
-  amountValue,
-  localToday,
-  usePlannerAction,
-} from "./planner-form";
+import { CanvasInspector } from "../../components/canvas-inspector";
+import { FormError, PlannerSheet, usePlannerAction } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { localToday } from "../../formatting";
+import { amountText, amountValue } from "../../amounts";
 import { useCanvasWriteContext } from "./planner-write-context";
 
 export type ActivityDraft = {

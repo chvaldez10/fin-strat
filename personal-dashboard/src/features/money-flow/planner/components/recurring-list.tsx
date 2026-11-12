@@ -1,7 +1,7 @@
 "use client";
 import type { PlannerData } from "../use-planner";
 import { FREQUENCIES } from "../recurrence";
-import { paymentAmount } from "./payment-list";
+import { paymentAmount } from "../../formatting";
 import { Button } from "@/components/ui/button";
 
 export function RecurringList({

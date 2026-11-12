@@ -7,7 +7,6 @@ export function canvasMotionDuration(duration: number) {
     : duration;
 }
 
-export const SNAP_GRID: [number, number] = [24, 24];
 export const DEFAULT_EDGE_OPTIONS = {
   type: "money",
   selectable: false,

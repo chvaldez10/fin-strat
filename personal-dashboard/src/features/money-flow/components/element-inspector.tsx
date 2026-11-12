@@ -1,15 +1,5 @@
 "use client";
-import { X } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import type { MoneyFlowAccountWorkspace, YearMonth } from "../types";
 import { getElementConnections } from "../elements";
 import type {
@@ -20,6 +10,7 @@ import type {
 import { ELEMENT_PRESENTATION } from "./element-presentation";
 import { ElementDetailsForm } from "./element-details-form";
 import { ElementTransferForm } from "./element-transfer-form";
+import { CanvasInspector } from "./canvas-inspector";
 
 type ElementInspectorProps = {
   selected: SelectedMoneyElement;
@@ -46,8 +37,6 @@ export function ElementInspector({
   onSaveTransfer,
   onRemoveTransfer,
 }: Readonly<ElementInspectorProps>) {
-  const isMobile = useIsMobile();
-
   if (!selected) {
     return null;
   }
@@ -119,60 +108,23 @@ export function ElementInspector({
     </div>
   );
 
-  if (isMobile) {
-    return (
-      <Sheet open onOpenChange={(open) => !open && onClose()}>
-        <SheetContent
-          side="bottom"
-          data-testid="money-flow-inspector"
-          className="max-h-[85dvh] overflow-y-auto pb-[env(safe-area-inset-bottom)]"
-        >
-          <SheetHeader>
-            <SheetTitle>{title}</SheetTitle>
-            <SheetDescription>
-              Changes update the monthly scenario when saved.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-5">{content}</div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
   return (
-    <aside
-      aria-label="Money flow inspector"
-      data-testid="money-flow-inspector"
-      className="absolute inset-y-4 right-4 z-20 w-80 overflow-y-auto overscroll-contain rounded-2xl border border-border/70 bg-card text-card-foreground shadow-xl shadow-black/5"
-    >
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border/60 bg-card/95 px-5 py-4 backdrop-blur">
-        <div className="flex min-w-0 items-center gap-3">
-          <span
-            className={cn(
-              "flex size-10 shrink-0 items-center justify-center rounded-xl",
-              presentation.accent
-            )}
-          >
-            <Icon className="size-5" aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-base font-semibold tracking-tight">{title}</p>
-            <p className="text-xs text-muted-foreground">
-              Saved changes update totals.
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={onClose}
-          aria-label="Close inspector"
+    <CanvasInspector
+      title={title}
+      description="Saved changes update totals."
+      onClose={onClose}
+      icon={
+        <span
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-xl",
+            presentation.accent
+          )}
         >
-          <X />
-        </Button>
-      </div>
-      <div className="p-5">{content}</div>
-    </aside>
+          <Icon className="size-5" aria-hidden="true" />
+        </span>
+      }
+    >
+      {content}
+    </CanvasInspector>
   );
 }

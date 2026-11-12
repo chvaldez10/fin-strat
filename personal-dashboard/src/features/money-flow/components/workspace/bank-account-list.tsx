@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { MONEY_PATH } from "../../routes";
 import { ArrowUpRight, Landmark, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/patterns/empty-state";
@@ -70,7 +71,7 @@ export function BankAccountList({
             {accounts.map((account) => (
               <li key={account.id} className="min-w-0">
                 <Link
-                  href={`/dashboard/watchlist/money-flow/${encodeURIComponent(account.id)}`}
+                  href={`${MONEY_PATH}/${encodeURIComponent(account.id)}`}
                   aria-label={`Open workspace for ${account.name}`}
                   className="group flex h-full min-w-0 flex-col gap-6 rounded-xl border border-border bg-card p-5 text-card-foreground shadow-xs outline-none transition-[background-color,border-color,box-shadow] hover:border-foreground/20 hover:bg-accent/30 hover:shadow-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >

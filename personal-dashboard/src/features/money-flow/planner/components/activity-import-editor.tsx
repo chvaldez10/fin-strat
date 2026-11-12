@@ -9,13 +9,9 @@ import { formatMoney } from "../../calculations";
 import { parseActivityCsv } from "../activity-csv";
 import type { FinancialAccount } from "../types";
 import { ActivitySelect } from "./activity-select";
-import {
-  Field,
-  FormError,
-  PlannerSheet,
-  localToday,
-  usePlannerAction,
-} from "./planner-form";
+import { FormError, PlannerSheet, usePlannerAction } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { localToday } from "../../formatting";
 import { useCanvasWriteContext } from "./planner-write-context";
 
 export function ActivityImportEditor({

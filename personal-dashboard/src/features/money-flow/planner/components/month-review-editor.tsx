@@ -6,14 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { PlannerData } from "../use-planner";
-import {
-  PlannerSheet,
-  Field,
-  amountText,
-  amountValue,
-  FormError,
-  usePlannerAction,
-} from "./planner-form";
+import { PlannerSheet, FormError, usePlannerAction } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { amountText, amountValue } from "../../amounts";
 
 export function MonthReviewEditor({
   month,

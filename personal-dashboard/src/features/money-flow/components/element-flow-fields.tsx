@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { parseMoneyCents } from "../amounts";
+import { amountText, parseMoneyCents } from "../amounts";
 import { formatYearMonth } from "../months";
 import type { MoneyFlowTransfer, YearMonth } from "../types";
 import type { ElementTransferValues } from "./element-editor-types";
-import { ElementField } from "./element-form-feedback";
+import { MoneyField as ElementField } from "./money-field";
 import {
   ElementScheduleFields,
   useElementSchedule,
@@ -18,13 +18,11 @@ export function useElementFlow(
 ) {
   const schedule = useElementSchedule(transfer, month);
   const [amount, setAmount] = useState(
-    transfer ? (transfer.baseMonthlyAmountCents / 100).toString() : ""
+    amountText(transfer?.baseMonthlyAmountCents ?? null)
   );
   const existingOverride = transfer?.monthOverrides?.[month];
   const [override, setOverride] = useState(
-    typeof existingOverride === "number"
-      ? (existingOverride / 100).toString()
-      : ""
+    typeof existingOverride === "number" ? amountText(existingOverride) : ""
   );
   const [label, setLabel] = useState(transfer?.label ?? "");
   const [errors, setErrors] = useState<{ amount?: string; override?: string }>(

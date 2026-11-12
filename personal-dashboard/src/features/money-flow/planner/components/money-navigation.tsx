@@ -11,12 +11,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { monthLink } from "../use-planner-month";
+import { MONEY_PATH, monthLink } from "../../routes";
 
-export const MONEY_PATH = "/dashboard/watchlist/money-flow";
 const pages = [
   { key: "canvas", label: "Canvas", suffix: "" },
-  { key: "month", label: "Monthly details", suffix: "/planner" },
+  { key: "month", label: "Monthly plan", suffix: "/planner" },
   { key: "recurring", label: "Recurring payments", suffix: "/recurring" },
   { key: "subscriptions", label: "Subscriptions", suffix: "/subscriptions" },
   { key: "accounts", label: "Accounts", suffix: "/accounts" },

@@ -16,27 +16,11 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { errorMessage } from "../use-planner";
-import { parseMoneyCents } from "../../amounts";
-import { formatDateOnly, calendarDate } from "@/lib/date-only";
 import { useCanvasWriteContext } from "./planner-write-context";
 import { withWorkspaceAccess } from "../../persistence/workspace-write-access";
 
 export const selectClass =
   "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
-export function Field({
-  label,
-  children,
-}: Readonly<{
-  label: string;
-  children: ReactNode;
-}>) {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">{label}</p>
-      {children}
-    </div>
-  );
-}
 function PlannerSheetFrame({
   onDismiss,
   children,
@@ -158,22 +142,6 @@ export function usePlannerAction() {
       }
     },
   };
-}
-export function amountText(cents: number | null) {
-  return cents === null ? "" : (cents / 100).toString();
-}
-export function amountValue(text: string, negative = false) {
-  if (!text.trim()) return null;
-  const cents = parseMoneyCents(text, { allowNegative: negative });
-  if (cents === null)
-    throw new Error("Enter a valid amount with up to two decimal places.");
-  return cents;
-}
-export function localToday() {
-  const value = new Date();
-  return formatDateOnly(
-    calendarDate(value.getFullYear(), value.getMonth(), value.getDate())
-  );
 }
 export function FormError({ message }: Readonly<{ message: string }>) {
   return message ? (

@@ -8,7 +8,7 @@ import { formatMoney } from "../../calculations";
 import { PlannerShell, PlannerLoading } from "./planner-shell";
 import { ScheduleEditor } from "./schedule-editor";
 import { ScheduleCollectionList } from "./schedule-collection-list";
-import { localToday } from "./planner-form";
+import { localToday } from "../../formatting";
 import {
   Select,
   SelectContent,
@@ -21,26 +21,23 @@ const categories = {
   recurring: {
     title: "Recurring payments",
     description:
-      "Plan regular bills such as mortgage, insurance, utilities and car payments.",
+      "Schedule regular bills like mortgage, insurance and utilities.",
     add: "Add recurring payment",
     edit: "Edit recurring payment",
     month: "Recurring payment month",
     status: "Recurring payment status",
     next: "Next payment",
     empty: "No recurring payments in this view",
-    hint: "Add a regular bill. Services such as YouTube Premium belong on the Subscriptions page.",
   },
   subscriptions: {
-    title: "Subscriptions & memberships",
-    description:
-      "Keep services such as YouTube Premium separate from your regular household bills.",
+    title: "Subscriptions",
+    description: "Schedule charges for services and memberships.",
     add: "Add subscription",
     edit: "Edit subscription",
     month: "Subscription month",
     status: "Subscription status",
     next: "Next charge",
     empty: "No subscriptions in this view",
-    hint: "Add a service or membership. Multiple accounts with the same provider are supported.",
   },
 } as const;
 
@@ -149,9 +146,6 @@ export function ScheduleCollectionPage({
             {visibleSchedules.length === 0 ? (
               <div className="p-8 text-center">
                 <h2 className="font-semibold">{copy.empty}</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {copy.hint}
-                </p>
               </div>
             ) : (
               <ScheduleCollectionList

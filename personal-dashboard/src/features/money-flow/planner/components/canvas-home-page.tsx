@@ -4,12 +4,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { AccountSwitcher } from "../../components/account-switcher";
-import { MoneyFlowLoading } from "../../components/workspace/money-flow-loading";
+import { MoneyFlowLoading } from "../../components/money-flow-loading";
 import { usePlanner, usePlannerMetadata } from "../use-planner";
 import { useCanvasAccount } from "../use-canvas-account";
-import { monthLink } from "../use-planner-month";
+import { MONEY_PATH, monthLink } from "../../routes";
 import { PlannerCanvasPage } from "./planner-canvas-page";
-import { PlannerLoading, MONEY_PATH } from "./planner-shell";
+import { PlannerLoading } from "./planner-shell";
+
 import { AccountEditor } from "./account-editor";
 
 export function CanvasHomePage() {
@@ -48,7 +49,7 @@ export function CanvasHomePage() {
         />
         <Button variant="outline" asChild>
           <Link href={monthLink(`${MONEY_PATH}/planner`, planner.month)}>
-            Monthly details
+            Monthly plan
           </Link>
         </Button>
         {adding && (

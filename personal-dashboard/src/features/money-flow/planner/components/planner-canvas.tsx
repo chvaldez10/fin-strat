@@ -14,8 +14,8 @@ import {
   PlannerCanvasFrame,
   type CanvasFrameState,
 } from "./planner-canvas-frame";
-import { MONEY_PATH } from "./money-navigation";
-import { monthLink } from "../use-planner-month";
+
+import { MONEY_PATH, monthLink } from "../../routes";
 
 const plannerTools = [
   { kind: "income", label: "Add income" },

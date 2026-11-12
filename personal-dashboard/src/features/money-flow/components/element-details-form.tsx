@@ -5,15 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { MoneyCanvasNode } from "../canvas-types";
 import type { MoneyFlowTransfer, YearMonth } from "../types";
-import { parseMoneyCents } from "../amounts";
+import { amountText, parseMoneyCents } from "../amounts";
 import { isFlowElement } from "../elements";
 import type { ElementEditValues } from "./element-editor-types";
 import { ElementFlowFields, useElementFlow } from "./element-flow-fields";
-import {
-  ElementField,
-  ElementSaveFeedback,
-  useElementSave,
-} from "./element-form-feedback";
+import { ElementSaveFeedback, useElementSave } from "./element-form-feedback";
+import { MoneyField as ElementField } from "./money-field";
 
 export function ElementDetailsForm({
   element,
@@ -34,9 +31,7 @@ export function ElementDetailsForm({
 }>) {
   const [label, setLabel] = useState(element.data.label);
   const [note, setNote] = useState(element.data.note ?? "");
-  const [balance, setBalance] = useState(
-    (startingBalanceCents / 100).toString()
-  );
+  const [balance, setBalance] = useState(amountText(startingBalanceCents));
   const [error, setError] = useState("");
   const flow = useElementFlow(primaryTransfer, selectedMonth);
   const save = useElementSave();

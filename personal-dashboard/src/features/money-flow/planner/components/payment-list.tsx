@@ -5,27 +5,26 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Repeat2 } from "lucide-react";
-import { formatMoney } from "../../calculations";
+import { Repeat2 } from "lucide-react";
+import { displayDate, paymentAmount } from "../../formatting";
+import { editablePaymentValues } from "../payment-values";
 import type { FinancialAccount, Payment } from "../types";
 import { PAYMENT_KINDS } from "../recurrence";
-import {
-  amountText,
-  amountValue,
-  usePlannerAction,
-  FormError,
-} from "./planner-form";
+import { usePlannerAction, FormError } from "./planner-form";
+import { amountText, amountValue } from "../../amounts";
 
 export function PaymentList({
   items,
   accounts,
   month,
   onEdit,
+  amountLabel = "Amount (CAD)",
 }: Readonly<{
   items: Payment[];
   accounts: FinancialAccount[];
   month: string;
   onEdit: (item: Payment) => void;
+  amountLabel?: string;
 }>) {
   if (!items.length)
     return (
@@ -72,7 +71,7 @@ export function PaymentList({
           </caption>
           <thead className="border-y border-border bg-muted/30 text-xs text-muted-foreground">
             <tr>
-              {["Payment", "Amount (CAD)", "Due", "Account", "Actions"].map(
+              {["Payment", amountLabel, "Due", "Account", "Actions"].map(
                 (label) => (
                   <th
                     key={label}
@@ -115,11 +114,16 @@ function PaymentRow({
   const [draft, setDraft] = useState<{ text: string; revision: number } | null>(
       null
     ),
+    [saved, setSaved] = useState<{
+      amountCents: number | null;
+      revision: number;
+    } | null>(null),
     action = usePlannerAction(),
     save = useMutation(api.plannerPayments.save);
   const account = accounts.find((a) => a.id === item.accountId),
     cardCharge = account?.kind === "credit";
-  const amount = draft?.text ?? amountText(item.amountCents);
+  const confirmed = saved && saved.revision > item.revision ? saved : item;
+  const amount = draft?.text ?? amountText(confirmed.amountCents);
   return (
     <tr
       className={
@@ -148,27 +152,16 @@ function PaymentRow({
           onSubmit={(e) => {
             e.preventDefault();
             if (!draft) return;
-            void action.run(
-              () =>
-                save({
-                  id: item._id as Id<"moneyPlannerPayments">,
-                  expectedRevision: draft.revision,
-                  values: {
-                    name: item.name,
-                    kind: item.kind,
-                    isSubscription: item.isSubscription,
-                    amountCents: amountValue(draft.text),
-                    estimated: item.estimated,
-                    accountId: item.accountId,
-                    counterpartyId: item.counterpartyId,
-                    notes: item.notes,
-                    dueDate: item.dueDate,
-                    statementMonth: item.statementMonth,
-                    statementAmountCents: item.statementAmountCents,
-                  },
-                }),
-              () => setDraft(null)
-            );
+            void action.run(async () => {
+              const amountCents = amountValue(draft.text);
+              await save({
+                id: item._id as Id<"moneyPlannerPayments">,
+                expectedRevision: draft.revision,
+                values: { ...editablePaymentValues(item), amountCents },
+              });
+              setSaved({ amountCents, revision: draft.revision + 1 });
+              setDraft(null);
+            });
           }}
         >
           <Input
@@ -181,20 +174,25 @@ function PaymentRow({
             onChange={(e) =>
               setDraft({
                 text: e.target.value,
-                revision: draft?.revision ?? item.revision,
+                revision: draft?.revision ?? confirmed.revision,
               })
             }
           />
           {draft && (
             <Button
               type="submit"
-              size="icon-sm"
-              variant="ghost"
+              size="sm"
+              variant="outline"
               disabled={action.busy}
               aria-label={`Save amount for ${item.name}`}
             >
-              <Check aria-hidden="true" />
+              {action.busy ? "Saving…" : "Save"}
             </Button>
+          )}
+          {!draft && saved?.revision === confirmed.revision && (
+            <output className="px-2 text-xs text-muted-foreground">
+              Saved
+            </output>
           )}
         </form>
         <FormError message={action.error} />
@@ -212,14 +210,4 @@ function PaymentRow({
       </td>
     </tr>
   );
-}
-export function displayDate(value: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T00:00:00Z`));
-}
-export function paymentAmount(value: number | null) {
-  return value === null ? "Not confirmed" : formatMoney(value);
 }

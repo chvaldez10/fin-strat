@@ -53,7 +53,6 @@ import {
 import { ActivityPlanEditor } from "./activity-plan-editor";
 import { ActivityScheduledRemoval } from "./activity-scheduled-removal";
 import { ActivitySummary, type ActivityFilter } from "./activity-summary";
-import { CommonActivityElements } from "./common-activity-elements";
 import { PaymentEditor } from "./payment-editor";
 import {
   PlannerCanvasFrame,
@@ -65,9 +64,9 @@ import {
   FormError,
   PlannerSheet,
   PlannerSheetHost,
-  localToday,
   usePlannerAction,
 } from "./planner-form";
+import { localToday } from "../../formatting";
 
 type ListPanel = {
   kind: "list";
@@ -91,7 +90,7 @@ type Panel =
   | { kind: "import"; back?: ListPanel }
   | { kind: "review"; row: ImportedActivity; back?: ListPanel }
   | { kind: "plan"; categoryId?: string }
-  | { kind: "add-element"; category?: ActivityCategory }
+  | { kind: "add-element" }
   | { kind: "income" }
   | { kind: "account"; accountId?: string; back?: ListPanel }
   | { kind: "scheduled-payment"; payment: Payment; back: ListPanel };
@@ -517,17 +516,10 @@ export function ActivityWorkspace({
                   >
                     <Plus aria-hidden="true" /> Add element
                   </Button>
-                  <CommonActivityElements
-                    view={view}
-                    onSelect={(category) =>
-                      show({ kind: "add-element", category })
-                    }
-                  />
                   {moveControl}
                 </ElementToolbar>
                 {panel?.kind === "add-element" && (
                   <ActivityPlanEditor
-                    key={panel.category?.id ?? "custom"}
                     month={month}
                     data={data}
                     presentation="canvas"
@@ -535,7 +527,7 @@ export function ActivityWorkspace({
                       hiddenAccounts.length > 0 && (
                         <section className="mb-5 space-y-2 rounded-xl border p-3">
                           <h3 className="text-sm font-medium">
-                            Restore account cards
+                            Restore hidden accounts
                           </h3>
                           {hiddenAccounts.map(({ account }) => (
                             <Button
@@ -564,7 +556,6 @@ export function ActivityWorkspace({
                           : view === "expenses"
                             ? "expense"
                             : "savings",
-                      category: panel.category,
                       onPlace: (category) => placeCategory(category, layout),
                     }}
                     onClose={close}

@@ -7,15 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import type { Payment, PaymentValues } from "../types";
+import { editablePaymentValues } from "../payment-values";
 import { ActivityDeleteButton } from "./activity-delete-confirmation";
 import { useCanvasWriteContext } from "./planner-write-context";
-import {
-  Field,
-  amountText,
-  amountValue,
-  FormError,
-  usePlannerAction,
-} from "./planner-form";
+import { FormError, usePlannerAction } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { amountText, amountValue } from "../../amounts";
 
 /** The focused canvas editor keeps secondary payment fields out of the way. */
 function financialSnapshot(item: PaymentValues) {
@@ -66,17 +63,10 @@ export function CanvasPaymentForm({
         event.preventDefault();
         void action.run(async () => {
           const values: PaymentValues = {
+            ...editablePaymentValues(item),
             name: name.trim(),
             amountCents: amountValue(amount),
             dueDate: date,
-            kind: item.kind,
-            isSubscription: item.isSubscription,
-            estimated: item.estimated,
-            accountId: item.accountId,
-            counterpartyId: item.counterpartyId,
-            notes: item.notes,
-            statementMonth: item.statementMonth,
-            statementAmountCents: item.statementAmountCents,
           };
           await save({
             id: item._id as Id<"moneyPlannerPayments">,

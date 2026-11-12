@@ -12,3 +12,15 @@ export function parseMoneyCents(
   const cents = Number(match[1] === "-" ? -magnitude : magnitude);
   return Number.isSafeInteger(cents) ? cents : null;
 }
+
+export function amountText(cents: number | null) {
+  return cents === null ? "" : (cents / 100).toString();
+}
+
+export function amountValue(text: string, negative = false) {
+  if (!text.trim()) return null;
+  const cents = parseMoneyCents(text, { allowNegative: negative });
+  if (cents === null)
+    throw new Error("Enter a valid amount with up to two decimal places.");
+  return cents;
+}

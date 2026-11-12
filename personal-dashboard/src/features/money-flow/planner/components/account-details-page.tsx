@@ -8,8 +8,10 @@ import { MonthPicker } from "@/components/ui/month-picker";
 import { formatMoney } from "../../calculations";
 import { addMonths } from "../../months";
 import { usePlanner } from "../use-planner";
+import { MONEY_PATH, monthLink } from "../../routes";
 import type { FinancialAccount, Payment } from "../types";
-import { PlannerShell, PlannerLoading, MONEY_PATH } from "./planner-shell";
+import { PlannerShell, PlannerLoading } from "./planner-shell";
+
 import { AccountEditor } from "./account-editor";
 import { PaymentEditor } from "./payment-editor";
 import { PaymentList } from "./payment-list";
@@ -33,7 +35,9 @@ export function AccountDetailsPage({
       actions={
         <>
           <Button variant="outline" asChild>
-            <Link href={`${MONEY_PATH}/accounts`}>All accounts</Link>
+            <Link href={monthLink(`${MONEY_PATH}/accounts`, month)}>
+              All accounts
+            </Link>
           </Button>
           {account && (
             <Button onClick={() => setEditing(true)}>Update balance</Button>
@@ -66,9 +70,12 @@ export function AccountDetailsPage({
             {account.legacyAccountId && (
               <Button variant="outline" asChild>
                 <Link
-                  href={`${MONEY_PATH}/${encodeURIComponent(account.legacyAccountId)}`}
+                  href={monthLink(
+                    `${MONEY_PATH}/${encodeURIComponent(account.legacyAccountId)}`,
+                    month
+                  )}
                 >
-                  Open monthly canvas
+                  Open account schedule
                 </Link>
               </Button>
             )}
@@ -79,11 +86,15 @@ export function AccountDetailsPage({
               value={month}
               onValueChange={planner.setMonth}
             />
-            {account.kind === "credit" && (
-              <Button onClick={() => setPayment("new")}>
-                Add monthly statement
-              </Button>
-            )}
+            {account.kind === "credit" &&
+              rows &&
+              !rows.some(
+                (item) => (item.statementMonth ?? item.month) === month
+              ) && (
+                <Button onClick={() => setPayment("new")}>
+                  Add statement payment
+                </Button>
+              )}
           </div>
           <section className="overflow-hidden rounded-2xl border border-border">
             <div className="p-5">
@@ -94,7 +105,7 @@ export function AccountDetailsPage({
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {account.kind === "credit"
-                  ? "Statement months, amounts and scheduled dates use the same records as your planner. Up to 25 recent statements are shown."
+                  ? "The planned payment for the selected statement month."
                   : "Includes recurring bills, savings and credit-card payments from this account."}
               </p>
             </div>
@@ -162,33 +173,49 @@ function CreditStatements({
     return (
       <p className="p-5 text-sm text-muted-foreground">Loading statements…</p>
     );
+  const current = rows.filter(
+    (item) => (item.statementMonth ?? item.month) === month
+  );
+  const history = rows.filter(
+    (item) => (item.statementMonth ?? item.month) !== month
+  );
+  const statement = (item: Payment) => (
+    <div key={item._id} className="border-t border-border">
+      <div className="flex flex-wrap justify-between gap-2 px-5 py-3 text-sm">
+        <p className="font-medium">
+          Statement {item.statementMonth ?? item.month}
+        </p>
+        <p className="text-muted-foreground">
+          Statement balance:{" "}
+          {item.statementAmountCents === null
+            ? "Not entered"
+            : formatMoney(item.statementAmountCents)}
+        </p>
+      </div>
+      <PaymentList
+        items={[item]}
+        accounts={accounts}
+        month={month}
+        amountLabel="Planned payment (CAD)"
+        onEdit={onEdit}
+      />
+    </div>
+  );
   return (
     <>
-      {rows.map((item) => (
-        <div key={item._id} className="border-t border-border">
-          <div className="flex flex-wrap justify-between gap-2 px-5 py-3 text-sm">
-            <p className="font-medium">
-              Statement {item.statementMonth ?? item.month}
-            </p>
-            <p className="text-muted-foreground">
-              Statement balance:{" "}
-              {item.statementAmountCents === null
-                ? "Not entered"
-                : formatMoney(item.statementAmountCents)}
-            </p>
-          </div>
-          <PaymentList
-            items={[item]}
-            accounts={accounts}
-            month={month}
-            onEdit={onEdit}
-          />
-        </div>
-      ))}
-      {!rows.length && (
+      {current.map(statement)}
+      {current.length === 0 && (
         <p className="p-5 text-sm text-muted-foreground">
-          Add a statement to record its amount and scheduled payment date.
+          No statement payment for this month.
         </p>
+      )}
+      {history.length > 0 && (
+        <details className="border-t border-border">
+          <summary className="cursor-pointer px-5 py-3 text-sm font-medium">
+            Other statements ({history.length})
+          </summary>
+          {history.map(statement)}
+        </details>
       )}
     </>
   );

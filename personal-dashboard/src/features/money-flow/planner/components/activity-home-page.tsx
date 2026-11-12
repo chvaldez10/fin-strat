@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { api } from "@convex/_generated/api";
 import type { ActivityData } from "../activity-data";
 import { usePlanner, usePlannerMetadata } from "../use-planner";
-import { monthLink } from "../use-planner-month";
+import { MONEY_PATH, monthLink } from "../../routes";
 import { ActivityWorkspace } from "./activity-workspace";
 import { PlannerCanvasPage } from "./planner-canvas-page";
-import { MONEY_PATH, PlannerLoading } from "./planner-shell";
+import { PlannerLoading } from "./planner-shell";
 
 export function ActivityHomePage() {
   const planner = usePlanner();

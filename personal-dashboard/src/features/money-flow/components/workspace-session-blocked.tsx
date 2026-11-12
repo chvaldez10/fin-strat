@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { LockKeyhole, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/patterns/empty-state";
-import type { WorkspaceLeaseStatus } from "../../persistence/use-workspace-lease";
+import type { WorkspaceLeaseStatus } from "../persistence/use-workspace-lease";
 
 export function WorkspaceSessionBlocked({
   status,

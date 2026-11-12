@@ -1,13 +1,9 @@
 "use client";
-import {
-  EdgeLabelRenderer,
-  getSmoothStepPath,
-  type Edge,
-  type EdgeProps,
-} from "@xyflow/react";
+import { EdgeLabelRenderer, type Edge, type EdgeProps } from "@xyflow/react";
 import { formatMoney } from "../../calculations";
 import { ElementConnectionPath } from "../../components/element-connection-path";
 import { ELEMENT_PRESENTATION } from "../../components/element-presentation";
+import { useGridConnectionPath } from "../../components/use-grid-connection-path";
 import type { MoneyNodeKind } from "../../types";
 export type PlannerEdge = Edge<
   { amount: number | null; kind: MoneyNodeKind; hideLabel?: boolean },
@@ -16,7 +12,7 @@ export type PlannerEdge = Edge<
 export function PlannerElementConnection(
   props: Readonly<EdgeProps<PlannerEdge>>
 ) {
-  const [path, x, y] = getSmoothStepPath({ ...props, borderRadius: 20 });
+  const [path, x, y] = useGridConnectionPath({ ...props, borderRadius: 20 });
   return (
     <>
       <ElementConnectionPath

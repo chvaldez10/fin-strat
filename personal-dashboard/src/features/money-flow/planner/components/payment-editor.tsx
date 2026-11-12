@@ -8,16 +8,12 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { MonthPicker } from "@/components/ui/month-picker";
 import { Input } from "@/components/ui/input";
 import type { FinancialAccount, Payment, PaymentValues } from "../types";
+import { editablePaymentValues } from "../payment-values";
 import { PaymentFields, emptyPayment } from "./payment-fields";
 import { useCanvasWriteContext } from "./planner-write-context";
-import {
-  PlannerSheet,
-  Field,
-  usePlannerAction,
-  amountText,
-  amountValue,
-  FormError,
-} from "./planner-form";
+import { PlannerSheet, usePlannerAction, FormError } from "./planner-form";
+import { MoneyField as Field } from "../../components/money-field";
+import { amountText, amountValue } from "../../amounts";
 
 const paymentTitles = {
   income: "Add income",
@@ -44,7 +40,7 @@ export function PaymentEditor({
 }>) {
   const [value, setValue] = useState<PaymentValues>(() => ({
     ...emptyPayment(month),
-    ...item,
+    ...(item ? editablePaymentValues(item) : undefined),
     ...initial,
   }));
   const [amount, setAmount] = useState(amountText(value.amountCents));

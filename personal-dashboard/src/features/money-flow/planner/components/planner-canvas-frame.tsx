@@ -10,8 +10,6 @@ import {
 } from "react";
 import {
   ReactFlow,
-  Background,
-  BackgroundVariant,
   type ReactFlowInstance,
   type Viewport,
 } from "@xyflow/react";
@@ -25,6 +23,8 @@ import { MoneyElement } from "../../components/money-element";
 import { CanvasViewControls } from "../../components/canvas-view-controls";
 import { CanvasToolButton } from "../../components/canvas-tool-button";
 import { CanvasMenu, CanvasMenuAction } from "../../components/canvas-menu";
+import { SNAP_GRID } from "../../components/canvas-grid";
+import { CanvasGridBackground } from "../../components/canvas-grid-background";
 import { hiddenElementLayoutKey } from "../layout-visibility";
 import {
   usePlannerLayout,
@@ -326,17 +326,10 @@ export function PlannerCanvasFrame({
             minZoom={0.3}
             maxZoom={2}
             snapToGrid
-            snapGrid={[24, 24]}
+            snapGrid={SNAP_GRID}
             onlyRenderVisibleElements
           >
-            {grid && (
-              <Background
-                variant={BackgroundVariant.Lines}
-                gap={24}
-                lineWidth={1}
-                color="color-mix(in oklab, var(--foreground) 20%, transparent)"
-              />
-            )}
+            {grid && <CanvasGridBackground />}
             <CanvasViewControls
               inspectorOpen={!!selected}
               gridVisible={grid}

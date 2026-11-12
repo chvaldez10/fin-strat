@@ -20,7 +20,7 @@
     opacity: var(--flow-opacity);
   }
   100% {
-    offset-distance: 100%;
+    offset-distance: max(0px, calc(100% - var(--flow-end-gap)));
     opacity: 0;
   }
 }

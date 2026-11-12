@@ -1,5 +1,5 @@
-import { Skeleton } from "@/components/ui/skeleton";
 import { LoaderCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function MoneyFlowLoading() {
   return (

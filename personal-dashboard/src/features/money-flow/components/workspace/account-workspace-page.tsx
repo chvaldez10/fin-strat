@@ -6,7 +6,8 @@ import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { useMoneyFlowPlan } from "../../persistence/use-money-flow-plan";
-import { MoneyFlowLoading } from "./money-flow-loading";
+import { MoneyFlowLoading } from "../money-flow-loading";
+import { MONEY_PATH } from "../../routes";
 import { WorkspaceSession } from "./workspace-session";
 
 export function AccountWorkspacePage({
@@ -30,9 +31,7 @@ export function AccountWorkspacePage({
           description="Choose an account from your bank accounts list to open its workspace."
           action={
             <Button asChild variant="outline">
-              <Link href="/dashboard/watchlist/money-flow">
-                Back to bank accounts
-              </Link>
+              <Link href={MONEY_PATH}>Back to bank accounts</Link>
             </Button>
           }
         />
@@ -46,11 +45,9 @@ export function AccountWorkspacePage({
         accounts={accounts}
         server={workspace}
         onSwitch={(id) =>
-          router.push(
-            `/dashboard/watchlist/money-flow/${encodeURIComponent(id)}`
-          )
+          router.push(`${MONEY_PATH}/${encodeURIComponent(id)}`)
         }
-        onBack={() => router.push("/dashboard/watchlist/money-flow")}
+        onBack={() => router.push(MONEY_PATH)}
       />
     </div>
   );

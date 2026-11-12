@@ -2,7 +2,10 @@
 
 import { useId, type ComponentProps, type CSSProperties } from "react";
 import { BaseEdge } from "@xyflow/react";
-import { ELEMENT_CONNECTION_CONFIG as config } from "./element-connection-config";
+import {
+  ELEMENT_CONNECTION_CONFIG as config,
+  END_ARROW_CLEARANCE,
+} from "./element-connection-config";
 import styles from "./element-connection-path.module.css";
 
 /** Motion follows the source-to-target path; the end marker remains visible. */
@@ -57,6 +60,7 @@ export function ElementConnectionPath({
               "--flow-reduced-duration": `${config.reducedMotionDurationSeconds}s`,
               "--flow-delay-ratio": -index / config.arrowCount,
               "--flow-opacity": config.arrowOpacity,
+              "--flow-end-gap": `${END_ARROW_CLEARANCE}px`,
             } as CSSProperties
           }
           d={`M ${-config.arrowSize / 2} ${-config.arrowSize * 0.375} L 0 0 L ${-config.arrowSize / 2} ${config.arrowSize * 0.375}`}

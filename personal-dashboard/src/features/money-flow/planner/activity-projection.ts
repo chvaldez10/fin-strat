@@ -185,6 +185,26 @@ export function displayActivityIncome(
   };
 }
 
+function plannedCardPayments(payments: readonly Payment[]) {
+  if (!payments.length) return null;
+  const known = payments.filter((payment) => payment.amountCents !== null);
+  const amountCents = known.length
+    ? known.reduce((sum, payment) => sum + (payment.amountCents ?? 0), 0)
+    : null;
+  const incomplete = known.length < payments.length;
+  const estimated = known.some((payment) => payment.estimated);
+  const label = incomplete
+    ? "Known card payments"
+    : estimated
+      ? "Estimated card payments"
+      : "Planned card payments";
+  const detail =
+    amountCents === null
+      ? "Planned card payment amount unknown"
+      : `${estimated ? "≈ " : ""}${formatMoney(amountCents)} in planned card payments${incomplete ? " + unknown amounts" : ""}`;
+  return { amountCents, label, detail };
+}
+
 export function projectActivityCanvas({
   totals,
   income,
@@ -201,6 +221,9 @@ export function projectActivityCanvas({
   positions: PlannerLayoutValues["positions"];
 }>) {
   const overview = view === "overview";
+  const cardPayments = plannedCardPayments(
+    accounts.flatMap((item) => item.repayments)
+  );
   const centerId = overview ? "center" : `${view}-center`;
   const centerLabel = view === "expenses" ? "Expenses" : "Savings";
   const nodes: MoneyCanvasNode[] = [
@@ -216,7 +239,14 @@ export function projectActivityCanvas({
           ? bank?.balanceUpdatedAt != null
             ? `${formatMoney(bank.balanceCents)} recorded balance`
             : undefined
-          : `${formatMoney(view === "expenses" ? totals.spent : totals.saved)} recorded`,
+          : view === "expenses"
+            ? [
+                `${formatMoney(totals.spent)} recorded spending`,
+                cardPayments?.detail,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : `${formatMoney(totals.saved)} recorded`,
       },
     },
   ];
@@ -265,7 +295,8 @@ export function projectActivityCanvas({
           caption: "Spending",
           label: "Expenses",
           monthlyAmountCents: totals.spent,
-          amountCaption: "View accounts and categories",
+          amountCaption: "Recorded spending",
+          note: cardPayments?.detail,
           showOutput: true,
         },
       },
@@ -300,15 +331,7 @@ export function projectActivityCanvas({
   }
 
   const buckets = visibleActivityBuckets(totals, view, positions);
-  const expenseAccounts =
-    view === "expenses"
-      ? accounts.filter(
-          ({ account }) =>
-            !positions[
-              hiddenElementLayoutKey(expenseAccountElementId(account.id))
-            ]
-        )
-      : [];
+  const expenseAccounts = view === "expenses" ? accounts : [];
   const positioned = [
     ...buckets.map((bucket) => breakdownCategoryId(bucket.id)),
     ...expenseAccounts.map(({ account }) =>
@@ -335,9 +358,17 @@ export function projectActivityCanvas({
   };
 
   let accountSlot = 0;
-  for (const { account, spent, hasRecorded, charges } of expenseAccounts) {
+  for (const {
+    account,
+    spent,
+    hasRecorded,
+    charges,
+    repayments,
+  } of expenseAccounts) {
     const id = expenseAccountElementId(account.id);
+    if (positions[hiddenElementLayoutKey(id)]) continue;
     const credit = account.kind === "credit";
+    const repayment = credit ? plannedCardPayments(repayments) : null;
     const balance =
       credit && account.balanceUpdatedAt !== null
         ? `${formatMoney(account.balanceCents)} recorded balance owed`
@@ -348,13 +379,25 @@ export function projectActivityCanvas({
       0
     );
     const showScheduled = !hasRecorded && charges.length > 0;
+    let displayedAmount: number | undefined = spent;
     let amountCaption = "Spent this month";
+    let balanceNote = balance;
+    let paymentNote = repayment?.detail;
     if (showScheduled) {
+      displayedAmount = knownCharges.length ? scheduledTotal : undefined;
       amountCaption = "Scheduled expenses · $0 spent";
       if (knownCharges.length < charges.length && knownCharges.length)
         amountCaption = "Known scheduled expenses · $0 spent";
       else if (knownCharges.some((row) => row.estimated))
         amountCaption = "Estimated expenses · $0 spent";
+    } else if (!hasRecorded && repayment?.amountCents != null) {
+      displayedAmount = repayment.amountCents;
+      amountCaption = `${repayment.label} · $0 spent`;
+      paymentNote = undefined;
+    } else if (!hasRecorded && balance) {
+      displayedAmount = account.balanceCents;
+      amountCaption = "Recorded balance owed · $0 spent";
+      balanceNote = undefined;
     }
     nodes.push({
       id,
@@ -371,15 +414,13 @@ export function projectActivityCanvas({
         variant: credit ? "credit-card" : "debit-account",
         caption: credit ? "Credit card" : "Bank account",
         label: account.name,
-        monthlyAmountCents: showScheduled
-          ? knownCharges.length
-            ? scheduledTotal
-            : undefined
-          : spent,
+        monthlyAmountCents: displayedAmount,
         amountCaption,
-        note: balance,
+        note:
+          [paymentNote, balanceNote].filter(Boolean).join(" · ") || undefined,
       },
     });
+    connect(id, "expense", spent);
   }
 
   let slot = 0;
