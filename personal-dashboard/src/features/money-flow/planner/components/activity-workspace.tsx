@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,6 +15,7 @@ import {
 import { MonthPicker } from "@/components/ui/month-picker";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "../../calculations";
+import { MONEY_PATH, monthLink } from "../../routes";
 import { ElementToolbar } from "../../components/element-toolbar";
 import { summarizeActivity, type ActivityCategory } from "../activity";
 import type {
@@ -26,6 +29,7 @@ import {
   breakdownCategoryId,
   breakdownCategoryPlacementKey,
   expenseAccountElementId,
+  groupRecurringExpenses,
   incomeEntryElementId,
   incomePaymentElementId,
   overviewCategoryId,
@@ -35,7 +39,7 @@ import {
   type ActivityCanvasView,
 } from "../activity-projection";
 import type { PlannerLayoutValues } from "../use-planner-layout";
-import { bankWorkspaceName } from "../activity-canvas-account";
+import { ALL_ACCOUNTS, bankWorkspaceName } from "../activity-canvas-account";
 import type { FinancialAccount, Payment } from "../types";
 import { AccountEditor } from "./account-editor";
 import {
@@ -75,7 +79,7 @@ type Panel =
   | { kind: "entry"; draft: ActivityDraft; back?: ListPanel }
   | { kind: "delete-entry"; entry: ActivityEntry; back?: ListPanel }
   | {
-      kind: "hide-card";
+      kind: "hide-card" | "remove-category";
       name: string;
       from: ActivityCanvasView;
       hide: () => void;
@@ -121,12 +125,19 @@ export function ActivityWorkspace({
   bank?: FinancialAccount;
   accountControl?: ReactNode;
 }>) {
+  const router = useRouter();
   const [selection, setSelection] = useState<{
     month: string;
     bankId: string | undefined;
     panel: Panel;
   } | null>(null);
   const bankId = bank?.id;
+  const accountDetailsLink = (accountId: string) =>
+    monthLink(
+      `${MONEY_PATH}/accounts/${encodeURIComponent(accountId)}`,
+      month,
+      bank?.legacyAccountId ?? ALL_ACCOUNTS
+    );
   const [viewSelection, setViewSelection] = useState<{
     bankId: string | undefined;
     view: ActivityCanvasView;
@@ -176,31 +187,6 @@ export function ActivityWorkspace({
       ),
     [activity.entries, data.categories, data.plan, bankId]
   );
-  const scheduled = useMemo(() => {
-    const recorded = new Set<string>(
-      data.entries.flatMap((entry) => (entry.planId ? [entry.planId] : []))
-    );
-    return plans.filter(
-      (item) =>
-        item.status === "pending" &&
-        !recorded.has(item._id) &&
-        (!bankId || item.accountId === bankId || item.counterpartyId === bankId)
-    );
-  }, [data.entries, plans, bankId]);
-  const receivedIncome = activity.entries
-    .filter((entry) => entry.kind === "income")
-    .toSorted((a, b) => b.date.localeCompare(a.date));
-  const scheduledIncome = useMemo(
-    () =>
-      scheduled
-        .filter((item) => item.kind === "income")
-        .toSorted((a, b) => a.dueDate.localeCompare(b.dueDate)),
-    [scheduled]
-  );
-  const income = useMemo(
-    () => displayActivityIncome(totals.income, scheduledIncome),
-    [totals.income, scheduledIncome]
-  );
   const workspaceAccounts = useMemo(
     () =>
       bankId
@@ -222,16 +208,71 @@ export function ActivityWorkspace({
         : accounts,
     [accounts, activity.entries, bankId, plans]
   );
+  const recordedByPlan = useMemo(
+    () =>
+      new Map<string, ActivityEntry>(
+        data.entries.flatMap((entry) =>
+          entry.planId ? [[entry.planId, entry] as const] : []
+        )
+      ),
+    [data.entries]
+  );
+  const workspacePlans = useMemo(() => {
+    if (!bankId) return plans;
+    const linkedCards = new Set(
+      workspaceAccounts
+        .filter((account) => account.kind === "credit")
+        .map((account) => account.id)
+    );
+    return plans.filter((plan) => {
+      if (plan.kind === "expense" && plan.seriesId) {
+        const source =
+          recordedByPlan.get(plan._id)?.accountId ?? plan.accountId;
+        return (
+          source === bankId || (source !== null && linkedCards.has(source))
+        );
+      }
+      return plan.accountId === bankId || plan.counterpartyId === bankId;
+    });
+  }, [bankId, plans, recordedByPlan, workspaceAccounts]);
+  const scheduled = useMemo(
+    () =>
+      workspacePlans.filter(
+        (plan) => plan.status === "pending" && !recordedByPlan.has(plan._id)
+      ),
+    [workspacePlans, recordedByPlan]
+  );
+  const receivedIncome = activity.entries
+    .filter((entry) => entry.kind === "income")
+    .toSorted((a, b) => b.date.localeCompare(a.date));
+  const scheduledIncome = useMemo(
+    () =>
+      scheduled
+        .filter((item) => item.kind === "income")
+        .toSorted((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    [scheduled]
+  );
+  const income = useMemo(
+    () => displayActivityIncome(totals.income, scheduledIncome),
+    [totals.income, scheduledIncome]
+  );
   const expenseAccounts = useMemo(
     () =>
-      activityExpenseAccounts(workspaceAccounts, scheduled, activity.entries),
-    [workspaceAccounts, scheduled, activity.entries]
+      bankId
+        ? []
+        : activityExpenseAccounts(workspaceAccounts, activity.entries),
+    [bankId, workspaceAccounts, activity.entries]
+  );
+  const recurringExpenses = useMemo(
+    () => groupRecurringExpenses(workspacePlans, recordedByPlan),
+    [workspacePlans, recordedByPlan]
   );
   const project = (positions: PlannerLayoutValues["positions"]) =>
     projectActivityCanvas({
       totals,
       receivedIncome,
       scheduledIncome,
+      recurringExpenses,
       accounts: expenseAccounts,
       bank,
       view,
@@ -267,49 +308,47 @@ export function ActivityWorkspace({
     category: ActivityCategory,
     layout: CanvasLayoutActions
   ) => {
+    const id = breakdownCategoryId(category.id);
+    if (layout.isHidden(id)) layout.setHidden(id, false);
     if (view === "overview") {
       layout.place(overviewCategoryId(category.id), (positions) =>
         overviewCategoryPosition(category.kind, positions)
       );
       return;
     }
-    const id = breakdownCategoryId(category.id);
     layout.place(
       breakdownCategoryPlacementKey(category.id),
       () => ({ x: 0, y: 0 }),
       id
     );
-    if (layout.isHidden(id)) layout.setHidden(id, false);
   };
   const hideCategoryCard = (
-    id: string,
     category: ActivityCategory,
     layout: CanvasLayoutActions,
     onHidden?: () => void
   ) =>
     show({
-      kind: "hide-card",
+      kind: "remove-category",
       name: category.name,
       from: view,
       hide: () => {
-        if (view === "overview") layout.remove(id);
-        else layout.setHidden(id, true);
+        layout.setHidden(breakdownCategoryId(category.id), true);
         onHidden?.();
       },
+    });
+  const openRecurringExpense = (group: (typeof recurringExpenses)[number]) =>
+    show({
+      kind: "list",
+      view: group.pendingCount ? "scheduled" : "recorded",
+      filter: { type: "spending", paymentGroup: group },
     });
   const openExpenseAccount = (
     accountId: string,
     layout?: CanvasLayoutActions
   ) => {
-    const details = expenseAccounts.find(
-      (item) => item.account.id === accountId
-    );
-    if (!details) return;
-    const hasPlans =
-      details.charges.length > 0 || details.repayments.length > 0;
     show({
       kind: "list",
-      view: !details.hasRecorded && hasPlans ? "scheduled" : "recorded",
+      view: "recorded",
       filter: { type: "spending", accountId },
       hideAccountCard: layout
         ? () => layout.setHidden(expenseAccountElementId(accountId), true)
@@ -390,9 +429,9 @@ export function ActivityWorkspace({
           onSelect: () => openExpenseAccount(account.id, layout),
         },
         {
-          label: "Update balance",
-          icon: Pencil,
-          onSelect: () => show({ kind: "account", accountId: account.id }),
+          label: "View account details",
+          icon: ChevronRight,
+          onSelect: () => router.push(accountDetailsLink(account.id)),
         },
         {
           label: "Hide card…",
@@ -422,6 +461,26 @@ export function ActivityWorkspace({
               onSelect: () => showActivity(),
             },
           ];
+    const group = recurringExpenses.find((item) => item.id === id);
+    if (group)
+      return [
+        {
+          label: "View payments",
+          icon: List,
+          onSelect: () => openRecurringExpense(group),
+        },
+        {
+          label: "Hide card…",
+          icon: EyeOff,
+          onSelect: () =>
+            show({
+              kind: "hide-card",
+              name: group.name,
+              from: "expenses",
+              hide: () => layout.setHidden(id, true),
+            }),
+        },
+      ];
     const bucket = bucketForElement(id);
     if (!bucket) return [];
     return [
@@ -432,9 +491,9 @@ export function ActivityWorkspace({
         onSelect: () => showCategoryActivity(bucket),
       },
       {
-        label: "Hide card…",
+        label: "Remove from canvas…",
         icon: EyeOff,
-        onSelect: () => hideCategoryCard(id, bucket, layout),
+        onSelect: () => hideCategoryCard(bucket, layout),
       },
     ];
   }
@@ -505,7 +564,6 @@ export function ActivityWorkspace({
       totals={totals}
       income={income}
       accounts={workspaceAccounts}
-      scheduled={scheduled}
       canLog={canLog}
       onLog={frame ? undefined : () => log({ kind: "expense" })}
       onIncome={frame ? undefined : () => log({ kind: "income" })}
@@ -532,11 +590,15 @@ export function ActivityWorkspace({
           header={heading}
           summary={summary}
           tools={(moveControl, layout) => {
-            const hiddenAccounts =
+            const hiddenCards =
               view === "expenses" && panel?.kind === "add-element"
-                ? expenseAccounts.filter(({ account }) =>
-                    layout.isHidden(expenseAccountElementId(account.id))
-                  )
+                ? [
+                    ...expenseAccounts.map(({ account }) => ({
+                      id: expenseAccountElementId(account.id),
+                      name: account.name,
+                    })),
+                    ...recurringExpenses,
+                  ].filter(({ id }) => layout.isHidden(id))
                 : [];
             return (
               <>
@@ -577,27 +639,23 @@ export function ActivityWorkspace({
                             <Plus aria-hidden="true" /> Log income
                           </Button>
                         )}
-                        {hiddenAccounts.length > 0 && (
+                        {hiddenCards.length > 0 && (
                           <section className="mb-5 space-y-2 rounded-xl border p-3">
                             <h3 className="text-sm font-medium">
-                              Restore hidden accounts
+                              Restore hidden cards
                             </h3>
-                            {hiddenAccounts.map(({ account }) => (
+                            {hiddenCards.map(({ id, name }) => (
                               <Button
-                                key={account.id}
+                                key={id}
                                 variant="outline"
                                 size="sm"
                                 className="h-auto min-h-8 w-full justify-start whitespace-normal text-left"
                                 onClick={() => {
-                                  layout.setHidden(
-                                    expenseAccountElementId(account.id),
-                                    false
-                                  );
+                                  layout.setHidden(id, false);
                                   close();
                                 }}
                               >
-                                <Plus aria-hidden="true" /> Restore{" "}
-                                {account.name}
+                                <Plus aria-hidden="true" /> Restore {name}
                               </Button>
                             ))}
                           </section>
@@ -649,10 +707,20 @@ export function ActivityWorkspace({
               openExpenseAccount(account.id, layout);
               return true;
             }
+            const group = recurringExpenses.find((item) => item.id === id);
+            if (group) {
+              openRecurringExpense(group);
+              return true;
+            }
             return false;
           }}
           inspect={(id, dismiss, layout) => {
-            if (panel && panel.kind !== "hide-card") return null;
+            if (
+              panel &&
+              panel.kind !== "hide-card" &&
+              panel.kind !== "remove-category"
+            )
+              return null;
             if (id.startsWith("income-"))
               return incomeEditor("canvas", dismiss, id);
             const bucket = bucketForElement(id);
@@ -663,7 +731,7 @@ export function ActivityWorkspace({
                 data={data}
                 bucket={bucket}
                 presentation="canvas"
-                onHide={() => hideCategoryCard(id, bucket, layout, dismiss)}
+                onHide={() => hideCategoryCard(bucket, layout, dismiss)}
                 onClose={dismiss}
                 onLog={
                   canLog
@@ -737,9 +805,9 @@ export function ActivityWorkspace({
           <PlannerSheetHost>
             {listPanel && (
               <ActivityListSheet
-                key={`${month}-${listPanel.view}-${listPanel.filter?.accountId ?? listPanel.filter?.categoryId ?? listPanel.filter?.type ?? "all"}`}
+                key={`${month}-${listPanel.view}-${listPanel.filter?.paymentGroup?.id ?? listPanel.filter?.accountId ?? listPanel.filter?.categoryId ?? listPanel.filter?.type ?? "all"}`}
                 month={month}
-                data={activity}
+                data={listPanel.filter?.paymentGroup ? data : activity}
                 accounts={workspaceAccounts}
                 scheduled={scheduled}
                 initialView={listPanel.view}
@@ -754,24 +822,11 @@ export function ActivityWorkspace({
                     if (!account) return null;
                     const hide = listPanel.hideAccountCard;
                     return (
-                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3">
-                        <p className="text-sm text-muted-foreground">
-                          {account.balanceUpdatedAt === null
-                            ? "Balance not recorded"
-                            : `${formatMoney(account.balanceCents)} recorded balance${account.kind === "credit" ? " owed" : ""}`}
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            show({
-                              kind: "account",
-                              accountId: account.id,
-                              back: listPanel,
-                            })
-                          }
-                        >
-                          Update balance
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={accountDetailsLink(account.id)}>
+                            Account details
+                          </Link>
                         </Button>
                         {hide && (
                           <Button
@@ -862,16 +917,22 @@ export function ActivityWorkspace({
                 onRemoved={() => show(panel.back ?? null)}
               />
             )}
-            {panel?.kind === "hide-card" && (
+            {(panel?.kind === "hide-card" ||
+              panel?.kind === "remove-category") && (
               <PlannerSheet
-                title="Hide card?"
+                title={
+                  panel.kind === "remove-category"
+                    ? "Remove from canvas?"
+                    : "Hide card?"
+                }
                 description={panel.name}
                 onClose={() => show(panel.back ?? null)}
               >
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    The card will disappear from {viewNames[panel.from]}. Its
-                    recorded transactions still count toward Used.
+                    {panel.kind === "remove-category"
+                      ? "The category card will disappear from this workspace. Its transactions and monthly amount are kept. Use Add element to bring it back."
+                      : `The card will disappear from ${viewNames[panel.from]}. Its recorded transactions still count toward Used.`}
                   </p>
                   <div className="flex gap-2">
                     <Button
@@ -886,7 +947,9 @@ export function ActivityWorkspace({
                         close();
                       }}
                     >
-                      Hide card
+                      {panel.kind === "remove-category"
+                        ? "Remove from canvas"
+                        : "Hide card"}
                     </Button>
                   </div>
                 </div>

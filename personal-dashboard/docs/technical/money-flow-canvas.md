@@ -11,28 +11,35 @@ planning, with the yearly view in Monthly plan.
 The overview places individual income cards, Expenses and Savings around the
 selected bank. The workspace name and the selected month travel in the URL.
 Bank workspaces show activity on that account. Card repayments paid from the
-bank appear as upcoming payments. Credit card purchases are included in the
+bank are available under **More → Upcoming payments**. Credit card purchases are included in the
 combined workspace. The floating toolbar logs income,
 expenses and savings directly from the canvas. Choose **Add element** to
 name your own category or choose one from **Your categories** or **Common
 categories** in the same picker. A fresh Expenses or Savings
 canvas starts without preset category cards. A category appears when you add
-it, record activity against it, or set aside a monthly amount. On Overview,
+it or record activity against it. Savings categories also appear when you set
+aside a monthly amount. On Overview,
 added categories connect to Expenses or Savings. Placement is saved with the
 canvas layout.
 Press Enter on a focused element to open it. Right-click or press Shift+F10
 for quick actions.
-**Hide card…** appears in the menu and the category editor. It removes the
-card from the current view and keeps its monthly amounts and transactions.
-**Expenses** opens a canvas with bank accounts, credit cards and spending
-categories. Visible account cards automatically connect to Expenses.
-Expenses shows recorded spending alongside planned card payments. A credit
-card with no recorded spending can display its planned payment or recorded
-balance owed. Its caption identifies the amount. The Scheduled tab in Expenses
-includes card payments.
+**Remove from canvas…** appears in the menu and the category editor. It removes
+the category card from that workspace and keeps its monthly amounts and
+transactions. Use **Add element** to restore it.
+**Expenses** opens a canvas with spending categories and recurring payments.
+**All accounts** also shows spending by bank account and credit card. In a
+bank workspace, the selected bank appears on Overview and its purchases
+remain in the Expenses total and transaction list.
+Account and category cards show recorded spending. **Accounts** shows card
+balances and statement payments. Each recurring bill or subscription has one
+Expenses card for the selected month's occurrences. A bank workspace includes
+recurring charges on the credit cards it pays that month. Click a recurring
+card to see each scheduled charge or its linked recorded transaction. Scheduled
+amounts stay separate from the recorded spending total.
 **Hide card…** in an account card's menu or activity panel
 removes the card from Expenses and keeps the account, its activity and monthly
-totals. Use **Add element → Restore hidden accounts** in Expenses to restore a card.
+totals. Use **Add element → Restore hidden cards** in Expenses to restore an
+account or recurring payment card.
 Choose **View transactions** in Expenses or Savings to see that month's
 transactions even when the cards are hidden. **Used** shows expenses and
 savings together and breaks down its total above the recorded transactions.

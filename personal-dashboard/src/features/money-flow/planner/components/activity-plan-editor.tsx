@@ -139,7 +139,7 @@ export function ActivityPlanEditor({
                 disabled={action.busy}
                 onClick={onHide}
               >
-                <EyeOff aria-hidden="true" /> Hide card…
+                <EyeOff aria-hidden="true" /> Remove from canvas…
               </Button>
             )}
           </div>

@@ -16,13 +16,18 @@ import type {
   ActivitySummary as Totals,
   IncomeDisplay,
 } from "../activity-projection";
-import type { FinancialAccount, Payment } from "../types";
+import type { FinancialAccount } from "../types";
 import { MONEY_PATH, monthLink } from "../../routes";
 
 export type ActivityFilter = {
   type?: "income" | "spending" | "savings" | "used" | "transfers";
   categoryId?: string;
   accountId?: string;
+  paymentGroup?: Readonly<{
+    id: string;
+    name: string;
+    paymentIds: readonly string[];
+  }>;
 };
 
 export function ActivitySummary({
@@ -31,7 +36,6 @@ export function ActivitySummary({
   totals,
   income,
   accounts,
-  scheduled,
   canLog,
   onLog,
   onIncome,
@@ -49,7 +53,6 @@ export function ActivitySummary({
   totals: Totals;
   income: IncomeDisplay;
   accounts: FinancialAccount[];
-  scheduled: Payment[];
   canLog: boolean;
   onLog?: () => void;
   onIncome?: () => void;
@@ -62,25 +65,6 @@ export function ActivitySummary({
   onTransfers: () => void;
   onAccount: () => void;
 }>) {
-  const snapshots = accounts.filter((item) => item.balanceUpdatedAt !== null);
-  const banks = snapshots.filter((item) => item.kind !== "credit");
-  const cards = snapshots.filter((item) => item.kind === "credit");
-  const cash = banks.reduce((sum, item) => sum + item.balanceCents, 0);
-  const owed = cards.reduce((sum, item) => sum + item.balanceCents, 0);
-  const outflows = scheduled.filter(
-    (row) =>
-      row.kind !== "income" &&
-      row.kind !== "transfer" &&
-      accounts.find((account) => account.id === row.accountId)?.kind !==
-        "credit"
-  );
-  const upcoming = outflows.reduce(
-    (sum, row) => sum + (row.amountCents ?? 0),
-    0
-  );
-  const provisional = outflows.some(
-    (row) => row.estimated || row.amountCents === null
-  );
   const limit = totals.limitRemaining;
   const showingPlan = income.label !== "Income received";
   const net =
@@ -165,24 +149,7 @@ export function ActivitySummary({
           );
         })}
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-xs text-muted-foreground sm:px-6">
-        <Link
-          className="rounded-sm hover:text-foreground focus-visible:outline-ring"
-          href={monthLink(`${MONEY_PATH}/accounts`, month)}
-        >
-          Bank balances {banks.length ? formatMoney(cash) : "—"} · Card debt{" "}
-          {cards.length ? formatMoney(owed) : "—"}
-        </Link>
-        <button
-          type="button"
-          className="rounded-sm hover:text-foreground focus-visible:outline-ring"
-          onClick={onScheduled}
-        >
-          Upcoming payments {provisional ? "≈ " : ""}
-          {formatMoney(upcoming)}
-        </button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 px-4 pb-2 sm:px-6">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
         {accounts.length ? (
           onLog && (
             <Button
@@ -231,6 +198,9 @@ export function ActivitySummary({
             )}
             <DropdownMenuItem onSelect={onPlan}>
               Monthly amounts
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onScheduled}>
+              Upcoming payments
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!accounts.length || !canLog}

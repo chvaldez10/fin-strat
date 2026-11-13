@@ -138,6 +138,7 @@ export function ActivityListSheet({
   const [view, setView] = useState(initialView);
   const [account, setAccount] = useState(filter?.accountId ?? "all");
   const [limit, setLimit] = useState(30);
+  const paymentGroup = filter?.paymentGroup;
   const accountNames = useMemo(
     () => new Map(accounts.map((row) => [row.id, row.name])),
     [accounts]
@@ -149,6 +150,9 @@ export function ActivityListSheet({
           (entry) =>
             matchesFilter(entry.kind, filter?.type) &&
             (!filter?.categoryId || filter.categoryId === entry.categoryId) &&
+            (!paymentGroup ||
+              (entry.planId !== null &&
+                paymentGroup.paymentIds.includes(entry.planId))) &&
             (account === "all" ||
               entry.accountId === account ||
               entry.destinationId === account)
@@ -157,7 +161,7 @@ export function ActivityListSheet({
           (a, b) =>
             b.date.localeCompare(a.date) || b._creationTime - a._creationTime
         ),
-    [data.entries, filter, account]
+    [data.entries, filter, account, paymentGroup]
   );
   const pending = data.pending
     .filter((row) => account === "all" || row.accountId === account)
@@ -165,6 +169,7 @@ export function ActivityListSheet({
   const plans = scheduled
     .filter(
       (row) =>
+        (!paymentGroup || paymentGroup.paymentIds.includes(row._id)) &&
         (matchesFilter(row.kind, filter?.type) ||
           (filter?.type === "spending" && row.kind === "cardPayment")) &&
         (account === "all" ||
@@ -184,6 +189,7 @@ export function ActivityListSheet({
     ? accountNames.get(filter.accountId)
     : undefined;
   const title =
+    paymentGroup?.name ??
     accountName ??
     category?.name ??
     (filter?.type ? labels[filter.type] : "Monthly activity");
@@ -211,26 +217,28 @@ export function ActivityListSheet({
       <div className="space-y-4">
         {header}
         <div className="flex flex-wrap gap-1.5">
-          {tabs.map((tab) => (
-            <Button
-              key={tab.id}
-              size="sm"
-              variant={view === tab.id ? "secondary" : "ghost"}
-              aria-pressed={view === tab.id}
-              onClick={() => {
-                setView(tab.id);
-                setLimit(30);
-              }}
-            >
-              {tab.title}
-              {tab.id === "review" && data.pending.length
-                ? ` (${data.pending.length})`
-                : ""}
-              {tab.id === "scheduled" && plans.length
-                ? ` (${plans.length})`
-                : ""}
-            </Button>
-          ))}
+          {tabs
+            .filter((tab) => !paymentGroup || tab.id !== "review")
+            .map((tab) => (
+              <Button
+                key={tab.id}
+                size="sm"
+                variant={view === tab.id ? "secondary" : "ghost"}
+                aria-pressed={view === tab.id}
+                onClick={() => {
+                  setView(tab.id);
+                  setLimit(30);
+                }}
+              >
+                {tab.title}
+                {tab.id === "review" && data.pending.length
+                  ? ` (${data.pending.length})`
+                  : ""}
+                {tab.id === "scheduled" && plans.length
+                  ? ` (${plans.length})`
+                  : ""}
+              </Button>
+            ))}
         </div>
         {!filter?.accountId && (
           <ActivitySelect
@@ -256,7 +264,7 @@ export function ActivityListSheet({
                 </p>
               </div>
             )}
-            {filter?.type !== "transfers" && (
+            {filter?.type !== "transfers" && !paymentGroup && (
               <Button size="sm" onClick={onLog} disabled={!canLog}>
                 Log activity
               </Button>

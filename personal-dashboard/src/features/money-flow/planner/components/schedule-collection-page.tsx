@@ -9,6 +9,7 @@ import { PlannerShell, PlannerLoading } from "./planner-shell";
 import { ScheduleEditor } from "./schedule-editor";
 import { ScheduleCollectionList } from "./schedule-collection-list";
 import { localToday } from "../../formatting";
+import type { Payment } from "../types";
 import {
   Select,
   SelectContent,
@@ -85,6 +86,13 @@ export function ScheduleCollectionPage({
     ) ?? [];
   const cost = charges.reduce((sum, item) => sum + (item.amountCents ?? 0), 0),
     unknown = charges.filter((item) => item.amountCents === null).length;
+  const chargesBySeries = new Map<string, Payment[]>();
+  for (const charge of charges) {
+    if (charge.seriesId === null) continue;
+    const group = chargesBySeries.get(charge.seriesId);
+    if (group) group.push(charge);
+    else chargesBySeries.set(charge.seriesId, [charge]);
+  }
   const visibleSchedules = schedules.filter(
     (item) => status === "all" || item.status === status
   );
@@ -150,9 +158,9 @@ export function ScheduleCollectionPage({
             ) : (
               <ScheduleCollectionList
                 items={visibleSchedules}
+                chargesBySeries={chargesBySeries}
                 accounts={data.accounts}
                 month={month}
-                today={today}
                 nextLabel={copy.next}
                 editLabel={copy.edit}
                 onEdit={setEditor}

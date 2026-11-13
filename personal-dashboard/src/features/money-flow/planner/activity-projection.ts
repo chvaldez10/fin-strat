@@ -24,9 +24,6 @@ export type IncomeDisplay = {
 export type ExpenseAccount = {
   account: FinancialAccount;
   spent: number;
-  hasRecorded: boolean;
-  charges: Payment[];
-  repayments: Payment[];
 };
 
 export const expenseAccountElementId = (id: string) => `expense-account-${id}`;
@@ -36,6 +33,50 @@ export const breakdownCategoryPlacementKey = (id: string) =>
   `placed-category:${id}`;
 export const incomeEntryElementId = (id: string) => `income-entry-${id}`;
 export const incomePaymentElementId = (id: string) => `income-payment-${id}`;
+export const recurringExpenseElementId = (seriesId: string) =>
+  `recurring-expense-${seriesId}`;
+
+export function groupRecurringExpenses(
+  plans: readonly Payment[],
+  recorded: ReadonlyMap<string, ActivityEntry>
+) {
+  const groups = new Map<string, Payment[]>();
+  for (const plan of plans) {
+    if (!plan.seriesId || plan.kind !== "expense" || plan.status === "skipped")
+      continue;
+    const group = groups.get(plan.seriesId);
+    if (group) group.push(plan);
+    else groups.set(plan.seriesId, [plan]);
+  }
+  return Array.from(groups, ([seriesId, payments]) => {
+    const ordered = payments.toSorted((a, b) =>
+      a.dueDate.localeCompare(b.dueDate)
+    );
+    const first = ordered[0];
+    const pending = ordered.filter(
+      (payment) => payment.status === "pending" && !recorded.has(payment._id)
+    );
+    const known = pending.filter((payment) => payment.amountCents !== null);
+    const plannedCents = known.length
+      ? known.reduce((total, payment) => total + (payment.amountCents ?? 0), 0)
+      : undefined;
+    const spent = ordered.reduce(
+      (total, payment) => total + (recorded.get(payment._id)?.amountCents ?? 0),
+      0
+    );
+    return {
+      id: recurringExpenseElementId(seriesId),
+      name: first.name,
+      isSubscription: first.isSubscription,
+      paymentIds: ordered.map((payment) => payment._id),
+      pendingCount: pending.length,
+      plannedCents,
+      hasUnknownAmount: known.length < pending.length,
+      estimated: known.some((payment) => payment.estimated),
+      spent,
+    };
+  });
+}
 
 export function overviewCategoryPosition(
   kind: "expense" | "savings",
@@ -91,16 +132,15 @@ function categoryNode(
       monthlyAmountCents: bucket.actual,
       amountCaption: bucket.kind === "savings" ? "Contributed" : "Spent",
       note:
-        bucket.planned === null
-          ? "Set aside an amount"
-          : `${formatMoney(bucket.planned)} set aside`,
+        bucket.kind === "savings" && bucket.planned !== null
+          ? `${formatMoney(bucket.planned)} set aside`
+          : undefined,
     },
   };
 }
 
 export function activityExpenseAccounts(
   accounts: FinancialAccount[],
-  scheduled: Payment[],
   entries: readonly ActivityValues[]
 ): ExpenseAccount[] {
   const spending = new Map<string, number>();
@@ -113,26 +153,12 @@ export function activityExpenseAccounts(
       (spending.get(entry.accountId) ?? 0) + signed
     );
   }
-  return accounts.flatMap((account) => {
-    const charges = scheduled.filter(
-      (row) => row.kind === "expense" && row.accountId === account.id
-    );
-    const hasRecorded = spending.has(account.id);
-    if (account.kind === "savings" && !hasRecorded && !charges.length)
-      return [];
-    return [
-      {
-        account,
-        spent: spending.get(account.id) ?? 0,
-        hasRecorded,
-        charges,
-        repayments: scheduled.filter(
-          (row) =>
-            row.kind === "cardPayment" && row.counterpartyId === account.id
-        ),
-      },
-    ];
-  });
+  return accounts
+    .filter((account) => account.kind !== "savings" || spending.has(account.id))
+    .map((account) => ({
+      account,
+      spent: spending.get(account.id) ?? 0,
+    }));
 }
 
 export function visibleActivityBuckets(
@@ -148,7 +174,7 @@ export function visibleActivityBuckets(
         : item.kind === "expense") &&
       !positions[hiddenElementLayoutKey(breakdownCategoryId(item.id))] &&
       (item.hasActivity ||
-        item.planned !== null ||
+        (item.kind === "savings" && item.planned !== null) ||
         positions[breakdownCategoryPlacementKey(item.id)] ||
         !defaultIds.has(item.id))
   );
@@ -189,30 +215,11 @@ export function displayActivityIncome(
   };
 }
 
-function plannedCardPayments(payments: readonly Payment[]) {
-  if (!payments.length) return null;
-  const known = payments.filter((payment) => payment.amountCents !== null);
-  const amountCents = known.length
-    ? known.reduce((sum, payment) => sum + (payment.amountCents ?? 0), 0)
-    : null;
-  const incomplete = known.length < payments.length;
-  const estimated = known.some((payment) => payment.estimated);
-  const label = incomplete
-    ? "Known card payments"
-    : estimated
-      ? "Estimated card payments"
-      : "Planned card payments";
-  const detail =
-    amountCents === null
-      ? "Planned card payment amount unknown"
-      : `${estimated ? "≈ " : ""}${formatMoney(amountCents)} in planned card payments${incomplete ? " + unknown amounts" : ""}`;
-  return { amountCents, label, detail };
-}
-
 export function projectActivityCanvas({
   totals,
   receivedIncome,
   scheduledIncome,
+  recurringExpenses,
   accounts,
   bank,
   view,
@@ -221,15 +228,13 @@ export function projectActivityCanvas({
   totals: ActivitySummary;
   receivedIncome: readonly ActivityEntry[];
   scheduledIncome: readonly Payment[];
+  recurringExpenses: ReturnType<typeof groupRecurringExpenses>;
   accounts: ExpenseAccount[];
   bank?: Pick<FinancialAccount, "name" | "balanceCents" | "balanceUpdatedAt">;
   view: ActivityCanvasView;
   positions: PlannerLayoutValues["positions"];
 }>) {
   const overview = view === "overview";
-  const cardPayments = plannedCardPayments(
-    accounts.flatMap((item) => item.repayments)
-  );
   const centerId = overview ? "center" : `${view}-center`;
   const centerLabel = view === "expenses" ? "Expenses" : "Savings";
   const nodes: MoneyCanvasNode[] = [
@@ -250,12 +255,7 @@ export function projectActivityCanvas({
             ? `${formatMoney(bank.balanceCents)} recorded balance`
             : undefined
           : view === "expenses"
-            ? [
-                `${formatMoney(totals.spent)} recorded spending`,
-                cardPayments?.detail,
-              ]
-                .filter(Boolean)
-                .join(" · ")
+            ? `${formatMoney(totals.spent)} recorded spending`
             : `${formatMoney(totals.saved)} recorded`,
       },
     },
@@ -356,7 +356,9 @@ export function projectActivityCanvas({
       connect("recorded-income", "income", 0);
     }
     const placed = totals.buckets.filter(
-      (bucket) => positions[overviewCategoryId(bucket.id)]
+      (bucket) =>
+        positions[overviewCategoryId(bucket.id)] &&
+        !positions[hiddenElementLayoutKey(breakdownCategoryId(bucket.id))]
     );
     nodes.push(
       {
@@ -369,7 +371,6 @@ export function projectActivityCanvas({
           label: "Expenses",
           monthlyAmountCents: totals.spent,
           amountCaption: "Recorded spending",
-          note: cardPayments?.detail,
           showOutput: true,
         },
       },
@@ -404,11 +405,13 @@ export function projectActivityCanvas({
 
   const buckets = visibleActivityBuckets(totals, view, positions);
   const expenseAccounts = view === "expenses" ? accounts : [];
+  const recurring = view === "expenses" ? recurringExpenses : [];
   const positioned = [
     ...buckets.map((bucket) => breakdownCategoryId(bucket.id)),
     ...expenseAccounts.map(({ account }) =>
       expenseAccountElementId(account.id)
     ),
+    ...recurring.map((group) => group.id),
   ];
   const occupied = [
     ...nodes.map((node) => node.position),
@@ -430,47 +433,10 @@ export function projectActivityCanvas({
   };
 
   let accountSlot = 0;
-  for (const {
-    account,
-    spent,
-    hasRecorded,
-    charges,
-    repayments,
-  } of expenseAccounts) {
+  for (const { account, spent } of expenseAccounts) {
     const id = expenseAccountElementId(account.id);
     if (positions[hiddenElementLayoutKey(id)]) continue;
     const credit = account.kind === "credit";
-    const repayment = credit ? plannedCardPayments(repayments) : null;
-    const balance =
-      credit && account.balanceUpdatedAt !== null
-        ? `${formatMoney(account.balanceCents)} recorded balance owed`
-        : undefined;
-    const knownCharges = charges.filter((row) => row.amountCents !== null);
-    const scheduledTotal = knownCharges.reduce(
-      (sum, row) => sum + (row.amountCents ?? 0),
-      0
-    );
-    const showScheduled = !hasRecorded && charges.length > 0;
-    let displayedAmount: number | undefined = spent;
-    let amountCaption = "Spent this month";
-    let balanceNote = balance;
-    let paymentNote = repayment?.detail;
-    if (showScheduled) {
-      displayedAmount = knownCharges.length ? scheduledTotal : undefined;
-      amountCaption = "Scheduled expenses · $0 spent";
-      if (knownCharges.length < charges.length && knownCharges.length)
-        amountCaption = "Known scheduled expenses · $0 spent";
-      else if (knownCharges.some((row) => row.estimated))
-        amountCaption = "Estimated expenses · $0 spent";
-    } else if (!hasRecorded && repayment?.amountCents != null) {
-      displayedAmount = repayment.amountCents;
-      amountCaption = `${repayment.label} · $0 spent`;
-      paymentNote = undefined;
-    } else if (!hasRecorded && balance) {
-      displayedAmount = account.balanceCents;
-      amountCaption = "Recorded balance owed · $0 spent";
-      balanceNote = undefined;
-    }
     nodes.push({
       id,
       type: "account",
@@ -486,10 +452,8 @@ export function projectActivityCanvas({
         variant: credit ? "credit-card" : "debit-account",
         caption: credit ? "Credit card" : "Bank account",
         label: account.name,
-        monthlyAmountCents: displayedAmount,
-        amountCaption,
-        note:
-          [paymentNote, balanceNote].filter(Boolean).join(" · ") || undefined,
+        monthlyAmountCents: spent,
+        amountCaption: "Spent this month",
       },
     });
     connect(id, "expense", spent);
@@ -512,6 +476,38 @@ export function projectActivityCanvas({
       bucket.kind === "savings" ? "account" : "expense",
       bucket.actual
     );
+  }
+  for (const group of recurring) {
+    if (positions[hiddenElementLayoutKey(group.id)]) continue;
+    const amountCaption = group.pendingCount
+      ? `${group.estimated ? "Estimated" : "Scheduled"} · ${group.pendingCount} remaining`
+      : "Recorded spending";
+    nodes.push({
+      id: group.id,
+      type: "expense",
+      position: place(group.id, () => {
+        const next = slot++;
+        return {
+          x: 830 + Math.floor(next / 4) * 340,
+          y: 30 + (next % 4) * 216,
+        };
+      }),
+      data: {
+        kind: "expense",
+        caption: group.isSubscription ? "Subscription" : "Recurring payment",
+        label: group.name,
+        monthlyAmountCents: group.pendingCount
+          ? group.plannedCents
+          : group.spent,
+        amountCaption,
+        note: group.hasUnknownAmount
+          ? group.plannedCents === undefined
+            ? "Amount unknown"
+            : "Some amounts are unknown"
+          : undefined,
+      },
+    });
+    connect(group.id, "expense", group.spent);
   }
   return { nodes, edges };
 }
