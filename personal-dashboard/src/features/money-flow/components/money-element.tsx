@@ -6,7 +6,7 @@ import { CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "../calculations";
 import type { MoneyCanvasNode } from "../canvas-types";
-import { canvasHandleRow } from "./canvas-grid";
+import { canvasCardCenterY } from "./canvas-grid";
 import { ELEMENT_PRESENTATION } from "./element-presentation";
 
 export const MoneyElement = memo(function MoneyElement({
@@ -23,13 +23,20 @@ export const MoneyElement = memo(function MoneyElement({
   const Icon = creditCard ? CreditCard : presentation.icon;
   const tracked = data.kind === "chequing";
   const note = data.kind === "note";
-  const handleTop = height
-    ? canvasHandleRow(positionAbsoluteY, height) - positionAbsoluteY
-    : undefined;
+  // CSS centers the rendered box, including any fractional part of its height.
+  const center =
+    !note && height
+      ? canvasCardCenterY(positionAbsoluteY, height) - positionAbsoluteY
+      : undefined;
 
   return (
     <div
       data-testid={`money-flow-node-${id}`}
+      style={
+        center === undefined
+          ? undefined
+          : { position: "relative", top: center, transform: "translateY(-50%)" }
+      }
       className={cn(
         "group w-52 rounded-2xl border bg-card p-3 text-card-foreground shadow-sm transition-[border-color,box-shadow] hover:shadow-md md:w-60 md:p-4",
         presentation.border,
@@ -43,7 +50,6 @@ export const MoneyElement = memo(function MoneyElement({
         <Handle
           type="target"
           position={Position.Left}
-          style={{ top: handleTop }}
           className={cn(
             "size-3! border-[3px]! border-card!",
             presentation.handle
@@ -136,7 +142,6 @@ export const MoneyElement = memo(function MoneyElement({
           <Handle
             type="source"
             position={Position.Right}
-            style={{ top: handleTop }}
             className={cn(
               "size-3! border-[3px]! border-card!",
               presentation.handle

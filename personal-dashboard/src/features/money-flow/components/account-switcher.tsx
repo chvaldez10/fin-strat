@@ -23,6 +23,7 @@ type AccountSwitcherProps = {
   onAccountChange: (accountId: string) => void;
   ariaLabel?: string;
   disabled?: boolean;
+  allAccounts?: Readonly<{ id: string; label: string }>;
 };
 
 export function AccountSwitcher({
@@ -31,9 +32,13 @@ export function AccountSwitcher({
   onAccountChange,
   ariaLabel = "Switch bank account",
   disabled,
+  allAccounts,
 }: Readonly<AccountSwitcherProps>) {
-  const selectedAccount =
-    accounts.find((account) => account.id === selectedAccountId) ?? accounts[0];
+  const allSelected = allAccounts?.id === selectedAccountId;
+  const selectedAccount = allSelected
+    ? undefined
+    : (accounts.find((account) => account.id === selectedAccountId) ??
+      accounts[0]);
 
   return (
     <DropdownMenu>
@@ -47,7 +52,9 @@ export function AccountSwitcher({
         >
           <AccountMark institution={selectedAccount?.institution} />
           <span className="min-w-0 flex-1 truncate text-left font-medium">
-            {selectedAccount?.name ?? "Select account"}
+            {allSelected
+              ? allAccounts.label
+              : (selectedAccount?.name ?? "Select account")}
           </span>
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </Button>
@@ -62,9 +69,14 @@ export function AccountSwitcher({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup
-          value={selectedAccount?.id}
+          value={allSelected ? allAccounts.id : selectedAccount?.id}
           onValueChange={onAccountChange}
         >
+          {allAccounts && (
+            <DropdownMenuRadioItem value={allAccounts.id} className="min-h-11">
+              {allAccounts.label}
+            </DropdownMenuRadioItem>
+          )}
           {accounts.map((account) => (
             <DropdownMenuRadioItem
               key={account.id}

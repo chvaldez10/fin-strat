@@ -1,15 +1,18 @@
 # How the monthly money planner works
 
-Money opens to a monthly activity canvas across all bank and credit accounts.
+Money opens to the selected bank workspace. The workspace switcher also offers
+**All accounts** for combined activity across bank and credit accounts.
 The header shows Income, Used and Net. **Used** opens the recorded expenses,
 refunds and savings contributions included in that total. **Net** subtracts
 Used from the Income shown. When Income falls back to scheduled pay, Net is
 labeled with that basis. The scheduled canvas and **Monthly plan** retain cash
 planning, with the yearly view in Monthly plan.
 
-The overview canvas has Income, Expenses and Savings around the bank account
-chosen in **Overview bank**. That choice is saved as the preferred bank, and
-the monthly totals cover all accounts. The floating toolbar logs income,
+The overview places individual income cards, Expenses and Savings around the
+selected bank. The workspace name and the selected month travel in the URL.
+Bank workspaces show activity on that account. Card repayments paid from the
+bank appear as upcoming payments. Credit card purchases are included in the
+combined workspace. The floating toolbar logs income,
 expenses and savings directly from the canvas. Choose **Add element** to
 name your own category or choose one from **Your categories** or **Common
 categories** in the same picker. A fresh Expenses or Savings
@@ -43,10 +46,11 @@ shows the amount and date. Deleting an entry updates the monthly totals and
 returns any matched import to **Needs review**. **Savings** opens the savings categories.
 **More → Transfers** lists bank transfers and card repayments.
 
-Each view restores its camera when you return during the session. The overview
-camera, element positions and account-card visibility are saved with the
-existing canvas layout. A reserved layout key records each hidden card, so
-restoring one also recovers its previous position.
+Each view restores its camera when you return during the session. Bank
+workspaces save their positions and card visibility under separate keys in the
+activity layout. The combined overview keeps its saved camera and existing
+positions. A reserved layout key records each hidden card, so restoring one
+also recovers its previous position.
 
 This guide describes the running architecture. The
 [refactor plan](../plans/monthly-money-planner.md) records the product decisions;
@@ -63,10 +67,10 @@ activity and amount set aside. **More → Monthly amounts** sets the optional
 overall spending limit or a category amount. Category names carry across months;
 each month owns its amounts.
 
-The income card and overview show scheduled income when a month has an
-outstanding plan and no recorded income. The received amount appears alongside
-it. Click either to open the same editor and choose an entry if there are
-several. **Delete scheduled income…** skips the selected occurrence and keeps
+Each receipt or scheduled income occurrence has its own card. Use **Log
+income** for a paycheque, gift or other receipt and choose the receiving bank.
+Click a card to edit that entry. The Income total uses scheduled pay when
+there are no receipts. **Delete scheduled income…** skips the selected occurrence and keeps
 future occurrences scheduled. Use **Log as received** when the money arrives. The unallocated
 income calculation uses recorded receipts.
 
@@ -235,9 +239,9 @@ Restoring loaded positions affects layout only.
 Both connection renderers reuse `ElementConnectionPath`: a static line and end
 arrow show direction, with small moving arrowheads travelling from source to
 target and rotating around bends. The background, drag snapping and connection
-routes share the 24-pixel grid in graph coordinates. Card handles snap to the
-grid row closest to each card's vertical center. Connections use the same
-measured card height and position to find that row. The final segment
+routes share the 24-pixel grid in graph coordinates. Connected cards are drawn
+with their vertical midpoints on the nearest grid row. The handles stay centered
+and the connections use that same row. The final segment
 is straight for the fixed arrow, and moving arrowheads fade before reaching it.
 The line, end arrow and moving arrowheads share
 the element's palette: emerald for income, rose for expenses (including card

@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { MONEY_PATH, monthLink } from "../../routes";
 
 const pages = [
-  { key: "canvas", label: "Canvas", suffix: "" },
+  { key: "canvas", label: "All accounts", suffix: "" },
   { key: "month", label: "Monthly plan", suffix: "/planner" },
   { key: "recurring", label: "Recurring payments", suffix: "/recurring" },
   { key: "subscriptions", label: "Subscriptions", suffix: "/subscriptions" },
@@ -31,21 +31,30 @@ export function moneyPageForPathname(pathname: string): MoneyPage {
 export function MoneyNavigation({
   page,
   month,
+  workspaceName,
+  account,
 }: Readonly<{
   page: MoneyPage;
   month: string;
+  workspaceName: string;
+  account?: string;
 }>) {
   const pathname = usePathname();
+  const destinations = pages.map((item) => ({
+    ...item,
+    label: item.key === "canvas" ? workspaceName : item.label,
+    href: monthLink(`${MONEY_PATH}${item.suffix}`, month, account),
+  }));
   return (
     <nav
       aria-label="Money pages"
       className="shrink-0 border-b border-border bg-background px-4 sm:px-6"
     >
       <div className="hidden items-center gap-6 lg:flex">
-        {pages.map((item) => (
+        {destinations.map((item) => (
           <Link
             key={item.key}
-            href={monthLink(`${MONEY_PATH}${item.suffix}`, month)}
+            href={item.href}
             prefetch={true}
             onNavigate={(event) => {
               if (pathname === `${MONEY_PATH}${item.suffix}`)
@@ -67,9 +76,11 @@ export function MoneyNavigation({
             <Button
               variant="ghost"
               className="w-full justify-between px-0"
-              aria-label={`Money pages: ${pages.find((item) => item.key === page)?.label}`}
+              aria-label={`Money pages: ${destinations.find((item) => item.key === page)?.label}`}
             >
-              {pages.find((item) => item.key === page)?.label}
+              <span className="min-w-0 truncate">
+                {destinations.find((item) => item.key === page)?.label}
+              </span>
               <ChevronDown
                 className="size-4 text-muted-foreground"
                 aria-hidden="true"
@@ -80,10 +91,10 @@ export function MoneyNavigation({
             align="start"
             className="w-(--radix-dropdown-menu-trigger-width)"
           >
-            {pages.map((item) => (
+            {destinations.map((item) => (
               <DropdownMenuItem key={item.key} asChild className="min-h-11">
                 <Link
-                  href={monthLink(`${MONEY_PATH}${item.suffix}`, month)}
+                  href={item.href}
                   prefetch={true}
                   onNavigate={(event) => {
                     if (pathname === `${MONEY_PATH}${item.suffix}`)

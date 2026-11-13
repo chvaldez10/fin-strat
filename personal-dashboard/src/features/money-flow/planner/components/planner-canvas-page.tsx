@@ -15,14 +15,17 @@ import { PlannerCanvas } from "./planner-canvas";
 import { PlannerLoading } from "./planner-shell";
 import { MONEY_PATH } from "../../routes";
 import { CanvasElementEditor } from "./canvas-element-editor";
-import type { PaymentKind } from "../types";
+import type { FinancialAccount, PaymentKind } from "../types";
 import { PlannerWriteContext } from "./planner-write-context";
 import { CanvasBudgetSummary } from "./canvas-budget-summary";
 import type { ActivityData } from "../activity-data";
 import { ActivityWorkspace } from "./activity-workspace";
 
 type Info = NonNullable<FunctionReturnType<typeof api.plannerCanvas.get>>;
-type ActivityView = Readonly<{ data: ActivityData | undefined }>;
+type ActivityView = Readonly<{
+  data: ActivityData | undefined;
+  bank?: FinancialAccount;
+}>;
 export function PlannerCanvasPage({
   accountId,
   accountControl,
@@ -40,7 +43,9 @@ export function PlannerCanvasPage({
     });
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {accountControl && <h1 className="sr-only">Monthly canvas</h1>}
+      {accountControl && !activity && (
+        <h1 className="sr-only">Monthly canvas</h1>
+      )}
       {!info || !legacy.root ? (
         <PlannerLoading
           error={
@@ -127,6 +132,8 @@ function CanvasSession({
               data={activity.data}
               accounts={data.accounts}
               plans={data.entries}
+              bank={activity.bank}
+              accountControl={accountControl}
               frame={{
                 account: info.account,
                 root,

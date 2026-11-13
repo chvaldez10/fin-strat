@@ -83,6 +83,7 @@ export function PlannerCanvasFrame({
   tools,
   project,
   viewKey = "overview",
+  layoutNamespace = "",
   onActivate,
   elementActions,
   inspect,
@@ -90,6 +91,7 @@ export function PlannerCanvasFrame({
   Readonly<{
     scope?: "activity";
     viewKey?: string;
+    layoutNamespace?: string;
     /** Return true when activating a node navigates instead of opening its inspector. */
     onActivate?: (nodeId: string, layout: CanvasLayoutActions) => boolean;
     elementActions?: (
@@ -131,13 +133,15 @@ export function PlannerCanvasFrame({
   );
   const instance =
     useRef<ReactFlowInstance<MoneyCanvasNode, PlannerEdge>>(null);
-  const activeView = useRef(viewKey);
+  const cameraKey = layoutNamespace + viewKey;
+  const activeView = useRef(cameraKey);
   const viewports = useRef(new Map<string, Viewport>());
+  const savedOverview = useRef(layout?.viewport ?? { x: 0, y: 0, zoom: 0.8 });
   const viewportToSave = useCallback(
     (current: Viewport) =>
       activeView.current === "overview"
         ? current
-        : (viewports.current.get("overview") ?? current),
+        : (viewports.current.get("overview") ?? savedOverview.current),
     []
   );
   const persistence = usePlannerLayout({
@@ -148,17 +152,37 @@ export function PlannerCanvasFrame({
     instance,
     scope,
     viewportToSave,
+    layoutNamespace,
   });
   const { positions, captureViewport } = persistence;
+  const localPositions = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(positions)
+          .filter(([id]) =>
+            layoutNamespace
+              ? id.startsWith(layoutNamespace)
+              : !id.startsWith("bank:")
+          )
+          .map(([id, position]) => [id.slice(layoutNamespace.length), position])
+      ),
+    [positions, layoutNamespace]
+  );
+  const layoutId = (id: string) => layoutNamespace + id;
   const [focusPlacement, setFocusPlacement] = useState<string | null>(null);
   const layoutActions: CanvasLayoutActions = {
     place: (id, positionFor, focusId = id) => {
-      if (persistence.placeElement(id, positionFor)) setFocusPlacement(focusId);
+      if (
+        persistence.placeElement(layoutId(id), () =>
+          positionFor(localPositions)
+        )
+      )
+        setFocusPlacement(focusId);
     },
-    remove: persistence.removePlacement,
-    isHidden: (id) => !!positions[hiddenElementLayoutKey(id)],
+    remove: (id) => persistence.removePlacement(layoutId(id)),
+    isHidden: (id) => !!localPositions[hiddenElementLayoutKey(id)],
     setHidden: (id, hidden) => {
-      const key = hiddenElementLayoutKey(id);
+      const key = layoutId(hiddenElementLayoutKey(id));
       if (hidden) persistence.placeElement(key, () => ({ x: 0, y: 0 }));
       else {
         persistence.removePlacement(key);
@@ -166,7 +190,10 @@ export function PlannerCanvasFrame({
       }
     },
   };
-  const projection = useMemo(() => project(positions), [project, positions]);
+  const projection = useMemo(
+    () => project(localPositions),
+    [project, localPositions]
+  );
   const menuNode = menu && projection.nodes.find((node) => node.id === menu.id);
   const actions = menuNode
     ? elementActions?.(
@@ -188,10 +215,10 @@ export function PlannerCanvasFrame({
   useEffect(() => {
     const flow = instance.current;
     if (!flow) return;
-    const changedView = activeView.current !== viewKey;
+    const changedView = activeView.current !== cameraKey;
     if (changedView) {
       viewports.current.set(activeView.current, flow.getViewport());
-      activeView.current = viewKey;
+      activeView.current = cameraKey;
       setSelected(null);
       closeMenu();
     }
@@ -200,11 +227,26 @@ export function PlannerCanvasFrame({
       return projection.nodes.map((node) => ({
         ...previous.get(node.id),
         ...node,
-        position: previous.get(node.id)?.position ?? node.position,
+        position:
+          changedView ||
+          (scope === "activity" &&
+            node.data.kind === "income" &&
+            !previous.get(node.id)?.dragging)
+            ? node.position
+            : (previous.get(node.id)?.position ?? node.position),
       }));
     });
     flow.setEdges(projection.edges);
-    if (
+    if (changedView) {
+      setFocusPlacement(null);
+      const viewport =
+        viewports.current.get(cameraKey) ??
+        (cameraKey === "overview" && layout?.revision
+          ? savedOverview.current
+          : undefined);
+      if (viewport) void flow.setViewport(viewport);
+      else void flow.fitView({ padding: 0.2 });
+    } else if (
       focusPlacement &&
       projection.nodes.some((node) => node.id === focusPlacement)
     ) {
@@ -215,12 +257,16 @@ export function PlannerCanvasFrame({
         );
       });
     }
-    if (changedView) {
-      const viewport = viewports.current.get(viewKey);
-      if (viewport) void flow.setViewport(viewport);
-      else void flow.fitView({ padding: 0.2 });
-    }
-  }, [projection, viewKey, captureViewport, focusPlacement, closeMenu]);
+  }, [
+    projection,
+    cameraKey,
+    scope,
+    captureViewport,
+    focusPlacement,
+    closeMenu,
+    layout?.viewport,
+    layout?.revision,
+  ]);
   return (
     <TooltipProvider>
       <div className="flex min-h-0 flex-1 flex-col">
@@ -264,7 +310,12 @@ export function PlannerCanvasFrame({
             onInit={(flow) => {
               instance.current = flow;
             }}
-            onNodeDragStop={(_, node) => persistence.moveElement(node)}
+            onNodeDragStop={(_, node) =>
+              persistence.moveElement({
+                id: layoutId(node.id),
+                position: node.position,
+              })
+            }
             onMoveStart={(event) => {
               persistence.cancelTimer();
               if (event) closeMenu();
@@ -308,8 +359,14 @@ export function PlannerCanvasFrame({
               })
             }
             onPaneClick={() => setSelected(null)}
-            defaultViewport={layout?.viewport ?? { x: 0, y: 0, zoom: 0.8 }}
-            fitView={!layout || layout.revision === 0}
+            defaultViewport={
+              (!layoutNamespace && layout?.viewport) || {
+                x: 0,
+                y: 0,
+                zoom: 0.8,
+              }
+            }
+            fitView={!!layoutNamespace || !layout || layout.revision === 0}
             fitViewOptions={{ padding: 0.2 }}
             nodesConnectable={false}
             edgesFocusable={false}
@@ -350,7 +407,7 @@ export function PlannerCanvasFrame({
                   .then(persistence.captureViewport)
               }
               onReset={() =>
-                void persistence.restorePositions(viewKey !== "overview")
+                void persistence.restorePositions(cameraKey !== "overview")
               }
               resetLabel="Restore loaded positions"
             />

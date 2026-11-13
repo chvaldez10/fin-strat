@@ -305,7 +305,9 @@ export function ActivityEntryEditor({
             <Input
               aria-label="Description"
               placeholder={
-                kind === "income" ? "e.g. November pay" : "e.g. Church tithe"
+                kind === "income"
+                  ? "e.g. Paycheque or gift"
+                  : "e.g. Church tithe"
               }
               value={description}
               onChange={(event) => setDescription(event.target.value)}

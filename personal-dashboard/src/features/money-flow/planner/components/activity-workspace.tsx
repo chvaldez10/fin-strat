@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,11 +10,9 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { api } from "@convex/_generated/api";
 import { MonthPicker } from "@/components/ui/month-picker";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "../../calculations";
-import { AccountSwitcher } from "../../components/account-switcher";
 import { ElementToolbar } from "../../components/element-toolbar";
 import { summarizeActivity, type ActivityCategory } from "../activity";
 import type {
@@ -29,6 +26,8 @@ import {
   breakdownCategoryId,
   breakdownCategoryPlacementKey,
   expenseAccountElementId,
+  incomeEntryElementId,
+  incomePaymentElementId,
   overviewCategoryId,
   overviewCategoryPosition,
   projectActivityCanvas,
@@ -36,6 +35,7 @@ import {
   type ActivityCanvasView,
 } from "../activity-projection";
 import type { PlannerLayoutValues } from "../use-planner-layout";
+import { bankWorkspaceName } from "../activity-canvas-account";
 import type { FinancialAccount, Payment } from "../types";
 import { AccountEditor } from "./account-editor";
 import {
@@ -60,12 +60,7 @@ import {
   type CanvasFrameState,
   type CanvasLayoutActions,
 } from "./planner-canvas-frame";
-import {
-  FormError,
-  PlannerSheet,
-  PlannerSheetHost,
-  usePlannerAction,
-} from "./planner-form";
+import { PlannerSheet, PlannerSheetHost } from "./planner-form";
 import { localToday } from "../../formatting";
 
 type ListPanel = {
@@ -114,6 +109,8 @@ export function ActivityWorkspace({
   accounts,
   plans,
   frame,
+  bank,
+  accountControl,
 }: Readonly<{
   month: string;
   onMonthChange: (month: string) => void;
@@ -121,15 +118,27 @@ export function ActivityWorkspace({
   accounts: FinancialAccount[];
   plans: Payment[];
   frame?: CanvasFrameState;
+  bank?: FinancialAccount;
+  accountControl?: ReactNode;
 }>) {
   const [selection, setSelection] = useState<{
     month: string;
+    bankId: string | undefined;
     panel: Panel;
   } | null>(null);
-  const [view, setView] = useState<ActivityCanvasView>("overview");
-  const saveView = useMutation(api.moneyFlow.saveView);
-  const bankAction = usePlannerAction();
-  const panel = selection?.month === month ? selection.panel : null;
+  const bankId = bank?.id;
+  const [viewSelection, setViewSelection] = useState<{
+    bankId: string | undefined;
+    view: ActivityCanvasView;
+  }>();
+  const view =
+    viewSelection?.bankId === bankId
+      ? (viewSelection?.view ?? "overview")
+      : "overview";
+  const panel =
+    selection?.month === month && selection.bankId === bankId
+      ? selection.panel
+      : null;
   const listPanel =
     panel?.kind === "list"
       ? panel
@@ -137,31 +146,48 @@ export function ActivityWorkspace({
         ? panel.back
         : null;
   const show = (next: Panel | null) =>
-    setSelection(next ? { month, panel: next } : null);
+    setSelection(next ? { month, bankId, panel: next } : null);
   const close = () => show(null);
   const openView = (next: ActivityCanvasView) => {
     close();
-    setView(next);
+    setViewSelection({ bankId, view: next });
   };
+  const activity = useMemo(
+    () =>
+      bankId
+        ? {
+            ...data,
+            entries: data.entries.filter(
+              (entry) =>
+                entry.accountId === bankId || entry.destinationId === bankId
+            ),
+            pending: data.pending.filter((row) => row.accountId === bankId),
+          }
+        : data,
+    [bankId, data]
+  );
   const totals = useMemo(
     () =>
       summarizeActivity(
-        data.entries,
+        activity.entries,
         data.categories,
         data.plan?.allocations ?? {},
-        data.plan?.spendingLimitCents ?? null
+        bankId ? null : (data.plan?.spendingLimitCents ?? null)
       ),
-    [data.entries, data.categories, data.plan]
+    [activity.entries, data.categories, data.plan, bankId]
   );
   const scheduled = useMemo(() => {
     const recorded = new Set<string>(
       data.entries.flatMap((entry) => (entry.planId ? [entry.planId] : []))
     );
     return plans.filter(
-      (item) => item.status === "pending" && !recorded.has(item._id)
+      (item) =>
+        item.status === "pending" &&
+        !recorded.has(item._id) &&
+        (!bankId || item.accountId === bankId || item.counterpartyId === bankId)
     );
-  }, [data.entries, plans]);
-  const receivedIncome = data.entries
+  }, [data.entries, plans, bankId]);
+  const receivedIncome = activity.entries
     .filter((entry) => entry.kind === "income")
     .toSorted((a, b) => b.date.localeCompare(a.date));
   const scheduledIncome = useMemo(
@@ -175,41 +201,37 @@ export function ActivityWorkspace({
     () => displayActivityIncome(totals.income, scheduledIncome),
     [totals.income, scheduledIncome]
   );
+  const workspaceAccounts = useMemo(
+    () =>
+      bankId
+        ? accounts.filter(
+            (account) =>
+              account.id === bankId ||
+              plans.some(
+                (item) =>
+                  item.kind === "cardPayment" &&
+                  item.accountId === bankId &&
+                  item.counterpartyId === account.id
+              ) ||
+              activity.entries.some(
+                (entry) =>
+                  entry.kind === "cardPayment" &&
+                  entry.destinationId === account.id
+              )
+          )
+        : accounts,
+    [accounts, activity.entries, bankId, plans]
+  );
   const expenseAccounts = useMemo(
-    () => activityExpenseAccounts(accounts, scheduled, data.entries),
-    [accounts, scheduled, data.entries]
+    () =>
+      activityExpenseAccounts(workspaceAccounts, scheduled, activity.entries),
+    [workspaceAccounts, scheduled, activity.entries]
   );
-  const banks = accounts.filter(
-    (account) => account.kind !== "credit" && account.legacyAccountId
-  );
-  const bank =
-    banks.find(
-      (account) =>
-        account.legacyAccountId === frame?.root.view.selectedAccountId
-    ) ??
-    banks.find((account) => account.kind === "chequing") ??
-    banks[0];
-  const selectBank = (accountId: string) => {
-    if (
-      !frame ||
-      !frame.account.legacyAccountId ||
-      accountId === bank?.legacyAccountId
-    )
-      return;
-    const anchorId = frame.account.legacyAccountId;
-    void bankAction.run(() =>
-      saveView({
-        documentId: frame.root._id,
-        accountId: anchorId,
-        sessionId: frame.access.sessionId,
-        view: { ...frame.root.view, selectedAccountId: accountId },
-      })
-    );
-  };
   const project = (positions: PlannerLayoutValues["positions"]) =>
     projectActivityCanvas({
       totals,
-      income,
+      receivedIncome,
+      scheduledIncome,
       accounts: expenseAccounts,
       bank,
       view,
@@ -218,7 +240,12 @@ export function ActivityWorkspace({
   const canLog = accounts.length > 0 && month <= localToday().slice(0, 7);
   const log = (draft: ActivityDraft, back?: ListPanel) => {
     if (!accounts.length) show({ kind: "account" });
-    else if (canLog) show({ kind: "entry", draft, back });
+    else if (canLog)
+      show({
+        kind: "entry",
+        draft: { ...draft, accountId: draft.accountId ?? bankId },
+        back,
+      });
   };
   const showActivity = (filter?: ActivityFilter) =>
     show({ kind: "list", view: "recorded", filter });
@@ -294,37 +321,35 @@ export function ActivityWorkspace({
     edit: () => void,
     layout: CanvasLayoutActions
   ): CanvasElementAction[] {
-    if (id === "recorded-income") {
-      const actions: CanvasElementAction[] = [
+    if (id === "recorded-income")
+      return canLog
+        ? [
+            {
+              label: "Log income",
+              icon: Plus,
+              onSelect: () => log({ kind: "income" }),
+            },
+          ]
+        : [];
+    const entry = receivedIncome.find(
+      (item) => incomeEntryElementId(item._id) === id
+    );
+    const payment = scheduledIncome.find(
+      (item) => incomePaymentElementId(item._id) === id
+    );
+    if (entry || payment)
+      return [
         { label: "Edit income", icon: Pencil, onSelect: edit },
-      ];
-      const [entry] = receivedIncome;
-      if (receivedIncome.length === 1 && entry)
-        return [
-          ...actions,
-          {
-            label: "Delete recorded income…",
-            icon: Trash2,
-            destructive: true,
-            onSelect: () => show({ kind: "delete-entry", entry }),
-          },
-        ];
-      if (receivedIncome.length > 1)
-        actions.push({
-          label: "View income transactions",
-          icon: List,
-          onSelect: () => showActivity({ type: "income" }),
-        });
-      const [payment] = scheduledIncome;
-      if (!receivedIncome.length && scheduledIncome.length === 1 && payment)
-        actions.push({
-          label: "Delete scheduled income…",
+        {
+          label: entry ? "Delete recorded income…" : "Delete scheduled income…",
           icon: Trash2,
           destructive: true,
-          onSelect: () => show({ kind: "delete-scheduled", payment }),
-        });
-      return actions;
-    }
+          onSelect: () =>
+            entry
+              ? show({ kind: "delete-entry", entry })
+              : payment && show({ kind: "delete-scheduled", payment }),
+        },
+      ];
     if (id === "overview-expenses" || id === "overview-savings") {
       const target = id === "overview-expenses" ? "expenses" : "savings";
       return [
@@ -382,13 +407,21 @@ export function ActivityWorkspace({
         },
       ];
     if (id === "center")
-      return [
-        {
-          label: bank ? "Update balance" : "Add account",
-          icon: bank ? Pencil : Plus,
-          onSelect: () => show({ kind: "account", accountId: bank?.id }),
-        },
-      ];
+      return bank
+        ? [
+            {
+              label: bank ? "Update balance" : "Add account",
+              icon: bank ? Pencil : Plus,
+              onSelect: () => show({ kind: "account", accountId: bank?.id }),
+            },
+          ]
+        : [
+            {
+              label: "View transactions",
+              icon: List,
+              onSelect: () => showActivity(),
+            },
+          ];
     const bucket = bucketForElement(id);
     if (!bucket) return [];
     return [
@@ -412,43 +445,51 @@ export function ActivityWorkspace({
           <ChevronLeft aria-hidden="true" /> Overview
         </Button>
       )}
-      <h1 className="mr-2 text-sm font-semibold">{viewNames[view]}</h1>
+      <h1
+        className={
+          view === "overview" && accountControl
+            ? "sr-only"
+            : "mr-2 text-sm font-semibold"
+        }
+      >
+        {view === "overview" ? bankWorkspaceName(bank) : viewNames[view]}
+      </h1>
       {view !== "overview" && (
         <Button variant="outline" size="sm" onClick={showBreakdownActivity}>
           <List aria-hidden="true" /> View transactions
         </Button>
       )}
-      {view === "overview" && frame && bank && (
-        <div className="w-full sm:w-auto">
-          <AccountSwitcher
-            accounts={banks.map((item) => ({
-              id: item.legacyAccountId!,
-              name: item.name,
-              institution: item.institution,
-              accountType: item.kind === "savings" ? "savings" : "chequing",
-            }))}
-            selectedAccountId={bank.legacyAccountId!}
-            onAccountChange={selectBank}
-            ariaLabel="Overview bank"
-            disabled={bankAction.busy}
-          />
-          <FormError message={bankAction.error} />
-        </div>
+      {accountControl && (
+        <div className="w-full sm:w-auto">{accountControl}</div>
       )}
     </>
   );
   const incomeEditor = (
     presentation: "canvas" | "sheet",
-    dismiss: () => void
+    dismiss: () => void,
+    entryId?: string
   ) => (
     <ActivityIncomeInspector
-      key={`${month}-income`}
+      key={`${month}-${bankId ?? "all"}-${entryId ?? "income"}`}
       month={month}
       presentation={presentation}
-      received={receivedIncome}
+      received={
+        entryId
+          ? receivedIncome.filter(
+              (item) => incomeEntryElementId(item._id) === entryId
+            )
+          : receivedIncome
+      }
       categories={data.categories}
       accounts={accounts}
-      scheduled={scheduledIncome}
+      scheduled={
+        entryId
+          ? scheduledIncome.filter(
+              (item) => incomePaymentElementId(item._id) === entryId
+            )
+          : scheduledIncome
+      }
+      defaultAccountId={bankId}
       canLog={canLog}
       onClose={dismiss}
       onLogScheduled={(planned) => {
@@ -460,10 +501,10 @@ export function ActivityWorkspace({
   const summary = (
     <ActivitySummary
       month={month}
-      data={data}
+      data={activity}
       totals={totals}
       income={income}
-      accounts={accounts}
+      accounts={workspaceAccounts}
       scheduled={scheduled}
       canLog={canLog}
       onLog={frame ? undefined : () => log({ kind: "expense" })}
@@ -487,6 +528,7 @@ export function ActivityWorkspace({
           {...frame}
           scope="activity"
           viewKey={view}
+          layoutNamespace={bankId ? `bank:${bankId}:` : ""}
           header={heading}
           summary={summary}
           tools={(moveControl, layout) => {
@@ -524,30 +566,43 @@ export function ActivityWorkspace({
                     data={data}
                     presentation="canvas"
                     beforeForm={
-                      hiddenAccounts.length > 0 && (
-                        <section className="mb-5 space-y-2 rounded-xl border p-3">
-                          <h3 className="text-sm font-medium">
-                            Restore hidden accounts
-                          </h3>
-                          {hiddenAccounts.map(({ account }) => (
-                            <Button
-                              key={account.id}
-                              variant="outline"
-                              size="sm"
-                              className="h-auto min-h-8 w-full justify-start whitespace-normal text-left"
-                              onClick={() => {
-                                layout.setHidden(
-                                  expenseAccountElementId(account.id),
-                                  false
-                                );
-                                close();
-                              }}
-                            >
-                              <Plus aria-hidden="true" /> Restore {account.name}
-                            </Button>
-                          ))}
-                        </section>
-                      )
+                      <>
+                        {view === "overview" && canLog && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mb-4"
+                            onClick={() => log({ kind: "income" })}
+                          >
+                            <Plus aria-hidden="true" /> Log income
+                          </Button>
+                        )}
+                        {hiddenAccounts.length > 0 && (
+                          <section className="mb-5 space-y-2 rounded-xl border p-3">
+                            <h3 className="text-sm font-medium">
+                              Restore hidden accounts
+                            </h3>
+                            {hiddenAccounts.map(({ account }) => (
+                              <Button
+                                key={account.id}
+                                variant="outline"
+                                size="sm"
+                                className="h-auto min-h-8 w-full justify-start whitespace-normal text-left"
+                                onClick={() => {
+                                  layout.setHidden(
+                                    expenseAccountElementId(account.id),
+                                    false
+                                  );
+                                  close();
+                                }}
+                              >
+                                <Plus aria-hidden="true" /> Restore{" "}
+                                {account.name}
+                              </Button>
+                            ))}
+                          </section>
+                        )}
+                      </>
                     }
                     add={{
                       kind:
@@ -581,7 +636,12 @@ export function ActivityWorkspace({
               return true;
             }
             if (id === "center") {
-              show({ kind: "account", accountId: bank?.id });
+              if (bank) show({ kind: "account", accountId: bank.id });
+              else showActivity();
+              return true;
+            }
+            if (id === "recorded-income") {
+              log({ kind: "income" });
               return true;
             }
             const account = expenseAccountForElement(id);
@@ -593,8 +653,8 @@ export function ActivityWorkspace({
           }}
           inspect={(id, dismiss, layout) => {
             if (panel && panel.kind !== "hide-card") return null;
-            if (id === "recorded-income")
-              return incomeEditor("canvas", dismiss);
+            if (id.startsWith("income-"))
+              return incomeEditor("canvas", dismiss, id);
             const bucket = bucketForElement(id);
             return bucket ? (
               <ActivityPlanEditor
@@ -679,8 +739,8 @@ export function ActivityWorkspace({
               <ActivityListSheet
                 key={`${month}-${listPanel.view}-${listPanel.filter?.accountId ?? listPanel.filter?.categoryId ?? listPanel.filter?.type ?? "all"}`}
                 month={month}
-                data={data}
-                accounts={accounts}
+                data={activity}
+                accounts={workspaceAccounts}
                 scheduled={scheduled}
                 initialView={listPanel.view}
                 active={panel.kind === "list"}

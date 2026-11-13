@@ -41,6 +41,7 @@ export function usePlannerLayout({
   access,
   instance,
   viewportToSave,
+  layoutNamespace = "",
 }: Readonly<{
   account: FinancialAccount;
   scope?: "activity";
@@ -49,6 +50,7 @@ export function usePlannerLayout({
   access: WorkspaceWriteAccess;
   instance: RefObject<ReactFlowInstance<MoneyCanvasNode, PlannerEdge> | null>;
   viewportToSave?: (current: Viewport) => Viewport;
+  layoutNamespace?: string;
 }>) {
   const save = useMutation(api.plannerCanvas.saveLayout);
   const [positions, setPositions] = useState(layout?.positions ?? {});
@@ -99,7 +101,15 @@ export function usePlannerLayout({
     knownPositions.current = {
       ...knownPositions.current,
       ...Object.fromEntries(
-        flow.getNodes().map((node) => [node.id, node.position])
+        flow.getNodes().flatMap((node) => {
+          const id = layoutNamespace + node.id;
+          // Monthly income cards use automatic positions until moved.
+          return scope === "activity" &&
+            node.data.kind === "income" &&
+            !knownPositions.current[id]
+            ? []
+            : [[id, node.position]];
+        })
       ),
     };
     const currentViewport = flow.getViewport();
@@ -112,7 +122,7 @@ export function usePlannerLayout({
         zoom: Math.round(viewport.zoom * 10000) / 10000,
       },
     };
-  }, [canWrite, instance, viewportToSave]);
+  }, [canWrite, instance, layoutNamespace, scope, viewportToSave]);
   const captureViewport = useCallback(() => {
     pending.current = readLayout();
     cancelTimer();
@@ -120,7 +130,7 @@ export function usePlannerLayout({
       timer.current = setTimeout(flushPending, CAMERA_SAVE_DELAY_MS);
   }, [readLayout, cancelTimer, flushPending]);
   const moveElement = useCallback(
-    (node: MoneyCanvasNode) => {
+    (node: Pick<MoneyCanvasNode, "id" | "position">) => {
       knownPositions.current = {
         ...knownPositions.current,
         [node.id]: node.position,
@@ -175,7 +185,7 @@ export function usePlannerLayout({
       flow.setNodes((current) =>
         current.map((node) => ({
           ...node,
-          position: restored[node.id] ?? node.position,
+          position: restored[layoutNamespace + node.id] ?? node.position,
         }))
       );
       setPositions(restored);
@@ -187,7 +197,15 @@ export function usePlannerLayout({
         flushPending();
       });
     },
-    [instance, canWrite, cancelTimer, loaded, readLayout, flushPending]
+    [
+      instance,
+      canWrite,
+      cancelTimer,
+      loaded,
+      readLayout,
+      flushPending,
+      layoutNamespace,
+    ]
   );
   useEffect(() => {
     mounted.current = true;

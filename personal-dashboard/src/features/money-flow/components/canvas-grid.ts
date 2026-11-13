@@ -5,6 +5,6 @@ export function snapCanvasCoordinate(value: number) {
   return Math.round(value / CANVAS_GRID_SIZE) * CANVAS_GRID_SIZE;
 }
 
-export function canvasHandleRow(top: number, height: number) {
+export function canvasCardCenterY(top: number, height: number) {
   return snapCanvasCoordinate(top + height / 2);
 }

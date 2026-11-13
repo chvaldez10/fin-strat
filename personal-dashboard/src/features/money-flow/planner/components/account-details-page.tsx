@@ -68,16 +68,25 @@ export function AccountDetailsPage({
               </p>
             </div>
             {account.legacyAccountId && (
-              <Button variant="outline" asChild>
-                <Link
-                  href={monthLink(
-                    `${MONEY_PATH}/${encodeURIComponent(account.legacyAccountId)}`,
-                    month
-                  )}
-                >
-                  Open account schedule
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" asChild>
+                  <Link
+                    href={monthLink(MONEY_PATH, month, account.legacyAccountId)}
+                  >
+                    Open workspace
+                  </Link>
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link
+                    href={monthLink(
+                      `${MONEY_PATH}/${encodeURIComponent(account.legacyAccountId)}`,
+                      month
+                    )}
+                  >
+                    Open account schedule
+                  </Link>
+                </Button>
+              </div>
             )}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -21,6 +21,7 @@ export function ActivityIncomeInspector({
   accounts,
   categories,
   canLog,
+  defaultAccountId,
   presentation = "canvas",
   onClose,
   onLogScheduled,
@@ -31,6 +32,7 @@ export function ActivityIncomeInspector({
   accounts: FinancialAccount[];
   categories: ActivityCategory[];
   canLog: boolean;
+  defaultAccountId?: string;
   presentation?: "canvas" | "sheet";
   onClose: () => void;
   onLogScheduled: (payment: Payment) => void;
@@ -118,7 +120,7 @@ export function ActivityIncomeInspector({
         presentation={presentation}
         controls={controls}
         month={month}
-        draft={{ kind: "income", entry }}
+        draft={{ kind: "income", entry, accountId: defaultAccountId }}
         accounts={accounts}
         categories={categories}
         scheduled={scheduled}

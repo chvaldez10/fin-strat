@@ -6,6 +6,7 @@ import {
   type summarizeActivity,
 } from "./activity";
 import type { PlannerEdge } from "./components/planner-element-connection";
+import type { ActivityEntry } from "./activity-data";
 import { hiddenElementLayoutKey } from "./layout-visibility";
 import type { PlannerLayoutValues } from "./use-planner-layout";
 import type { FinancialAccount, Payment } from "./types";
@@ -33,6 +34,8 @@ export const overviewCategoryId = (id: string) => `overview-category-${id}`;
 export const breakdownCategoryId = (id: string) => `budget-${id}`;
 export const breakdownCategoryPlacementKey = (id: string) =>
   `placed-category:${id}`;
+export const incomeEntryElementId = (id: string) => `income-entry-${id}`;
+export const incomePaymentElementId = (id: string) => `income-payment-${id}`;
 
 export function overviewCategoryPosition(
   kind: "expense" | "savings",
@@ -48,6 +51,7 @@ export function overviewCategoryPosition(
       ([id]) =>
         id === "center" ||
         id === "recorded-income" ||
+        id.startsWith("income-") ||
         id.startsWith("overview-")
     )
     .map(([, position]) => position);
@@ -207,14 +211,16 @@ function plannedCardPayments(payments: readonly Payment[]) {
 
 export function projectActivityCanvas({
   totals,
-  income,
+  receivedIncome,
+  scheduledIncome,
   accounts,
   bank,
   view,
   positions,
 }: Readonly<{
   totals: ActivitySummary;
-  income: IncomeDisplay;
+  receivedIncome: readonly ActivityEntry[];
+  scheduledIncome: readonly Payment[];
   accounts: ExpenseAccount[];
   bank?: Pick<FinancialAccount, "name" | "balanceCents" | "balanceUpdatedAt">;
   view: ActivityCanvasView;
@@ -233,8 +239,12 @@ export function projectActivityCanvas({
       position: positions[centerId] ?? { x: 420, y: overview ? 240 : 115 },
       data: {
         kind: "chequing",
-        caption: overview ? "Overview bank" : "This month",
-        label: overview ? (bank?.name ?? "Choose a bank account") : centerLabel,
+        caption: overview
+          ? bank
+            ? "Bank account"
+            : "Monthly overview"
+          : "This month",
+        label: overview ? (bank?.name ?? "All accounts") : centerLabel,
         note: overview
           ? bank?.balanceUpdatedAt != null
             ? `${formatMoney(bank.balanceCents)} recorded balance`
@@ -271,21 +281,84 @@ export function projectActivityCanvas({
   };
 
   if (overview) {
+    const receipts = receivedIncome.map((entry) => ({
+      id: incomeEntryElementId(entry._id),
+      label: entry.description,
+      amount: entry.amountCents,
+      caption: "Income received",
+      date: entry.date,
+      previousPosition: entry.planId
+        ? positions[incomePaymentElementId(entry.planId)]
+        : undefined,
+    }));
+    const expected = scheduledIncome.map((payment) => ({
+      id: incomePaymentElementId(payment._id),
+      label: payment.name,
+      amount: payment.amountCents,
+      caption: payment.estimated ? "Estimated income" : "Scheduled income",
+      date: payment.dueDate,
+      previousPosition: undefined,
+    }));
+    const incomeCards = [...receipts, ...expected];
+    const incomeOrigin = positions["recorded-income"] ?? { x: 30, y: 220 };
+    const usedIncomePositions = incomeCards.flatMap(
+      ({ id, previousPosition }) => {
+        const position = positions[id] ?? previousPosition;
+        return position ? [position] : [];
+      }
+    );
+    let incomeSlot = 0;
+    for (const card of incomeCards) {
+      let position = positions[card.id] ?? card.previousPosition;
+      if (!position) {
+        do {
+          const slot = incomeSlot++;
+          position = {
+            x: incomeOrigin.x - Math.floor(slot / 4) * 312,
+            y: incomeOrigin.y + (slot % 4) * 192,
+          };
+        } while (
+          usedIncomePositions.some(
+            (point) =>
+              Math.abs(point.x - position.x) < 260 &&
+              Math.abs(point.y - position.y) < 175
+          )
+        );
+        usedIncomePositions.push(position);
+      }
+      nodes.push({
+        id: card.id,
+        type: "income",
+        position,
+        data: {
+          kind: "income",
+          caption: card.caption,
+          label: card.label,
+          monthlyAmountCents: card.amount ?? undefined,
+          amountCaption: card.date,
+        },
+      });
+      connect(card.id, "income", card.amount ?? 0);
+    }
+    if (!incomeCards.length) {
+      nodes.push({
+        id: "recorded-income",
+        type: "income",
+        position: incomeOrigin,
+        data: {
+          kind: "income",
+          caption: "Income",
+          label: "Log income",
+          monthlyAmountCents: 0,
+          amountCaption: "No income recorded",
+        },
+      });
+      connect("recorded-income", "income", 0);
+    }
     const placed = totals.buckets.filter(
       (bucket) => positions[overviewCategoryId(bucket.id)]
     );
     nodes.push(
-      {
-        id: "recorded-income",
-        type: "income",
-        position: positions["recorded-income"] ?? { x: 30, y: 220 },
-        data: {
-          kind: "income",
-          label: income.label,
-          monthlyAmountCents: income.amountCents ?? undefined,
-          amountCaption: income.detail ?? "Edit income",
-        },
-      },
       {
         id: "overview-expenses",
         type: "expense",
@@ -313,7 +386,6 @@ export function projectActivityCanvas({
         },
       }
     );
-    connect("recorded-income", "income", income.amountCents ?? 0);
     connect("overview-expenses", "expense", totals.spent);
     connect("overview-savings", "account", totals.saved);
     for (const bucket of placed) {
