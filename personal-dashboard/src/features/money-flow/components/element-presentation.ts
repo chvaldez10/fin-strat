@@ -2,7 +2,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Landmark,
-  NotebookPen,
   WalletCards,
 } from "lucide-react";
 import { ELEMENT_CONNECTION_CONFIG } from "./element-connection-config";
@@ -40,19 +39,4 @@ export const ELEMENT_PRESENTATION = {
     handle: "bg-sky-500!",
     border: "border-sky-500/25",
   },
-  note: {
-    connection: ELEMENT_CONNECTION_CONFIG.colors.note,
-    icon: NotebookPen,
-    label: "Note",
-    accent: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-    handle: "",
-    border: "border-amber-500/25",
-  },
 } as const;
-
-export const ELEMENT_TOOLS = [
-  { kind: "income", label: "Add income" },
-  { kind: "expense", label: "Add expense" },
-  { kind: "account", label: "Add transfer destination" },
-  { kind: "note", label: "Add note" },
-] as const;

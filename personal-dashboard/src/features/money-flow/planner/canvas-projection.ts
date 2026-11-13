@@ -70,8 +70,6 @@ export function projectMonthlyCanvas(
         kind,
         label: first.name,
         monthlyAmountCents: amount ?? undefined,
-        connectionCount: 1,
-        active: true,
         note: `${first.kind === "cardPayment" ? "Credit card repayment · " : first.isSubscription ? "Subscription · " : first.kind === "expense" && first.seriesId ? "Recurring payment · " : ""}${items.length} scheduled payment${items.length === 1 ? "" : "s"}. Click to edit.`,
       },
     });

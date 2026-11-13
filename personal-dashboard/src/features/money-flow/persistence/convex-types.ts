@@ -5,9 +5,3 @@ import type { api } from "@convex/_generated/api";
 export type MoneyFlowPlan = NonNullable<
   FunctionReturnType<typeof api.moneyFlow.getCurrent>
 >;
-export type MoneyFlowAccountSummary = FunctionReturnType<
-  typeof api.moneyFlow.listAccounts
->["page"][number];
-export type MoneyFlowWorkspaceSnapshot = FunctionReturnType<
-  typeof api.moneyFlow.getWorkspace
->;

@@ -7,11 +7,7 @@ import { useUser } from "@/features/auth/use-user";
 export function useMoneyFlowPlan() {
   const user = useUser();
   const root = useQuery(api.moneyFlow.getCurrent, user ? {} : "skip");
-  const {
-    results: accounts,
-    status,
-    loadMore,
-  } = usePaginatedQuery(
+  const { results: accounts, status } = usePaginatedQuery(
     api.moneyFlow.listAccounts,
     root ? { documentId: root._id } : "skip",
     { initialNumItems: 25 }
@@ -19,9 +15,6 @@ export function useMoneyFlowPlan() {
   return {
     root: root ?? null,
     accounts,
-    status,
-    loadMore,
-    userId: user?.id,
     isLoading:
       !user || root === undefined || (!!root && status === "LoadingFirstPage"),
   };

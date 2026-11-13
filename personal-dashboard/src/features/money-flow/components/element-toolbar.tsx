@@ -1,37 +1,22 @@
 "use client";
 
-import { Copy, MoreHorizontal, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import type { CanvasElementKind } from "../canvas-types";
 import { CanvasToolButton } from "./canvas-tool-button";
-import type { MoneyNodeKind } from "../types";
-import { ELEMENT_PRESENTATION, ELEMENT_TOOLS } from "./element-presentation";
+import { ELEMENT_PRESENTATION } from "./element-presentation";
 
 export function ElementToolbar({
-  canDuplicateSelection,
-  canDeleteSelection,
   onAddElement,
-  onDuplicate,
-  onDelete,
-  onOpenCanvasMenu,
-  menuOpen,
-  tools = ELEMENT_TOOLS,
-  draggable = true,
+  tools,
   addLabel = "Add",
   showToolLabels = false,
   children,
 }: Readonly<{
-  canDuplicateSelection?: boolean;
-  canDeleteSelection?: boolean;
-  onAddElement: (kind: Exclude<MoneyNodeKind, "chequing">) => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-  onOpenCanvasMenu?: () => void;
-  menuOpen?: boolean;
-  tools?: readonly Readonly<{
-    kind: Exclude<MoneyNodeKind, "chequing">;
+  onAddElement: (kind: Exclude<CanvasElementKind, "chequing">) => void;
+  tools: readonly Readonly<{
+    kind: Exclude<CanvasElementKind, "chequing">;
     label: string;
   }>[];
-  draggable?: boolean;
   addLabel?: string;
   showToolLabels?: boolean;
   children?: ReactNode;
@@ -54,11 +39,6 @@ export function ElementToolbar({
             key={tool.kind}
             label={tool.label}
             className={showToolLabels ? "lg:w-auto lg:px-2.5" : undefined}
-            draggable={draggable}
-            onDragStart={(event) => {
-              event.dataTransfer.setData("application/x-money-node", tool.kind);
-              event.dataTransfer.effectAllowed = "move";
-            }}
             onClick={() => onAddElement(tool.kind)}
           >
             <Icon aria-hidden="true" />
@@ -71,37 +51,6 @@ export function ElementToolbar({
         );
       })}
       {children}
-      {(onDuplicate || onOpenCanvasMenu || onDelete) && (
-        <span className="mx-1 h-6 w-px shrink-0 bg-border" aria-hidden="true" />
-      )}
-      {onDuplicate && (
-        <CanvasToolButton
-          label="Duplicate"
-          disabled={!canDuplicateSelection}
-          onClick={onDuplicate}
-        >
-          <Copy />
-        </CanvasToolButton>
-      )}
-      {onOpenCanvasMenu && (
-        <CanvasToolButton
-          label="Canvas menu"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          onClick={onOpenCanvasMenu}
-        >
-          <MoreHorizontal />
-        </CanvasToolButton>
-      )}
-      {onDelete && (
-        <CanvasToolButton
-          label="Delete"
-          disabled={!canDeleteSelection}
-          onClick={onDelete}
-        >
-          <Trash2 />
-        </CanvasToolButton>
-      )}
     </section>
   );
 }

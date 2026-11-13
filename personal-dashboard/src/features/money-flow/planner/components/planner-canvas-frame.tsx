@@ -44,12 +44,10 @@ const nodeTypes = {
   expense: MoneyElement,
   chequing: MoneyElement,
   account: MoneyElement,
-  note: MoneyElement,
 };
 const edgeTypes = { planner: PlannerElementConnection };
 export type CanvasLayoutActions = Readonly<{
   place: (id: string, positionFor: CanvasPlacement, focusId?: string) => void;
-  remove: (id: string) => void;
   isHidden: (id: string) => boolean;
   setHidden: (id: string, hidden: boolean) => void;
 }>;
@@ -179,7 +177,6 @@ export function PlannerCanvasFrame({
       )
         setFocusPlacement(focusId);
     },
-    remove: (id) => persistence.removePlacement(layoutId(id)),
     isHidden: (id) => !!localPositions[hiddenElementLayoutKey(id)],
     setHidden: (id, hidden) => {
       const key = layoutId(hiddenElementLayoutKey(id));

@@ -236,15 +236,15 @@ account canvas URLs. The bank choice is remembered in the scheduled canvas URL a
 Clicking an element opens `CanvasPaymentForm` directly on the canvas: name,
 amount and payment date. Several occurrences can be selected by date in that
 same inspector. Desktop uses a nonmodal side panel; mobile uses a bottom sheet.
-More details reuses the existing payment editor. Completion controls are removed. The
-original canvas/workspace components remain in the codebase. `AccountSwitcher`,
+More details reuses the existing payment editor. `AccountSwitcher`,
 `MoneyElement`, `CanvasInspector`, `CanvasGridBackground` and `CanvasViewControls`
 are shared by the canvases and live in the feature's top-level `components`
 folder. Shared route, amount and formatting helpers live at the feature root.
 Restoring loaded positions affects layout only.
 
-Both connection renderers reuse `ElementConnectionPath`: a static line and end
-arrow show direction, with small moving arrowheads travelling from source to
+Both canvases draw connections through `PlannerElementConnection` and
+`ElementConnectionPath`. A static line and end arrow show direction, with small
+moving arrowheads travelling from source to
 target and rotating around bends. The background, drag snapping and connection
 routes share the 24-pixel grid in graph coordinates. Connected cards are drawn
 with their vertical midpoints on the nearest grid row. The handles stay centered
@@ -253,8 +253,8 @@ is straight for the fixed arrow, and moving arrowheads fade before reaching it.
 The line, end arrow and moving arrowheads share
 the element's palette: emerald for income, rose for expenses (including card
 repayments), and sky blue for savings/transfers. These colors come from
-`ELEMENT_PRESENTATION`, alongside the card/handle styles. The monthly projection
-supplies the element kind; the original renderer reads the connected nodes.
+`ELEMENT_PRESENTATION`, alongside the card and handle styles. Each canvas
+projection supplies the element kind.
 Arrowheads fade at each end, keeping the solid connection easy to follow. Salary
 flows into the bank; outgoing expenses, savings and card payments flow toward
 their elements. CSS motion paths animate without React state or layout saves. OS reduced
@@ -265,7 +265,7 @@ preferences remain unchanged. Connections remain display-only.
 
 To tweak connections, edit
 `src/features/money-flow/components/element-connection-config.ts`. This one config
-controls both canvas renderers: travel time, arrow count/size/stroke, line
+controls connections on both canvases, including travel time, arrow count/size/stroke, line
 thickness, opacity, end-arrow size and colors. Durations are in seconds (lower is
 faster), sizes use graph coordinates and opacity runs from 0 to 1. Changing the
 arrow count spaces them evenly; use 0 for a solid line with only its end arrow.
@@ -287,11 +287,10 @@ panning. Phone cards use smaller widths and spacing, with wrapping labels and
 amounts. React Flow measures their rendered sizes and updates connections when
 the viewport crosses a layout breakpoint; zoom scales the whole graph.
 
-The scheduled canvas reuses `ElementToolbar` for income, expense and savings/transfer
-creation. Its `tools` prop chooses the applicable tools, and its children slot adds
-a credit-card button. Legacy consumers retain the default tools, drag behavior
-and optional selection actions. The monthly canvas uses click creation because
-records must be saved before they become graph elements.
+Both canvases use `ElementToolbar` for income, expenses and savings. Each passes
+its actions through the `tools` prop and adds view-specific controls as children.
+The scheduled canvas adds a credit-card payment button. The activity canvas adds
+the **Add element** menu.
 
 `CanvasElementEditor` presets the selected bank and requested payment type.
 The credit-card action creates `kind: "cardPayment"`, with the bank as source,
@@ -587,7 +586,7 @@ control. The button requests takeover directly, with a pending state. Server
 guards reject writes from displaced canvas sessions. Ordinary planner/account
 pages use record revisions and do not acquire the canvas layout lock.
 
-## Migration and the original canvas
+## Migration from legacy workspaces
 
 The initial import copies existing accounts and schedules with stable source
 identities and preserves monthly totals, exact dates, zero/skipped overrides and
@@ -627,10 +626,8 @@ Feature paths below are relative to `src/features/money-flow/planner/`.
 | Optional year view                       | `components/year-view.tsx`, `convex/plannerYear.ts`                                                                 |
 | Schema, validation and migration         | `convex/plannerSchema.ts`, `convex/lib/planner.ts`, `convex/lib/plannerMigration.ts`                                |
 
-Shared buttons, sheets and date pickers remain in `src/components/ui/`. The
-previous `components/workspace/` editor remains available in source for reference
-but is no longer the routed monthly UI. Generated Convex API files are generated
-by tooling, not hand-edited.
+Shared buttons, sheets and date pickers live in `src/components/ui/`. Convex
+tooling generates the backend API types.
 
 The backend is the configured Personal Dashboard Convex deployment, shared by
 localhost and hosting. The personal-site database is separate. There is no bank

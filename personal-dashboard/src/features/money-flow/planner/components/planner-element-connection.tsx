@@ -4,9 +4,9 @@ import { formatMoney } from "../../calculations";
 import { ElementConnectionPath } from "../../components/element-connection-path";
 import { ELEMENT_PRESENTATION } from "../../components/element-presentation";
 import { useGridConnectionPath } from "../../components/use-grid-connection-path";
-import type { MoneyNodeKind } from "../../types";
+import type { CanvasElementKind } from "../../canvas-types";
 export type PlannerEdge = Edge<
-  { amount: number | null; kind: MoneyNodeKind; hideLabel?: boolean },
+  { amount: number | null; kind: CanvasElementKind; hideLabel?: boolean },
   "planner"
 >;
 export function PlannerElementConnection(

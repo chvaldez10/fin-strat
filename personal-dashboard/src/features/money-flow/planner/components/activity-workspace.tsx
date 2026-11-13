@@ -604,7 +604,6 @@ export function ActivityWorkspace({
               <>
                 <ElementToolbar
                   addLabel=""
-                  draggable={false}
                   showToolLabels
                   tools={canLog ? activityTools : []}
                   onAddElement={(kind) => {

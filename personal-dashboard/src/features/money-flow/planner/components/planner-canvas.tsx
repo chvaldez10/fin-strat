@@ -73,7 +73,6 @@ export function PlannerCanvas({
       tools={(moveControl) => (
         <ElementToolbar
           tools={plannerTools}
-          draggable={false}
           onAddElement={(kind) => {
             if (kind === "account") onAdd("savings");
             else if (kind === "income" || kind === "expense") onAdd(kind);

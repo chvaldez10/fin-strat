@@ -22,12 +22,10 @@ export const MoneyElement = memo(function MoneyElement({
     ELEMENT_PRESENTATION[expenseAccount ? "expense" : data.kind];
   const Icon = creditCard ? CreditCard : presentation.icon;
   const tracked = data.kind === "chequing";
-  const note = data.kind === "note";
   // CSS centers the rendered box, including any fractional part of its height.
-  const center =
-    !note && height
-      ? canvasCardCenterY(positionAbsoluteY, height) - positionAbsoluteY
-      : undefined;
+  const center = height
+    ? canvasCardCenterY(positionAbsoluteY, height) - positionAbsoluteY
+    : undefined;
 
   return (
     <div
@@ -46,7 +44,7 @@ export const MoneyElement = memo(function MoneyElement({
           "ring-2 ring-ring ring-offset-4 ring-offset-background shadow-md"
       )}
     >
-      {!note && data.kind !== "income" && (
+      {data.kind !== "income" && (
         <Handle
           type="target"
           position={Position.Left}
@@ -82,25 +80,7 @@ export const MoneyElement = memo(function MoneyElement({
           </p>
         </div>
       </div>
-      {tracked &&
-        typeof data.startingBalanceCents === "number" &&
-        typeof data.projectedBalanceCents === "number" && (
-          <div className="mt-5 space-y-3">
-            <div>
-              <p className="text-xs text-background/60">Projected balance</p>
-              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-                {formatMoney(data.projectedBalanceCents)}
-              </p>
-            </div>
-            <div className="flex items-center justify-between border-t border-background/15 pt-3 text-xs">
-              <span className="text-background/60">Opening balance</span>
-              <span className="font-medium tabular-nums">
-                {formatMoney(data.startingBalanceCents)}
-              </span>
-            </div>
-          </div>
-        )}
-      {!tracked && !note && (
+      {!tracked && (
         <div className="mt-3 md:mt-5">
           <p
             className={cn(
@@ -114,15 +94,7 @@ export const MoneyElement = memo(function MoneyElement({
               : "Set an amount"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {data.amountCaption ??
-              (data.active === false
-                ? "Not scheduled this month"
-                : data.paymentDay
-                  ? `Monthly · Day ${data.paymentDay}`
-                  : "Monthly cash flow")}
-            {(data.connectionCount ?? 0) > 1
-              ? ` · ${data.connectionCount} connections`
-              : ""}
+            {data.amountCaption ?? "Monthly cash flow"}
           </p>
         </div>
       )}
@@ -136,18 +108,16 @@ export const MoneyElement = memo(function MoneyElement({
           {data.note}
         </p>
       )}
-      {!note &&
-        !expenseAccount &&
-        (data.kind !== "expense" || data.showOutput) && (
-          <Handle
-            type="source"
-            position={Position.Right}
-            className={cn(
-              "size-3! border-[3px]! border-card!",
-              presentation.handle
-            )}
-          />
-        )}
+      {!expenseAccount && (data.kind !== "expense" || data.showOutput) && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={cn(
+            "size-3! border-[3px]! border-card!",
+            presentation.handle
+          )}
+        />
+      )}
     </div>
   );
 });

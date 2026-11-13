@@ -22,7 +22,6 @@ export const ELEMENT_CONNECTION_CONFIG = {
     income: "var(--color-emerald-500)",
     expense: "var(--color-rose-500)",
     account: "var(--color-sky-500)",
-    note: "var(--color-amber-500)",
   },
 } as const;
 
