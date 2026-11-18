@@ -17,7 +17,7 @@ import {
   type ActivityCategory,
   type ActivityKind,
 } from "../activity";
-import type { ActivityEntry, ImportedActivity } from "../activity-data";
+import type { ImportedActivity } from "../activity-data";
 import type { FinancialAccount, Payment } from "../types";
 import { ActivityDeleteButton } from "./activity-delete-confirmation";
 import { ActivityEntryRemoval } from "./activity-entry-removal";

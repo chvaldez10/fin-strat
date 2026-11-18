@@ -16,6 +16,33 @@ The personal dashboard is the product. Develop its UI and features with clear bo
 
 Dependencies flow from consumers to patterns to primitives. Shared UI must not import feature or route modules. Extract a reusable layout from an app shell only when a concrete consumer needs it. Keep domain calculations independent of rendering and persistence where useful; keep adapters at feature boundaries.
 
+## Feature composition
+
+Use the Money Flow workspace as the reference when adding or growing a feature.
+Start with the responsibilities the feature needs. Small features can keep
+their modules together.
+
+| Responsibility                | Reference                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Route entry and integration   | The [Money Flow route](<../../src/app/(dashboard)/dashboard/watchlist/money-flow/page.tsx>) delegates to [ActivityHomePage](../../src/features/money-flow/planner/components/activity-home-page.tsx), where the feature reads live data and handles loading.                                                                                                                                                         |
+| Derived data                  | [deriveActivityWorkspace](../../src/features/money-flow/planner/activity-workspace-data.ts) accepts the month's records, accounts, scheduled payments, and optional bank ID. It produces the data shared by the summary, graph, and sheets without React, I/O, or route state.                                                                                                                                       |
+| UI state and composition      | [ActivityWorkspace](../../src/features/money-flow/planner/components/activity-workspace.tsx) owns the selected panel. [ActivityCanvas](../../src/features/money-flow/planner/components/activity-canvas.tsx) owns the graph's active view. [ActivityWorkspaceSheets](../../src/features/money-flow/planner/components/activity-workspace-sheets.tsx) keeps list filters and tabs mounted when a detail editor opens. |
+| Shared rendering              | The activity and scheduled canvases pass their header, toolbar, projection, and inspector to [PlannerCanvasFrame](../../src/features/money-flow/planner/components/planner-canvas-frame.tsx). The frame owns React Flow interactions. [Canvas types](../../src/features/money-flow/canvas-types.ts) give projection helpers a contract independent of the renderer and layout hook.                                  |
+| Persistence and pending state | [usePlannerLayout](../../src/features/money-flow/planner/use-planner-layout.ts) owns serial layout writes and retries. [usePendingAction](../../src/hooks/use-pending-action.ts) guards overlapping form submissions across Money Flow, Watchlist, and Settings. Callers supply the async action and handle its outcome.                                                                                             |
+
+- Keep route files thin. Place queries, mutations, and browser storage access
+  near their feature entry point or the operation that owns them.
+- Keep filtering, validation, grouping, and calculations callable with plain
+  input values. Share one derivation when multiple views use the same result.
+  Index repeated lookups by stable IDs and keep query results scoped to what
+  the screen uses.
+- Give each piece of UI state one owner. Pass typed values, callbacks, and
+  content slots to child components. Keep drafts and failure feedback with the
+  editor that owns them.
+- Reuse shared primitives first. Extract a feature component when real screens
+  share its behavior. Promote it to shared UI once its contract is independent
+  of the feature and a concrete consumer can use it.
+
 ## Component contracts
 
 - Choose one semantic responsibility per component. Compose distinct responsibilities instead of adding unrelated modes.
@@ -44,6 +71,10 @@ The goal is a polished, reliable experience with maintainable code. Make decisio
 - Design complete interactions: feedback, validation, pending/success/failure states, recovery, and focus behavior. Preserve user input through recoverable failures and prevent unintended duplicate actions.
 - Keep state close to its owner and derive values where possible. Separate domain calculations from rendering so correctness can be verified without mounting the interface.
 - Keep high-frequency work such as canvas dragging isolated from unrelated UI. Measure rendering or loading problems before adding memoization, caching, or new dependencies; avoid shipping unnecessary client code.
+- Use events, mutation completion, and lifecycle cleanup to advance UI state.
+  Reserve timers for behavior that depends on time, such as a save debounce or
+  lease expiry. Cancel them when their owner unmounts or their inputs change.
+  Keep loading states and theme styling stable across the first render.
 - Review the result in the actual interface, including realistic content and relevant themes. Use the [quality criteria](./quality.md) to collect evidence, and explain meaningful tradeoffs or unverified behavior.
 
 ## Test selectors
@@ -75,12 +106,19 @@ hosting. Never point dashboard data at the personal-site deployment or create a
 staging database as part of normal development.
 
 Feature adapters own backend hooks and asynchronous state. Money Flow subscribes
-to metadata, paginated account summaries, and the selected graph. Its editor takes
-domain data and callbacks; its serial writer tracks acknowledged account revisions
-and preserves failed/conflicting drafts. Paired changes commit atomically.
+to planner data for the selected month and loads activity and layout for the
+active canvas. Its serial layout writer tracks acknowledged revisions and
+preserves failed or conflicting drafts. Settings merges edited fields into the
+latest loaded preferences before submitting the full set of values.
+
+Keep client requests compatible with the deployed backend during a rollout.
+Verify changed arguments against the deployed function specification and exercise
+the actual frontend route with that contract.
 
 Browser finance/watchlist records are explicit recovery sources, not an offline
 authority or demo fallback. Imports validate untrusted JSON, derive ownership
-server-side, commit idempotently, and retain originals. Theme is a device-level
-presentation preference; dashboard preferences belong to the authenticated user.
+server-side, commit idempotently, and retain originals. Theme and sidebar
+expansion are device preferences. The dashboard layout reads its sidebar cookie
+and the dashboard provider writes it using the primitive's change callback.
+Account preferences belong to the authenticated user.
 See the [integration record](../plans/money-flow-convex-integration.md).

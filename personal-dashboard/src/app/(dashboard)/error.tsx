@@ -3,10 +3,10 @@
 import { ErrorState } from "@/components/patterns";
 
 export default function Error({
-  reset,
+  retry,
 }: Readonly<{
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }>) {
-  return <ErrorState onAction={reset} />;
+  return <ErrorState className="min-h-0 flex-1 py-12" onAction={retry} />;
 }

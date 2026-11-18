@@ -12,6 +12,9 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react";
+import { MONEY_PATH } from "@/features/money-flow/routes";
+
+export const DASHBOARD_SIDEBAR_COOKIE = "sidebar_state";
 
 export type NavItem = {
   title: string;
@@ -76,7 +79,7 @@ export const publicNavGroups: PublicNavGroup[] = [
     items: [
       {
         title: "Money",
-        href: "/dashboard/watchlist/money-flow",
+        href: MONEY_PATH,
         description:
           "Monthly salary, bills, savings, subscriptions and credit accounts.",
         icon: CircleDollarSign,
@@ -153,7 +156,7 @@ export const dashboardNavItems: DashboardNavItem[] = [
       },
       {
         title: "Money flow",
-        href: "/dashboard/watchlist/money-flow",
+        href: MONEY_PATH,
       },
     ],
   },

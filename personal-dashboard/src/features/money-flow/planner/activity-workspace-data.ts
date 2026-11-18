@@ -17,7 +17,8 @@ export function deriveActivityWorkspace(
     ? {
         ...data,
         entries: data.entries.filter(
-          (entry) => entry.accountId === bankId || entry.destinationId === bankId
+          (entry) =>
+            entry.accountId === bankId || entry.destinationId === bankId
         ),
         pending: data.pending.filter((row) => row.accountId === bankId),
       }
@@ -54,8 +55,11 @@ export function deriveActivityWorkspace(
     );
     workspacePlans = plans.filter((plan) => {
       if (plan.kind === "expense" && plan.seriesId) {
-        const source = recordedByPlan.get(plan._id)?.accountId ?? plan.accountId;
-        return source === bankId || (source !== null && linkedCardIds.has(source));
+        const source =
+          recordedByPlan.get(plan._id)?.accountId ?? plan.accountId;
+        return (
+          source === bankId || (source !== null && linkedCardIds.has(source))
+        );
       }
       return plan.accountId === bankId || plan.counterpartyId === bankId;
     });
@@ -85,7 +89,9 @@ export function deriveActivityWorkspace(
     scheduledIncome,
     totals,
     income: displayActivityIncome(totals.income, scheduledIncome),
-    expenseAccounts: bankId ? [] : activityExpenseAccounts(accounts, activity.entries),
+    expenseAccounts: bankId
+      ? []
+      : activityExpenseAccounts(accounts, activity.entries),
     recurringExpenses: groupRecurringExpenses(workspacePlans, recordedByPlan),
   };
 }

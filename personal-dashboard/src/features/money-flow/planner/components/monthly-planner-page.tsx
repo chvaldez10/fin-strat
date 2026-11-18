@@ -65,13 +65,7 @@ export function MonthlyPlannerPage() {
   const [showYear, setYear] = useState(false);
   const [account, setAccount] = useState("all");
   const totals = data
-    ? plannerTotals(
-        data.entries,
-        data.accounts,
-        month,
-        data.carryInCents,
-        data.settlements
-      )
+    ? plannerTotals(data.entries, data.accounts, month, data.carryInCents)
     : null;
   const close = () => setEditor(null);
   const move = (offset: number) => {

@@ -370,11 +370,11 @@ for that month. An occurrence key identifies the original schedule/date, so
 opening the same month twice cannot create two copies. A rescheduled occurrence
 keeps its original key even if its due date moves into another month.
 
-The server's existing `getMonth` query also returns historical pending and
-settled rows for compatibility. The `usePlanner` adapter exposes only non-skipped
-entries assigned to the selected month. Without completion tracking, an old
-pending record is not evidence of an unpaid debt. Moving a payment's scheduled
-date into another month moves the same record; it does not clone the bill.
+The `usePlanner` adapter passes the selected `month` to `getMonth` and displays
+its non-skipped entries. It filters out carried rows returned by earlier
+deployments. The current query reads scheduled records by month and keeps
+historical completion records in storage. Moving a payment's scheduled date
+into another month moves the same record.
 
 ## How the salary check works
 
@@ -399,8 +399,7 @@ const totals = plannerTotals(
   data.entries,
   data.accounts,
   month,
-  data.carryInCents,
-  data.settlements
+  data.carryInCents
 );
 
 // totals.remaining: salary after expenses and savings

@@ -1,6 +1,14 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, EyeOff, List, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  EyeOff,
+  List,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ElementToolbar } from "../../components/element-toolbar";
 import { bankWorkspaceName } from "../activity-canvas-account";
@@ -76,25 +84,62 @@ export function ActivityCanvas({
     bankId: string | undefined;
     view: ActivityCanvasView;
   }>();
-  const view = viewSelection?.bankId === bankId ? (viewSelection?.view ?? "overview") : "overview";
+  const view =
+    viewSelection?.bankId === bankId
+      ? (viewSelection?.view ?? "overview")
+      : "overview";
   const close = () => show(null);
   const openView = (next: ActivityCanvasView) => {
     close();
     setViewSelection({ bankId, view: next });
   };
-  const { totals, receivedIncome, scheduledIncome, expenseAccounts, recurringExpenses } = workspace;
-  const { expenseAccountsByElement, recurringByElement, bucketsByElement, receivedIncomeByElement, scheduledIncomeByElement } = useMemo(
+  const {
+    totals,
+    receivedIncome,
+    scheduledIncome,
+    expenseAccounts,
+    recurringExpenses,
+  } = workspace;
+  const {
+    expenseAccountsByElement,
+    recurringByElement,
+    bucketsByElement,
+    receivedIncomeByElement,
+    scheduledIncomeByElement,
+  } = useMemo(
     () => ({
-      expenseAccountsByElement: new Map(expenseAccounts.map(({ account }) => [expenseAccountElementId(account.id), account])),
-      recurringByElement: new Map(recurringExpenses.map((group) => [group.id, group])),
-      bucketsByElement: new Map(totals.buckets.flatMap((bucket) => [
-        [overviewCategoryId(bucket.id), bucket] as const,
-        [breakdownCategoryId(bucket.id), bucket] as const,
-      ])),
-      receivedIncomeByElement: new Map(receivedIncome.map((entry) => [incomeEntryElementId(entry._id), entry])),
-      scheduledIncomeByElement: new Map(scheduledIncome.map((payment) => [incomePaymentElementId(payment._id), payment])),
+      expenseAccountsByElement: new Map(
+        expenseAccounts.map(({ account }) => [
+          expenseAccountElementId(account.id),
+          account,
+        ])
+      ),
+      recurringByElement: new Map(
+        recurringExpenses.map((group) => [group.id, group])
+      ),
+      bucketsByElement: new Map(
+        totals.buckets.flatMap((bucket) => [
+          [overviewCategoryId(bucket.id), bucket] as const,
+          [breakdownCategoryId(bucket.id), bucket] as const,
+        ])
+      ),
+      receivedIncomeByElement: new Map(
+        receivedIncome.map((entry) => [incomeEntryElementId(entry._id), entry])
+      ),
+      scheduledIncomeByElement: new Map(
+        scheduledIncome.map((payment) => [
+          incomePaymentElementId(payment._id),
+          payment,
+        ])
+      ),
     }),
-    [totals, receivedIncome, scheduledIncome, expenseAccounts, recurringExpenses]
+    [
+      totals,
+      receivedIncome,
+      scheduledIncome,
+      expenseAccounts,
+      recurringExpenses,
+    ]
   );
   const project = useCallback(
     (positions: CanvasPositions) =>
@@ -108,7 +153,15 @@ export function ActivityCanvas({
         view,
         positions,
       }),
-    [totals, receivedIncome, scheduledIncome, recurringExpenses, expenseAccounts, bank, view]
+    [
+      totals,
+      receivedIncome,
+      scheduledIncome,
+      recurringExpenses,
+      expenseAccounts,
+      bank,
+      view,
+    ]
   );
   const showActivity = (filter?: ActivityFilter) =>
     show({ kind: "list", view: "recorded", filter });
@@ -319,7 +372,9 @@ export function ActivityCanvas({
             : "mr-2 text-sm font-semibold"
         }
       >
-        {view === "overview" ? bankWorkspaceName(bank) : activityViewNames[view]}
+        {view === "overview"
+          ? bankWorkspaceName(bank)
+          : activityViewNames[view]}
       </h1>
       {view !== "overview" && (
         <Button variant="outline" size="sm" onClick={showBreakdownActivity}>
@@ -332,185 +387,184 @@ export function ActivityCanvas({
     </>
   );
   return (
-        <PlannerCanvasFrame
-          {...frame}
-          scope="activity"
-          viewKey={view}
-          layoutNamespace={bankId ? `bank:${bankId}:` : ""}
-          header={heading}
-          summary={summary}
-          tools={(moveControl, layout) => {
-            const hiddenCards =
-              view === "expenses" && adding
-                ? [
-                    ...expenseAccounts.map(({ account }) => ({
-                      id: expenseAccountElementId(account.id),
-                      name: account.name,
-                    })),
-                    ...recurringExpenses,
-                  ].filter(({ id }) => layout.isHidden(id))
-                : [];
-            return (
-              <>
-                <ElementToolbar
-                  addLabel=""
-                  showToolLabels
-                  tools={canLog ? activityTools : []}
-                  onAddElement={(kind) => {
-                    if (kind === "account") log({ kind: "savings" });
-                    else if (kind === "income" || kind === "expense")
-                      log({ kind });
-                  }}
-                >
-                  <Button
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => show({ kind: "add-element" })}
-                  >
-                    <Plus aria-hidden="true" /> Add element
-                  </Button>
-                  {moveControl}
-                </ElementToolbar>
-                {adding && (
-                  <ActivityPlanEditor
-                    month={month}
-                    data={data}
-                    presentation="canvas"
-                    beforeForm={
-                      <>
-                        {view === "overview" && canLog && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mb-4"
-                            onClick={() => log({ kind: "income" })}
-                          >
-                            <Plus aria-hidden="true" /> Log income
-                          </Button>
-                        )}
-                        {hiddenCards.length > 0 && (
-                          <section className="mb-5 space-y-2 rounded-xl border p-3">
-                            <h3 className="text-sm font-medium">
-                              Restore hidden cards
-                            </h3>
-                            {hiddenCards.map(({ id, name }) => (
-                              <Button
-                                key={id}
-                                variant="outline"
-                                size="sm"
-                                className="h-auto min-h-8 w-full justify-start whitespace-normal text-left"
-                                onClick={() => {
-                                  layout.setHidden(id, false);
-                                  close();
-                                }}
-                              >
-                                <Plus aria-hidden="true" /> Restore {name}
-                              </Button>
-                            ))}
-                          </section>
-                        )}
-                      </>
-                    }
-                    add={{
-                      kind:
-                        view === "overview"
-                          ? undefined
-                          : view === "expenses"
-                            ? "expense"
-                            : "savings",
-                      onPlace: (category) => placeCategory(category, layout),
-                    }}
-                    onClose={close}
-                    onView={showCategoryActivity}
-                  />
-                )}
-              </>
-            );
-          }}
-          project={project}
-          elementActions={elementActions}
-          onActivate={(id, layout) => {
-            if (id === "overview-expenses") {
-              openView("expenses");
-              return true;
-            }
-            if (id === "overview-savings") {
-              openView("savings");
-              return true;
-            }
-            if (id === "expenses-center" || id === "savings-center") {
-              showBreakdownActivity();
-              return true;
-            }
-            if (id === "center") {
-              if (bank) show({ kind: "account", accountId: bank.id });
-              else showActivity();
-              return true;
-            }
-            if (id === "recorded-income") {
-              log({ kind: "income" });
-              return true;
-            }
-            const account = expenseAccountsByElement.get(id);
-            if (account) {
-              openExpenseAccount(account.id, layout);
-              return true;
-            }
-            const group = recurringByElement.get(id);
-            if (group) {
-              openRecurringExpense(group);
-              return true;
-            }
-            return false;
-          }}
-          inspect={(id, dismiss, layout) => {
-            if (!canInspect) return null;
-            const entry = receivedIncomeByElement.get(id);
-            const payment = scheduledIncomeByElement.get(id);
-            if (entry || payment) {
-              return (
-                <ActivityIncomeInspector
-                  key={id}
-                  month={month}
-                  received={entry ? [entry] : []}
-                  scheduled={payment ? [payment] : []}
-                  categories={data.categories}
-                  accounts={accounts}
-                  defaultAccountId={bankId}
-                  canLog={canLog}
-                  onClose={dismiss}
-                  onLogScheduled={(planned) => {
-                    dismiss();
-                    log({ planned });
-                  }}
-                />
-              );
-            }
-            const bucket = bucketsByElement.get(id);
-            return bucket ? (
+    <PlannerCanvasFrame
+      {...frame}
+      scope="activity"
+      viewKey={view}
+      layoutNamespace={bankId ? `bank:${bankId}:` : ""}
+      header={heading}
+      summary={summary}
+      tools={(moveControl, layout) => {
+        const hiddenCards =
+          view === "expenses" && adding
+            ? [
+                ...expenseAccounts.map(({ account }) => ({
+                  id: expenseAccountElementId(account.id),
+                  name: account.name,
+                })),
+                ...recurringExpenses,
+              ].filter(({ id }) => layout.isHidden(id))
+            : [];
+        return (
+          <>
+            <ElementToolbar
+              addLabel=""
+              showToolLabels
+              tools={canLog ? activityTools : []}
+              onAddElement={(kind) => {
+                if (kind === "account") log({ kind: "savings" });
+                else if (kind === "income" || kind === "expense") log({ kind });
+              }}
+            >
+              <Button
+                size="sm"
+                className="shrink-0"
+                onClick={() => show({ kind: "add-element" })}
+              >
+                <Plus aria-hidden="true" /> Add element
+              </Button>
+              {moveControl}
+            </ElementToolbar>
+            {adding && (
               <ActivityPlanEditor
-                key={`${month}-${id}`}
                 month={month}
                 data={data}
-                bucket={bucket}
                 presentation="canvas"
-                onHide={() => hideCategoryCard(bucket, layout, dismiss)}
-                onClose={dismiss}
-                onLog={
-                  canLog
-                    ? (category) => {
-                        dismiss();
-                        log({ category });
-                      }
-                    : undefined
+                beforeForm={
+                  <>
+                    {view === "overview" && canLog && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mb-4"
+                        onClick={() => log({ kind: "income" })}
+                      >
+                        <Plus aria-hidden="true" /> Log income
+                      </Button>
+                    )}
+                    {hiddenCards.length > 0 && (
+                      <section className="mb-5 space-y-2 rounded-xl border p-3">
+                        <h3 className="text-sm font-medium">
+                          Restore hidden cards
+                        </h3>
+                        {hiddenCards.map(({ id, name }) => (
+                          <Button
+                            key={id}
+                            variant="outline"
+                            size="sm"
+                            className="h-auto min-h-8 w-full justify-start whitespace-normal text-left"
+                            onClick={() => {
+                              layout.setHidden(id, false);
+                              close();
+                            }}
+                          >
+                            <Plus aria-hidden="true" /> Restore {name}
+                          </Button>
+                        ))}
+                      </section>
+                    )}
+                  </>
                 }
-                onView={(category) => {
-                  dismiss();
-                  showCategoryActivity(category);
+                add={{
+                  kind:
+                    view === "overview"
+                      ? undefined
+                      : view === "expenses"
+                        ? "expense"
+                        : "savings",
+                  onPlace: (category) => placeCategory(category, layout),
                 }}
+                onClose={close}
+                onView={showCategoryActivity}
               />
-            ) : null;
-          }}
-        />
+            )}
+          </>
+        );
+      }}
+      project={project}
+      elementActions={elementActions}
+      onActivate={(id, layout) => {
+        if (id === "overview-expenses") {
+          openView("expenses");
+          return true;
+        }
+        if (id === "overview-savings") {
+          openView("savings");
+          return true;
+        }
+        if (id === "expenses-center" || id === "savings-center") {
+          showBreakdownActivity();
+          return true;
+        }
+        if (id === "center") {
+          if (bank) show({ kind: "account", accountId: bank.id });
+          else showActivity();
+          return true;
+        }
+        if (id === "recorded-income") {
+          log({ kind: "income" });
+          return true;
+        }
+        const account = expenseAccountsByElement.get(id);
+        if (account) {
+          openExpenseAccount(account.id, layout);
+          return true;
+        }
+        const group = recurringByElement.get(id);
+        if (group) {
+          openRecurringExpense(group);
+          return true;
+        }
+        return false;
+      }}
+      inspect={(id, dismiss, layout) => {
+        if (!canInspect) return null;
+        const entry = receivedIncomeByElement.get(id);
+        const payment = scheduledIncomeByElement.get(id);
+        if (entry || payment) {
+          return (
+            <ActivityIncomeInspector
+              key={id}
+              month={month}
+              received={entry ? [entry] : []}
+              scheduled={payment ? [payment] : []}
+              categories={data.categories}
+              accounts={accounts}
+              defaultAccountId={bankId}
+              canLog={canLog}
+              onClose={dismiss}
+              onLogScheduled={(planned) => {
+                dismiss();
+                log({ planned });
+              }}
+            />
+          );
+        }
+        const bucket = bucketsByElement.get(id);
+        return bucket ? (
+          <ActivityPlanEditor
+            key={`${month}-${id}`}
+            month={month}
+            data={data}
+            bucket={bucket}
+            presentation="canvas"
+            onHide={() => hideCategoryCard(bucket, layout, dismiss)}
+            onClose={dismiss}
+            onLog={
+              canLog
+                ? (category) => {
+                    dismiss();
+                    log({ category });
+                  }
+                : undefined
+            }
+            onView={(category) => {
+              dismiss();
+              showCategoryActivity(category);
+            }}
+          />
+        ) : null;
+      }}
+    />
   );
 }

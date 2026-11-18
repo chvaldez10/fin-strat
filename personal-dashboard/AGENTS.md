@@ -24,7 +24,7 @@ This project is a personal dashboard. Build its features with composability, reu
 - Run commands from this directory with Node.js 24+ and the pinned pnpm 11 version. Install locally with `pnpm install`; develop with `pnpm dev`. Use `pnpm install --frozen-lockfile` for CI, deployment, or an explicit lockfile consistency check.
 - For code changes, use `pnpm lint` and `pnpm typecheck`. Run relevant existing tests with `pnpm test` when changing behavior they cover, and keep those tests passing. Use `pnpm build` for framework, dependency, or rendering changes and `pnpm format:check` for formatting. For docs-only work, check the changed documents.
 - This is a personal project: do not add new unit tests, test suites, or test infrastructure unless the user explicitly requests them. Keep existing tests; do not delete them to simplify the workflow. Prefer focused browser/manual verification of changed behavior alongside the checks above, and report any failures honestly.
-- Follow `src/components/ui/button.tsx` for primitive composition and variants, `src/components/patterns/` for reusable compositions, and `src/features/money-flow/` for domain code separated from UI and persistence.
+- Follow `src/components/ui/button.tsx` for primitive composition and `src/components/patterns/` for reusable compositions. Use [Feature composition](./docs/engineering/architecture.md#feature-composition) and its Money Flow examples as the standard for feature work.
 - The shared `Button` defaults to `type="button"`. Form submission actions must explicitly set `type="submit"`; verify clicks trigger the form handler.
 
 ## Data and generated files

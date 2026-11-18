@@ -4,7 +4,8 @@ import { useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useUser } from "@/features/auth/use-user";
 import { Button } from "@/components/ui/button";
-import type { WatchlistCapture } from "../captures";
+import { usePendingAction } from "@/hooks/use-pending-action";
+import { CAPTURE_IMPORT_BATCH_SIZE, readCaptureBackups } from "../captures";
 
 export function SavedCaptures() {
   const user = useUser();
@@ -16,32 +17,12 @@ export function SavedCaptures() {
   const remove = useMutation(api.watchlist.remove),
     importNotes = useMutation(api.watchlist.importLocal);
   const [message, setMessage] = useState("");
-  const [pending, setPending] = useState(false);
+  const { pending, run } = usePendingAction();
   async function importBackup() {
-    if (!user || pending) return;
-    setPending(true);
+    if (!user) return;
+    setMessage("");
     try {
-      const found: WatchlistCapture[] = [];
-      for (const key of new Set([
-        `personal-dashboard:watchlist-captures:${user.id}`,
-        "personal-dashboard:watchlist-captures:user_chris_demo",
-      ])) {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        const value: unknown = JSON.parse(raw);
-        if (
-          !Array.isArray(value) ||
-          !value.every(
-            (note) =>
-              note &&
-              typeof note.id === "string" &&
-              typeof note.text === "string" &&
-              typeof note.createdAt === "string"
-          )
-        )
-          throw new Error("Invalid backup");
-        found.push(...value);
-      }
+      const found = readCaptureBackups(localStorage, user.id);
       if (!found.length) {
         setMessage("No local watchlist notes found.");
         return;
@@ -53,17 +34,18 @@ export function SavedCaptures() {
       )
         return;
       // Import bounded batches in order so failures stop subsequent requests.
-      async function importBatch(
-        offset: number,
-        already: boolean
-      ): Promise<boolean> {
-        if (offset >= found.length) return already;
+      let already = true;
+      for (
+        let offset = 0;
+        offset < found.length;
+        offset += CAPTURE_IMPORT_BATCH_SIZE
+      ) {
+        // oxlint-disable-next-line no-await-in-loop -- Stop after the first failed batch.
         const result = await importNotes({
-          notes: found.slice(offset, offset + 200),
+          notes: found.slice(offset, offset + CAPTURE_IMPORT_BATCH_SIZE),
         });
-        return importBatch(offset + 200, already && result.alreadyImported);
+        already = already && result.alreadyImported;
       }
-      const already = await importBatch(0, true);
       setMessage(
         already
           ? "These notes were already imported."
@@ -73,8 +55,6 @@ export function SavedCaptures() {
       setMessage(
         "Import could not finish. Original notes are intact. Invalid backups need recovery; successful batches can safely be retried."
       );
-    } finally {
-      setPending(false);
     }
   }
   return (
@@ -83,9 +63,9 @@ export function SavedCaptures() {
         <h2 className="text-xl font-semibold">Saved notes</h2>
         <Button
           variant="outline"
-          disabled={pending}
+          disabled={!user || pending}
           onClick={() => {
-            void importBackup();
+            void run(importBackup);
           }}
         >
           Import my browser notes
@@ -113,16 +93,16 @@ export function SavedCaptures() {
                 size="sm"
                 disabled={pending}
                 aria-label={`Delete note: ${note.text.slice(0, 40)}`}
-                onClick={async () => {
-                  if (!window.confirm("Delete this saved note?")) return;
-                  setPending(true);
-                  try {
-                    await remove({ id: note._id });
-                  } catch {
-                    setMessage("Could not delete this note. Try again.");
-                  } finally {
-                    setPending(false);
-                  }
+                onClick={() => {
+                  void run(async () => {
+                    if (!window.confirm("Delete this saved note?")) return;
+                    setMessage("");
+                    try {
+                      await remove({ id: note._id });
+                    } catch {
+                      setMessage("Could not delete this note. Try again.");
+                    }
+                  });
                 }}
               >
                 Delete

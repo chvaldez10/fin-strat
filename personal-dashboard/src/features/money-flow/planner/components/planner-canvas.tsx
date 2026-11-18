@@ -6,7 +6,10 @@ import { CreditCard, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ElementToolbar } from "../../components/element-toolbar";
 import { CanvasToolButton } from "../../components/canvas-tool-button";
-import { groupCanvasPayments, projectMonthlyCanvas } from "../canvas-projection";
+import {
+  groupCanvasPayments,
+  projectMonthlyCanvas,
+} from "../canvas-projection";
 import type { CanvasPositions } from "../../canvas-types";
 import type { FinancialAccount, Payment, PaymentKind } from "../types";
 import { PlannerElementInspector } from "./planner-element-inspector";
@@ -44,7 +47,8 @@ export function PlannerCanvas({
     [account.id, items]
   );
   const project = useCallback(
-    (positions: CanvasPositions) => projectMonthlyCanvas(account, groups, positions),
+    (positions: CanvasPositions) =>
+      projectMonthlyCanvas(account, groups, positions),
     [account, groups]
   );
   return (

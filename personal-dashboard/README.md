@@ -47,6 +47,8 @@ This targets the selected production dashboard. Check the target printed by the
 CLI before publishing. Do not run `convex dev` to provision another deployment.
 The frontend host builds with `pnpm install --frozen-lockfile` and `pnpm build`.
 Set `NEXT_PUBLIC_CONVEX_URL` in that host; backend signing keys stay in Convex.
+Deploy the Convex functions before a frontend release that uses new query or
+mutation arguments.
 
 For a newly created dashboard deployment, configure its auth keys once:
 
@@ -90,11 +92,11 @@ Do not commit `.local`, signing keys, passwords, or deployment credentials.
 
 ## Your data
 
-Money Flow opens to your bank accounts list. Select an existing account to reopen
-its workspace, or explicitly add another bank account. Each workspace has its own
-URL, graph, and viewport; its back-to-list action flushes pending saves before
-leaving. Monthly schedules, zero overrides, carry-forward balances and canvas/table
-calculations use integer cents. The backend owns all private data.
+Money Flow opens to monthly activity. Use the account switcher to focus the
+canvas on one bank, or open Accounts to manage bank and credit accounts.
+The selected month and account are carried in the URL. Monthly schedules,
+zero overrides, carryover balances, and totals use integer cents. The backend
+owns all private data.
 
 Money Flow no longer displays browser-data recovery controls. Existing browser
 backups, including the old `user_chris_demo` key, remain untouched. The authenticated

@@ -1,8 +1,16 @@
-import type { CanvasPositions, CanvasProjection, MoneyCanvasNode, PlannerEdge } from "../canvas-types";
+import type {
+  CanvasPositions,
+  CanvasProjection,
+  MoneyCanvasNode,
+  PlannerEdge,
+} from "../canvas-types";
 import type { FinancialAccount, Payment } from "./types";
 import { formatMoney } from "../calculations";
 
-export function groupCanvasPayments(accountId: string, payments: readonly Payment[]) {
+export function groupCanvasPayments(
+  accountId: string,
+  payments: readonly Payment[]
+) {
   const groups = new Map<string, Payment[]>();
   for (const item of payments) {
     if (item.accountId !== accountId || item.status === "skipped") continue;

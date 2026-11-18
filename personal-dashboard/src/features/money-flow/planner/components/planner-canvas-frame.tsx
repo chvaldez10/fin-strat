@@ -18,7 +18,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { MoneyFlowPlan } from "../../persistence/convex-types";
 import type { WorkspaceWriteAccess } from "../../persistence/workspace-write-access";
-import type { CanvasPositions, CanvasProjection, MoneyCanvasNode, PlannerEdge } from "../../canvas-types";
+import type {
+  CanvasPositions,
+  CanvasProjection,
+  MoneyCanvasNode,
+  PlannerEdge,
+} from "../../canvas-types";
 import { MoneyElement } from "../../components/money-element";
 import { CanvasViewControls } from "../../components/canvas-view-controls";
 import { CanvasToolButton } from "../../components/canvas-tool-button";
@@ -42,6 +47,7 @@ const nodeTypes = {
   account: MoneyElement,
 };
 const edgeTypes = { planner: PlannerElementConnection };
+const defaultViewport = { x: 0, y: 0, zoom: 0.8 };
 export type CanvasLayoutActions = Readonly<{
   place: (id: string, positionFor: CanvasPlacement, focusId?: string) => void;
   isHidden: (id: string) => boolean;
@@ -127,13 +133,15 @@ export function PlannerCanvasFrame({
   const cameraKey = layoutNamespace + viewKey;
   const activeView = useRef(cameraKey);
   const viewports = useRef(new Map<string, Viewport>());
-  const savedOverview = useRef(layout?.viewport ?? { x: 0, y: 0, zoom: 0.8 });
+  const [loadedLayout] = useState(() => layout);
   const viewportToSave = useCallback(
     (current: Viewport) =>
       activeView.current === "overview"
         ? current
-        : (viewports.current.get("overview") ?? savedOverview.current),
-    []
+        : (viewports.current.get("overview") ??
+          loadedLayout?.viewport ??
+          defaultViewport),
+    [loadedLayout]
   );
   const persistence = usePlannerLayout({
     account,
@@ -184,6 +192,7 @@ export function PlannerCanvasFrame({
     () => project(localPositions),
     [project, localPositions]
   );
+  const appliedProjection = useRef(projection);
   const menuNode = menu && projection.nodes.find((node) => node.id === menu.id);
   const actions = menuNode
     ? elementActions?.(
@@ -212,27 +221,30 @@ export function PlannerCanvasFrame({
       setSelected(null);
       closeMenu();
     }
-    flow.setNodes((current) => {
-      const previous = new Map(current.map((node) => [node.id, node]));
-      return projection.nodes.map((node) => ({
-        ...previous.get(node.id),
-        ...node,
-        position:
-          changedView ||
-          (scope === "activity" &&
-            node.data.kind === "income" &&
-            !previous.get(node.id)?.dragging)
-            ? node.position
-            : (previous.get(node.id)?.position ?? node.position),
-      }));
-    });
-    flow.setEdges(projection.edges);
+    if (changedView || appliedProjection.current !== projection) {
+      appliedProjection.current = projection;
+      flow.setNodes((current) => {
+        const previous = new Map(current.map((node) => [node.id, node]));
+        return projection.nodes.map((node) => ({
+          ...previous.get(node.id),
+          ...node,
+          position:
+            changedView ||
+            (scope === "activity" &&
+              node.data.kind === "income" &&
+              !previous.get(node.id)?.dragging)
+              ? node.position
+              : (previous.get(node.id)?.position ?? node.position),
+        }));
+      });
+      flow.setEdges(projection.edges);
+    }
     if (changedView) {
       setFocusPlacement(null);
       const viewport =
         viewports.current.get(cameraKey) ??
-        (cameraKey === "overview" && layout?.revision
-          ? savedOverview.current
+        (cameraKey === "overview" && loadedLayout?.revision
+          ? loadedLayout.viewport
           : undefined);
       if (viewport) void flow.setViewport(viewport);
       else void flow.fitView({ padding: 0.2 });
@@ -254,8 +266,7 @@ export function PlannerCanvasFrame({
     captureViewport,
     focusPlacement,
     closeMenu,
-    layout?.viewport,
-    layout?.revision,
+    loadedLayout,
   ]);
   return (
     <TooltipProvider>
@@ -350,13 +361,11 @@ export function PlannerCanvasFrame({
             }
             onPaneClick={() => setSelected(null)}
             defaultViewport={
-              (!layoutNamespace && layout?.viewport) || {
-                x: 0,
-                y: 0,
-                zoom: 0.8,
-              }
+              (!layoutNamespace && loadedLayout?.viewport) || defaultViewport
             }
-            fitView={!!layoutNamespace || !layout || layout.revision === 0}
+            fitView={
+              !!layoutNamespace || !loadedLayout || loadedLayout.revision === 0
+            }
             fitViewOptions={{ padding: 0.2 }}
             nodesConnectable={false}
             edgesFocusable={false}

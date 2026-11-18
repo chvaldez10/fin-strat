@@ -9,6 +9,7 @@ This project is a Next.js personal dashboard. Build composable features and keep
 - `components/patterns/`: reusable app patterns composed from primitives, such as empty states, loading states, form sections, and search inputs.
 - `components/layout/`: public and dashboard shell components.
 - `config/`: typed site, navigation, and shell configuration.
+- `features/`: feature components, pure data helpers, and persistence integration. Follow the [Money Flow reference](../docs/engineering/architecture.md#feature-composition) as a feature grows.
 - `hooks/`: shared React hooks used by client components.
 - `lib/`: framework-agnostic utilities and design-system definitions.
 - `styles/`: global theme support that does not belong to a single route.

@@ -1,11 +1,9 @@
 import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_QUERY = "(width < 48rem)";
 
 function subscribe(callback: () => void) {
-  const mediaQuery = window.matchMedia(
-    `(max-width: ${MOBILE_BREAKPOINT - 1}px)`
-  );
+  const mediaQuery = window.matchMedia(MOBILE_QUERY);
 
   mediaQuery.addEventListener("change", callback);
 
@@ -13,7 +11,7 @@ function subscribe(callback: () => void) {
 }
 
 function getSnapshot() {
-  return window.innerWidth < MOBILE_BREAKPOINT;
+  return window.matchMedia(MOBILE_QUERY).matches;
 }
 
 function getServerSnapshot() {

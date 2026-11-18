@@ -58,6 +58,7 @@ export function PlannerCanvasPage({
         />
       ) : (
         <CanvasSession
+          key={`${legacy.root._id}:${info.account.id}`}
           accountControl={accountControl}
           activity={activity}
           root={legacy.root}

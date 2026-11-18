@@ -13,8 +13,7 @@ export function CanvasBudgetSummary({
     data.entries,
     data.accounts,
     month,
-    data.carryInCents,
-    data.settlements
+    data.carryInCents
   );
   return (
     <MonthlyBudgetSummary

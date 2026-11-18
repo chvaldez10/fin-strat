@@ -18,6 +18,7 @@ import {
 import { errorMessage } from "../use-planner";
 import { useCanvasWriteContext } from "./planner-write-context";
 import { withWorkspaceAccess } from "../../persistence/workspace-write-access";
+import { usePendingAction } from "@/hooks/use-pending-action";
 
 export const selectClass =
   "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -120,27 +121,21 @@ export function PlannerSheet({
 }
 export function usePlannerAction() {
   const canvas = useCanvasWriteContext();
-  const running = useRef(false);
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const { pending: busy, run } = usePendingAction();
+  const [error, setError] = useState("");
   return {
     busy,
     error,
-    run: async (work: () => Promise<unknown>, done?: () => void) => {
-      if (running.current) return;
-      running.current = true;
-      setBusy(true);
-      setError("");
-      try {
-        await (canvas ? withWorkspaceAccess(canvas.access, work) : work());
-        done?.();
-      } catch (cause) {
-        setError(errorMessage(cause));
-      } finally {
-        running.current = false;
-        setBusy(false);
-      }
-    },
+    run: (work: () => Promise<unknown>, done?: () => void) =>
+      run(async () => {
+        setError("");
+        try {
+          await (canvas ? withWorkspaceAccess(canvas.access, work) : work());
+          done?.();
+        } catch (cause) {
+          setError(errorMessage(cause));
+        }
+      }),
   };
 }
 export function FormError({ message }: Readonly<{ message: string }>) {

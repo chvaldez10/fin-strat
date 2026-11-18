@@ -1,18 +1,14 @@
 "use client";
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { useUser } from "./use-user";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-type Preferences = {
-  reducedMotion: boolean;
-  weeklyReview: boolean;
-  showMoney: boolean;
-};
+import { usePendingAction } from "@/hooks/use-pending-action";
+import { usePreferences, type Preferences } from "./use-preferences";
+
 export function PreferencesPage() {
-  const user = useUser();
-  const saved = useQuery(api.preferences.get, user ? {} : "skip");
+  const saved = usePreferences();
   return (
     <div className="max-w-xl space-y-6">
       <h1 className="text-3xl font-bold">Settings</h1>
@@ -26,25 +22,27 @@ export function PreferencesPage() {
 }
 function PreferencesForm({ saved }: Readonly<{ saved: Preferences }>) {
   const preferenceId = useId();
-  const [draft, setDraft] = useState(saved),
-    [pending, setPending] = useState(false),
-    [message, setMessage] = useState("");
+  const [edits, setEdits] = useState<Partial<Preferences>>({});
+  const [message, setMessage] = useState("");
+  const { pending, run } = usePendingAction();
   const save = useMutation(api.preferences.save);
-  async function submit(event: FormEvent) {
+  const hasEdits = Object.keys(edits).length > 0;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending) return;
-    setPending(true);
-    setMessage("");
-    try {
-      await save(draft);
-      setMessage("Preferences saved.");
-    } catch {
-      setMessage(
-        "Could not save preferences. Your changes are still here; retry when connected."
-      );
-    } finally {
-      setPending(false);
-    }
+    if (!hasEdits) return;
+    void run(async () => {
+      setMessage("");
+      try {
+        await save({ ...saved, ...edits });
+        setEdits({});
+        setMessage("Preferences saved.");
+      } catch {
+        setMessage(
+          "Could not save preferences. Your changes are still here; retry when connected."
+        );
+      }
+    });
   }
   return (
     <form
@@ -67,10 +65,18 @@ function PreferencesForm({ saved }: Readonly<{ saved: Preferences }>) {
           {label}
           <Checkbox
             id={`${preferenceId}-${key}`}
-            checked={draft[key]}
-            onCheckedChange={(checked) =>
-              setDraft({ ...draft, [key]: checked === true })
-            }
+            checked={edits[key] ?? saved[key]}
+            disabled={pending}
+            onCheckedChange={(checked) => {
+              const value = checked === true;
+              setMessage("");
+              setEdits((current) => {
+                const next = { ...current };
+                if (value === saved[key]) delete next[key];
+                else next[key] = value;
+                return next;
+              });
+            }}
           />
         </label>
       ))}
@@ -78,7 +84,7 @@ function PreferencesForm({ saved }: Readonly<{ saved: Preferences }>) {
         Weekly review is an on-screen preference. No notifications or emails are
         sent.
       </p>
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || !hasEdits}>
         {pending ? "Saving…" : "Save preferences"}
       </Button>
       <output>{message}</output>
@@ -86,8 +92,7 @@ function PreferencesForm({ saved }: Readonly<{ saved: Preferences }>) {
   );
 }
 export function ApplyPreferences() {
-  const user = useUser();
-  const saved = useQuery(api.preferences.get, user ? {} : "skip");
+  const saved = usePreferences();
   useEffect(() => {
     document.documentElement.toggleAttribute(
       "data-reduce-motion",

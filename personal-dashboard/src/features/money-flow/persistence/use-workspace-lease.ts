@@ -18,11 +18,14 @@ export type WorkspaceLeaseStatus =
   | "expired"
   | "error";
 type Session = {
+  documentId: MoneyFlowPlan["_id"];
+  accountId: string;
   sessionId: string;
   claim: Promise<FunctionReturnType<typeof api.moneyFlowSessions.acquire>>;
   startedAt: number;
   deadline: number;
   active: boolean;
+  releasePending: boolean;
 };
 let reloadClaimed = false;
 
@@ -36,7 +39,6 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
     accountId,
   });
   const session = useRef<Session | null>(null);
-  const cleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const claiming = useRef(false);
   const [requestVersion, setRequestVersion] = useState(0);
   const [state, setState] = useState<{
@@ -54,10 +56,12 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
     const value = session.current;
     return (
       !!value?.active &&
+      value.documentId === root._id &&
+      value.accountId === accountId &&
       value.sessionId === editorSessionId &&
       value.deadline > performance.now()
     );
-  }, [editorSessionId]);
+  }, [root._id, accountId, editorSessionId]);
   const onLost = useCallback(() => {
     // An old editor can finish a rejected request after a newer takeover.
     if (session.current?.sessionId === editorSessionId) block("displaced");
@@ -72,8 +76,12 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
   }, []);
 
   useEffect(() => {
-    if (cleanupTimer.current) clearTimeout(cleanupTimer.current);
     const canvas = { documentId: root._id, accountId };
+    if (
+      session.current?.documentId !== canvas.documentId ||
+      session.current.accountId !== canvas.accountId
+    )
+      session.current = null;
     if (!session.current) {
       claiming.current = true;
       const sessionId = crypto.randomUUID();
@@ -86,10 +94,12 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
           new URL(navigation.name).pathname === window.location.pathname);
       reloadClaimed = true;
       session.current = {
+        ...canvas,
         sessionId,
         startedAt: performance.now(),
         deadline: 0,
         active: false,
+        releasePending: false,
         claim: acquire({
           ...canvas,
           sessionId,
@@ -98,10 +108,19 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
       };
     }
     const value = session.current;
+    value.releasePending = false;
     let stopped = false;
     let renewing = false;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
-    let expiry: ReturnType<typeof setInterval> | undefined;
+    let expiry: ReturnType<typeof setTimeout> | undefined;
+
+    function watchDeadline() {
+      clearTimeout(expiry);
+      if (!value.active || stopped) return;
+      const remaining = value.deadline - performance.now();
+      if (remaining <= 0) block("expired");
+      else expiry = setTimeout(watchDeadline, Math.ceil(remaining));
+    }
 
     function acceptDeadline(
       result: { expiresAt: number; serverTime: number },
@@ -123,7 +142,10 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
         const result = await renew({ ...canvas, sessionId: value.sessionId });
         if (stopped || session.current !== value || !value.active) return;
         if (result.status === "blocked") block("displaced");
-        else acceptDeadline(result, startedAt);
+        else {
+          acceptDeadline(result, startedAt);
+          watchDeadline();
+        }
       } catch {
         if (!stopped && session.current === value) block("error");
       } finally {
@@ -153,10 +175,7 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
           sessionId: value.sessionId,
         });
         heartbeat = setInterval(() => void pulse(), 20_000);
-        expiry = setInterval(() => {
-          if (value.active && value.deadline <= performance.now())
-            block("expired");
-        }, 1_000);
+        watchDeadline();
       },
       () => {
         if (!stopped && session.current === value) {
@@ -170,13 +189,16 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
     return () => {
       stopped = true;
       clearInterval(heartbeat);
-      clearInterval(expiry);
+      clearTimeout(expiry);
       document.removeEventListener("visibilitychange", resume);
       window.removeEventListener("focus", resume);
-      // Defer cleanup so React Strict Mode's effect replay reuses the same
-      // claim instead of releasing/reacquiring (or stealing control twice).
-      cleanupTimer.current = setTimeout(() => {
+      // Strict Mode's synchronous setup replay cancels this release.
+      // Unmounting still lets child cleanup flush its pending saves first.
+      value.releasePending = true;
+      queueMicrotask(() => {
+        if (!value.releasePending) return;
         value.active = false;
+        if (session.current === value) session.current = null;
         void value.claim
           .then((result) =>
             result.status === "active"
@@ -184,7 +206,7 @@ export function useWorkspaceLease(root: MoneyFlowPlan, accountId: string) {
               : null
           )
           .catch(() => {}); // A closed/offline browser is covered by expiry.
-      }, 0);
+      });
     };
   }, [root._id, accountId, acquire, renew, release, block, requestVersion]);
 

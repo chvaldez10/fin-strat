@@ -11,21 +11,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { MONEY_PATH, monthLink } from "../../routes";
-
-const pages = [
-  { key: "canvas", label: "All accounts", suffix: "" },
-  { key: "month", label: "Monthly plan", suffix: "/planner" },
-  { key: "recurring", label: "Recurring payments", suffix: "/recurring" },
-  { key: "subscriptions", label: "Subscriptions", suffix: "/subscriptions" },
-  { key: "accounts", label: "Accounts", suffix: "/accounts" },
-] as const;
-export type MoneyPage = (typeof pages)[number]["key"];
-
-export function moneyPageForPathname(pathname: string): MoneyPage {
-  const segment = pathname.slice(MONEY_PATH.length).split("/")[1];
-  return pages.find((item) => item.suffix === `/${segment}`)?.key ?? "canvas";
-}
+import {
+  MONEY_PATH,
+  monthLink,
+  moneyPages,
+  type MoneyPage,
+} from "../../routes";
 
 /** All Money views use these same destinations and selected-month links. */
 export function MoneyNavigation({
@@ -40,7 +31,7 @@ export function MoneyNavigation({
   account?: string;
 }>) {
   const pathname = usePathname();
-  const destinations = pages.map((item) => ({
+  const destinations = moneyPages.map((item) => ({
     ...item,
     label: item.key === "canvas" ? workspaceName : item.label,
     href: monthLink(`${MONEY_PATH}${item.suffix}`, month, account),

@@ -36,21 +36,20 @@ export function usePlannerMetadata() {
 /** Owned by the persistent Money layout, not by individual route pages. */
 export function usePlannerState() {
   const { month, setMonth } = usePlannerMonth();
-  const data = useQuery(api.moneyPlanner.getMonth, month ? { month } : "skip");
-  // This is a scheduled-month planner, not a completion ledger. Historical
-  // pending rows returned by the legacy query must not accumulate as debt.
-  // Stored completion history remains intact for recovery and old clients.
-  const visibleData = useMemo(
+  const result = useQuery(
+    api.moneyPlanner.getMonth,
+    month ? { month } : "skip"
+  );
+  // Earlier deployments can include carried payments and skipped occurrences.
+  const data = useMemo(
     () =>
-      data
-        ? {
-            ...data,
-            entries: data.entries.filter(
-              (item) => item.month === month && item.status !== "skipped"
-            ),
-          }
-        : undefined,
-    [data, month]
+      result && {
+        ...result,
+        entries: result.entries.filter(
+          (entry) => entry.month === month && entry.status !== "skipped"
+        ),
+      },
+    [result, month]
   );
   const openMonth = useMutation(api.moneyPlanner.openMonth);
   const [error, setError] = useState("");
@@ -77,11 +76,11 @@ export function usePlannerState() {
     () => ({
       month,
       setMonth,
-      data: visibleData,
+      data,
       error,
       retry,
     }),
-    [month, setMonth, visibleData, error, retry]
+    [month, setMonth, data, error, retry]
   );
 }
 export function errorMessage(error: unknown) {

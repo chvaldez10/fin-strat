@@ -14,7 +14,6 @@ import {
 } from "./lib/planner";
 import { importLegacyPlan } from "./lib/plannerMigration";
 import { schedulePayments } from "../src/features/money-flow/planner/recurrence";
-import { isCashCommitment } from "../src/features/money-flow/planner/totals";
 
 export const openMonth = mutation({
   args: { month: v.string() },
@@ -58,38 +57,6 @@ export const getMonth = query({
         .take(MAX_MONTH_PAYMENTS + 1),
       MAX_MONTH_PAYMENTS,
       "monthly payments"
-    );
-    const overdue = await bounded(
-      ctx.db
-        .query("moneyPlannerPayments")
-        .withIndex("by_ownerId_and_status_and_month", (q) =>
-          q.eq("ownerId", user._id).eq("status", "pending").lt("month", month)
-        )
-        .take(MAX_MONTH_PAYMENTS + 1),
-      MAX_MONTH_PAYMENTS,
-      "older unpaid items"
-    );
-    const settled = await bounded(
-      ctx.db
-        .query("moneyPlannerPayments")
-        .withIndex("by_ownerId_and_paidOn", (q) =>
-          q
-            .eq("ownerId", user._id)
-            .gte("paidOn", `${month}-01`)
-            .lt("paidOn", `${addMonths(month as `${number}-${number}`, 1)}-01`)
-        )
-        .take(MAX_MONTH_PAYMENTS + 1),
-      MAX_MONTH_PAYMENTS,
-      "payments settled this month"
-    );
-    const carried = [
-      ...overdue,
-      ...settled.filter((item) => item.month < month),
-    ].filter(
-      (item) =>
-        item.carryForward &&
-        (item.kind === "expense" || item.kind === "cardPayment") &&
-        isCashCommitment(item, accounts)
     );
     const nextMonth = addMonths(month as `${number}-${number}`, 1);
     const nextRows = await bounded(
@@ -144,8 +111,7 @@ export const getMonth = query({
       accounts,
       schedules: schedules.filter((item) => item.effectiveTo === null),
       scheduleVersions: schedules,
-      entries: [...entries, ...carried],
-      settlements: settled,
+      entries: entries.filter((item) => item.status !== "skipped"),
       review,
       carryInCents: review?.carryInCents ?? previous?.carryOutCents ?? null,
       previousConfirmed:

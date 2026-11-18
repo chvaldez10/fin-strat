@@ -9,7 +9,13 @@ import type { ActivityData } from "../activity-data";
 import { deriveActivityWorkspace } from "../activity-workspace-data";
 import type { FinancialAccount, Payment } from "../types";
 import { ActivityCanvas } from "./activity-canvas";
-import { reviewList, type ActivityDraft, type ActivityFilter, type ActivityListPanel, type ActivityPanel } from "./activity-panels";
+import {
+  reviewList,
+  type ActivityDraft,
+  type ActivityFilter,
+  type ActivityListPanel,
+  type ActivityPanel,
+} from "./activity-panels";
 import { ActivitySummary } from "./activity-summary";
 import { ActivityWorkspaceSheets } from "./activity-workspace-sheets";
 import type { CanvasFrameState } from "./planner-canvas-frame";
@@ -102,7 +108,11 @@ export function ActivityWorkspace({
           summary={summary}
           canLog={canLog}
           adding={panel?.kind === "add-element"}
-          canInspect={!panel || panel.kind === "hide-card" || panel.kind === "remove-category"}
+          canInspect={
+            !panel ||
+            panel.kind === "hide-card" ||
+            panel.kind === "remove-category"
+          }
           accountDetailsLink={accountDetailsLink}
           onShow={show}
           onLog={log}
@@ -110,7 +120,9 @@ export function ActivityWorkspace({
       ) : (
         <div>
           <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-6">
-            <h1 className="mr-2 text-sm font-semibold">{bankWorkspaceName(bank)}</h1>
+            <h1 className="mr-2 text-sm font-semibold">
+              {bankWorkspaceName(bank)}
+            </h1>
             <MonthPicker
               aria-label="Activity month"
               value={month}

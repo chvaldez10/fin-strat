@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { dashboardNavItems } from "@/config/navigation";
+import { moneyBreadcrumbLabel } from "@/features/money-flow/routes";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -77,15 +78,9 @@ export function DashboardPageHeader() {
               return {
                 href: registeredLabel ? candidateHref : undefined,
                 label:
-                  /^\/dashboard\/watchlist\/money-flow\/accounts\/[^/]+$/.test(
-                    candidateHref
-                  )
-                    ? "Account"
-                    : /^\/dashboard\/watchlist\/money-flow\/(?!accounts$|subscriptions$|recurring$|planner$)[^/]+$/.test(
-                          candidateHref
-                        )
-                      ? "Monthly canvas"
-                      : (registeredLabel ?? formatSegment(segment)),
+                  registeredLabel ??
+                  moneyBreadcrumbLabel(candidateHref) ??
+                  formatSegment(segment),
                 isLast: index === dashboardSegments.length - 1,
               };
             });
@@ -125,14 +120,16 @@ export function DashboardPageHeader() {
                     : "min-w-0"
                 }
               >
-                {crumb.isLast || !crumb.href ? (
+                {crumb.isLast ? (
                   <BreadcrumbPage className="truncate">
                     {crumb.label}
                   </BreadcrumbPage>
-                ) : (
+                ) : crumb.href ? (
                   <BreadcrumbLink asChild>
                     <Link href={crumb.href}>{crumb.label}</Link>
                   </BreadcrumbLink>
+                ) : (
+                  <span className="truncate">{crumb.label}</span>
                 )}
               </BreadcrumbItem>
             </Fragment>

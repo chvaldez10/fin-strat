@@ -1,4 +1,9 @@
-import type { CanvasPositions, CanvasProjection, MoneyCanvasNode, PlannerEdge } from "../canvas-types";
+import type {
+  CanvasPositions,
+  CanvasProjection,
+  MoneyCanvasNode,
+  PlannerEdge,
+} from "../canvas-types";
 import { formatMoney } from "../calculations";
 import {
   DEFAULT_CATEGORIES,

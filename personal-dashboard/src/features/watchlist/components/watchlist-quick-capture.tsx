@@ -5,12 +5,13 @@ import { Check, NotebookPen, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { usePendingAction } from "@/hooks/use-pending-action";
 
 import { MAX_CAPTURE_LENGTH } from "../captures";
 
 export function WatchlistQuickCapture() {
   const create = useMutation(api.watchlist.create);
-  const [pending, setPending] = useState(false);
+  const { pending, run } = usePendingAction();
   const [text, setText] = useState("");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,24 +19,22 @@ export function WatchlistQuickCapture() {
   const statusId = `${inputId}-status`;
   const trimmedText = text.trim();
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!trimmedText || pending) return;
-    setPending(true);
-    try {
-      await create({ text: trimmedText });
-    } catch {
-      setSaved(false);
-      setError(
-        "Couldn't save your note. Your text is still here; check your connection and try again."
-      );
-      return;
-    } finally {
-      setPending(false);
-    }
-    setError(null);
-    setText("");
-    setSaved(true);
+    if (!trimmedText) return;
+    void run(async () => {
+      setError(null);
+      try {
+        await create({ text: trimmedText });
+        setText("");
+        setSaved(true);
+      } catch {
+        setSaved(false);
+        setError(
+          "Couldn't save your note. Your text is still here; check your connection and try again."
+        );
+      }
+    });
   }
 
   return (
@@ -70,6 +69,7 @@ export function WatchlistQuickCapture() {
           onChange={(event) => {
             setText(event.target.value);
             setSaved(false);
+            setError(null);
           }}
           className="min-h-32 w-full resize-y rounded-md border border-input bg-background px-3 py-3 text-base leading-6 outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
           placeholder="What do you want to remember?"

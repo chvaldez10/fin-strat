@@ -58,4 +58,3 @@ export const activityViewNames: Record<ActivityCanvasView, string> = {
   expenses: "Expenses",
   savings: "Savings",
 };
-

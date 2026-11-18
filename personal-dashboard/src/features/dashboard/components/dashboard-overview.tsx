@@ -2,11 +2,13 @@
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { usePreferences } from "@/features/auth/use-preferences";
 import { useUser } from "@/features/auth/use-user";
+import { MONEY_PATH } from "@/features/money-flow/routes";
 export function DashboardOverview() {
   const user = useUser();
   const summary = useQuery(api.watchlist.summary, user ? {} : "skip");
-  const preferences = useQuery(api.preferences.get, user ? {} : "skip");
+  const preferences = usePreferences();
   return (
     <div className="space-y-8">
       <div>
@@ -17,7 +19,7 @@ export function DashboardOverview() {
           A quiet place for your notes and monthly plan.
         </p>
       </div>
-      {!summary ? (
+      {!summary || !preferences ? (
         <output>Loading your dashboard…</output>
       ) : (
         <>
@@ -32,11 +34,8 @@ export function DashboardOverview() {
                 {summary.moreNotes ? "+" : ""}
               </p>
             </Link>
-            {preferences?.showMoney && (
-              <Link
-                href="/dashboard/watchlist/money-flow"
-                className="rounded-xl border bg-card p-6"
-              >
+            {preferences.showMoney && (
+              <Link href={MONEY_PATH} className="rounded-xl border bg-card p-6">
                 <h2 className="text-lg font-semibold">Money Flow accounts</h2>
                 <p className="mt-2 text-3xl font-bold">
                   {summary.accountCount}
@@ -49,7 +48,7 @@ export function DashboardOverview() {
               </Link>
             )}
           </div>
-          {preferences?.weeklyReview && (
+          {preferences.weeklyReview && (
             <section className="rounded-xl border p-5">
               <h2 className="font-semibold">Weekly review</h2>
               <p className="mt-2 text-sm text-muted-foreground">

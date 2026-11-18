@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useDashboardTheme } from "@/app/providers";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -10,19 +10,23 @@ type ThemeToggleProps = {
 };
 
 export function ThemeToggle({ className }: Readonly<ThemeToggleProps>) {
-  const { theme, setTheme } = useDashboardTheme();
-  const isDark = theme === "dark";
+  const { setTheme } = useTheme();
 
   return (
     <Button
       variant="ghost"
       size="icon"
       className={cn("size-11 md:size-9", className)}
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label="Toggle color theme"
       data-testid="theme-toggle"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={() =>
+        setTheme(
+          document.documentElement.classList.contains("dark") ? "light" : "dark"
+        )
+      }
     >
-      {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      <Sun className="hidden size-4 dark:block" aria-hidden="true" />
+      <Moon className="size-4 dark:hidden" aria-hidden="true" />
     </Button>
   );
 }

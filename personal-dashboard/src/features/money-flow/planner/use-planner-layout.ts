@@ -11,7 +11,11 @@ import type { ReactFlowInstance, Viewport } from "@xyflow/react";
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@convex/_generated/api";
-import type { CanvasPositions, MoneyCanvasNode, PlannerEdge } from "../canvas-types";
+import type {
+  CanvasPositions,
+  MoneyCanvasNode,
+  PlannerEdge,
+} from "../canvas-types";
 import type { MoneyFlowPlan } from "../persistence/convex-types";
 import type { WorkspaceWriteAccess } from "../persistence/workspace-write-access";
 import { withWorkspaceAccess } from "../persistence/workspace-write-access";

@@ -25,8 +25,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
@@ -38,6 +36,7 @@ type SidebarContextProps = {
   setOpen: (open: boolean) => void;
   openMobile: boolean;
   setOpenMobile: (open: boolean) => void;
+  mobileTrigger: React.RefObject<HTMLElement | null>;
   isMobile: boolean;
   toggleSidebar: () => void;
 };
@@ -70,6 +69,7 @@ function SidebarProvider({
 >) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+  const mobileTrigger = React.useRef<HTMLElement>(null);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -82,17 +82,21 @@ function SidebarProvider({
         _setOpen(openState);
       }
       setOpenProp?.(openState);
-
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open, openProp]
   );
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
-  }, [isMobile, setOpen, setOpenMobile]);
+    if (!isMobile) {
+      setOpen((open) => !open);
+      return;
+    }
+    const focused = document.activeElement;
+    if (!openMobile && focused instanceof HTMLElement)
+      mobileTrigger.current = focused;
+    setOpenMobile(!openMobile);
+  }, [isMobile, openMobile, setOpen]);
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
@@ -130,6 +134,7 @@ function SidebarProvider({
       isMobile,
       openMobile,
       setOpenMobile,
+      mobileTrigger,
       toggleSidebar,
     }),
     [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
@@ -165,6 +170,7 @@ function Sidebar({
   variant = "sidebar",
   collapsible = "offcanvas",
   className,
+  style,
   children,
   ...props
 }: Readonly<
@@ -174,7 +180,8 @@ function Sidebar({
     collapsible?: "offcanvas" | "icon" | "none";
   }
 >) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, mobileTrigger } =
+    useSidebar();
 
   if (collapsible === "none") {
     return (
@@ -184,6 +191,7 @@ function Sidebar({
           "bg-sidebar text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
           className
         )}
+        style={style}
         {...props}
       >
         {children}
@@ -193,18 +201,29 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
         <SheetContent
+          {...props}
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className={cn(
+            "bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&_[data-slot=sidebar-header]]:pr-16",
+            className
+          )}
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+              ...style,
             } as React.CSSProperties
           }
           side={side}
+          onCloseAutoFocus={(event) => {
+            const trigger = mobileTrigger.current;
+            if (!trigger?.isConnected) return;
+            event.preventDefault();
+            trigger.focus({ preventScroll: true });
+          }}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>
@@ -250,6 +269,7 @@ function Sidebar({
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
           className
         )}
+        style={style}
         {...props}
       >
         <div

@@ -10,7 +10,8 @@ import {
   activityCanvasBanks,
   bankWorkspaceName,
 } from "../activity-canvas-account";
-import { MoneyNavigation, moneyPageForPathname } from "./money-navigation";
+import { moneyPageForPathname } from "../../routes";
+import { MoneyNavigation } from "./money-navigation";
 
 /** Navigation stays outside the route's loading boundary and page lifecycle. */
 export function MoneyWorkspace({

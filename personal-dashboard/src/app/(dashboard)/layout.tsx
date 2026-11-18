@@ -1,14 +1,19 @@
+import { cookies } from "next/headers";
 import { DashboardPageHeader } from "@/components/layout/dashboard/page-header";
 import { DashboardSidebar } from "@/components/layout/dashboard/sidebar";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { DashboardSidebarProvider } from "@/components/layout/dashboard/sidebar-provider";
+import { SidebarInset } from "@/components/ui/sidebar";
+import { DASHBOARD_SIDEBAR_COOKIE } from "@/config/navigation";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const defaultOpen =
+    (await cookies()).get(DASHBOARD_SIDEBAR_COOKIE)?.value !== "false";
   return (
-    <SidebarProvider>
+    <DashboardSidebarProvider defaultOpen={defaultOpen}>
       <div className="flex min-h-screen min-w-0 w-full">
         <DashboardSidebar />
         <SidebarInset id="main-content" tabIndex={-1}>
@@ -18,6 +23,6 @@ export default function DashboardLayout({
           </div>
         </SidebarInset>
       </div>
-    </SidebarProvider>
+    </DashboardSidebarProvider>
   );
 }
