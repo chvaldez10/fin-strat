@@ -1,14 +1,12 @@
-import type { MoneyCanvasNode } from "../canvas-types";
+import type { CanvasPositions, CanvasProjection, MoneyCanvasNode, PlannerEdge } from "../canvas-types";
 import { formatMoney } from "../calculations";
 import {
   DEFAULT_CATEGORIES,
   type ActivityValues,
   type summarizeActivity,
 } from "./activity";
-import type { PlannerEdge } from "./components/planner-element-connection";
 import type { ActivityEntry } from "./activity-data";
 import { hiddenElementLayoutKey } from "./layout-visibility";
-import type { PlannerLayoutValues } from "./use-planner-layout";
 import type { FinancialAccount, Payment } from "./types";
 
 export type ActivitySummary = ReturnType<typeof summarizeActivity>;
@@ -80,7 +78,7 @@ export function groupRecurringExpenses(
 
 export function overviewCategoryPosition(
   kind: "expense" | "savings",
-  positions: PlannerLayoutValues["positions"]
+  positions: CanvasPositions
 ) {
   const group = kind === "expense" ? "overview-expenses" : "overview-savings";
   const origin = positions[group] ?? {
@@ -164,7 +162,7 @@ export function activityExpenseAccounts(
 export function visibleActivityBuckets(
   totals: ActivitySummary,
   view: ActivityCanvasView,
-  positions: PlannerLayoutValues["positions"] = {}
+  positions: CanvasPositions = {}
 ) {
   if (view === "overview") return [];
   return totals.buckets.filter(
@@ -232,8 +230,8 @@ export function projectActivityCanvas({
   accounts: ExpenseAccount[];
   bank?: Pick<FinancialAccount, "name" | "balanceCents" | "balanceUpdatedAt">;
   view: ActivityCanvasView;
-  positions: PlannerLayoutValues["positions"];
-}>) {
+  positions: CanvasPositions;
+}>): CanvasProjection {
   const overview = view === "overview";
   const centerId = overview ? "center" : `${view}-center`;
   const centerLabel = view === "expenses" ? "Expenses" : "Savings";

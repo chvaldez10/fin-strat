@@ -11,22 +11,21 @@ import type { ReactFlowInstance, Viewport } from "@xyflow/react";
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@convex/_generated/api";
-import type { MoneyCanvasNode } from "../canvas-types";
+import type { CanvasPositions, MoneyCanvasNode, PlannerEdge } from "../canvas-types";
 import type { MoneyFlowPlan } from "../persistence/convex-types";
 import type { WorkspaceWriteAccess } from "../persistence/workspace-write-access";
 import { withWorkspaceAccess } from "../persistence/workspace-write-access";
 import { SaveQueue } from "../persistence/save-queue";
 import type { FinancialAccount } from "./types";
-import type { PlannerEdge } from "./components/planner-element-connection";
 
 export type PlannerLayout = NonNullable<
   FunctionReturnType<typeof api.plannerCanvas.get>
 >["layout"];
 export type PlannerLayoutValues = {
-  positions: Record<string, { x: number; y: number }>;
+  positions: CanvasPositions;
   viewport: Viewport;
 };
-export type CanvasPlacement = (positions: PlannerLayoutValues["positions"]) => {
+export type CanvasPlacement = (positions: CanvasPositions) => {
   x: number;
   y: number;
 };

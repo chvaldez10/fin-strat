@@ -1,14 +1,10 @@
 "use client";
-import { EdgeLabelRenderer, type Edge, type EdgeProps } from "@xyflow/react";
+import { EdgeLabelRenderer, type EdgeProps } from "@xyflow/react";
 import { formatMoney } from "../../calculations";
 import { ElementConnectionPath } from "../../components/element-connection-path";
 import { ELEMENT_PRESENTATION } from "../../components/element-presentation";
 import { useGridConnectionPath } from "../../components/use-grid-connection-path";
-import type { CanvasElementKind } from "../../canvas-types";
-export type PlannerEdge = Edge<
-  { amount: number | null; kind: CanvasElementKind; hideLabel?: boolean },
-  "planner"
->;
+import type { PlannerEdge } from "../../canvas-types";
 export function PlannerElementConnection(
   props: Readonly<EdgeProps<PlannerEdge>>
 ) {

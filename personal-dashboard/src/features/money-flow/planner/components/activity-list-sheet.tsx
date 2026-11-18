@@ -22,10 +22,9 @@ import { ActivityDeleteButton } from "./activity-delete-confirmation";
 import { ActivitySelect } from "./activity-select";
 import { FormError, PlannerSheet, usePlannerAction } from "./planner-form";
 import { localToday } from "../../formatting";
-import type { ActivityFilter } from "./activity-summary";
+import type { ActivityFilter, ActivityListView } from "./activity-panels";
 import { useCanvasWriteContext } from "./planner-write-context";
 
-export type ActivityListView = "recorded" | "review" | "scheduled";
 function matchesFilter(kind: ActivityKind, type: ActivityFilter["type"]) {
   if (type === "spending") return kind === "expense" || kind === "refund";
   if (type === "used")

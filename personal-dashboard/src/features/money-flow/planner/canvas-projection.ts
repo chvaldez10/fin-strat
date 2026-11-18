@@ -1,20 +1,24 @@
-import type { MoneyCanvasNode } from "../canvas-types";
+import type { CanvasPositions, CanvasProjection, MoneyCanvasNode, PlannerEdge } from "../canvas-types";
 import type { FinancialAccount, Payment } from "./types";
 import { formatMoney } from "../calculations";
-import type { PlannerEdge } from "./components/planner-element-connection";
+
+export function groupCanvasPayments(accountId: string, payments: readonly Payment[]) {
+  const groups = new Map<string, Payment[]>();
+  for (const item of payments) {
+    if (item.accountId !== accountId || item.status === "skipped") continue;
+    const key = item.seriesId ?? item._id;
+    const group = groups.get(key);
+    if (group) group.push(item);
+    else groups.set(key, [item]);
+  }
+  return groups;
+}
 
 export function projectMonthlyCanvas(
   account: FinancialAccount,
-  payments: Payment[],
-  positions: Record<string, { x: number; y: number }>
-) {
-  const groups = new Map<string, Payment[]>();
-  for (const item of payments.filter(
-    (p) => p.accountId === account.id && p.status !== "skipped"
-  )) {
-    const key = item.seriesId ?? item._id;
-    groups.set(key, [...(groups.get(key) ?? []), item]);
-  }
+  groups: ReadonlyMap<string, readonly Payment[]>,
+  positions: CanvasPositions
+): CanvasProjection {
   let left = 0,
     right = 0;
   const occupied = Object.values(positions);
@@ -85,5 +89,5 @@ export function projectMonthlyCanvas(
       data: { amount, kind },
     });
   }
-  return { nodes, edges, groups };
+  return { nodes, edges };
 }

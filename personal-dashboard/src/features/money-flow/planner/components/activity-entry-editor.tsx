@@ -29,14 +29,7 @@ import { localToday } from "../../formatting";
 import { amountText, amountValue } from "../../amounts";
 import { useCanvasWriteContext } from "./planner-write-context";
 
-export type ActivityDraft = {
-  kind?: ActivityKind;
-  accountId?: string;
-  category?: ActivityCategory;
-  entry?: ActivityEntry;
-  planned?: Payment;
-  imported?: ImportedActivity;
-};
+import type { ActivityDraft } from "./activity-panels";
 
 const kindOptions = Object.entries(ACTIVITY_LABELS).map(([id, name]) => ({
   id,

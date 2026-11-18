@@ -18,7 +18,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { MoneyFlowPlan } from "../../persistence/convex-types";
 import type { WorkspaceWriteAccess } from "../../persistence/workspace-write-access";
-import type { MoneyCanvasNode } from "../../canvas-types";
+import type { CanvasPositions, CanvasProjection, MoneyCanvasNode, PlannerEdge } from "../../canvas-types";
 import { MoneyElement } from "../../components/money-element";
 import { CanvasViewControls } from "../../components/canvas-view-controls";
 import { CanvasToolButton } from "../../components/canvas-tool-button";
@@ -29,15 +29,11 @@ import { hiddenElementLayoutKey } from "../layout-visibility";
 import {
   usePlannerLayout,
   type PlannerLayout,
-  type PlannerLayoutValues,
   type CanvasPlacement,
 } from "../use-planner-layout";
 import { CanvasLayoutStatus, CanvasMonthPicker } from "./canvas-layout-status";
 import type { FinancialAccount } from "../types";
-import {
-  PlannerElementConnection,
-  type PlannerEdge,
-} from "./planner-element-connection";
+import { PlannerElementConnection } from "./planner-element-connection";
 
 const nodeTypes = {
   income: MoneyElement,
@@ -100,10 +96,7 @@ export function PlannerCanvasFrame({
     header: ReactNode;
     summary?: ReactNode;
     tools: (moveControl: ReactNode, layout: CanvasLayoutActions) => ReactNode;
-    project: (positions: PlannerLayoutValues["positions"]) => {
-      nodes: MoneyCanvasNode[];
-      edges: PlannerEdge[];
-    };
+    project: (positions: CanvasPositions) => CanvasProjection;
     inspect: (
       nodeId: string,
       close: () => void,

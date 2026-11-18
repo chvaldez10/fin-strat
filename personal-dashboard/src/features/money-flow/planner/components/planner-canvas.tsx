@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { CreditCard, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ElementToolbar } from "../../components/element-toolbar";
 import { CanvasToolButton } from "../../components/canvas-tool-button";
-import { projectMonthlyCanvas } from "../canvas-projection";
-import type { PlannerLayoutValues } from "../use-planner-layout";
+import { groupCanvasPayments, projectMonthlyCanvas } from "../canvas-projection";
+import type { CanvasPositions } from "../../canvas-types";
 import type { FinancialAccount, Payment, PaymentKind } from "../types";
 import { PlannerElementInspector } from "./planner-element-inspector";
 import {
@@ -39,10 +39,13 @@ export function PlannerCanvas({
     onAdd: (kind: PaymentKind) => void;
   }>) {
   const { account, month } = frame;
+  const groups = useMemo(
+    () => groupCanvasPayments(account.id, items),
+    [account.id, items]
+  );
   const project = useCallback(
-    (positions: PlannerLayoutValues["positions"]) =>
-      projectMonthlyCanvas(account, items, positions),
-    [account, items]
+    (positions: CanvasPositions) => projectMonthlyCanvas(account, groups, positions),
+    [account, groups]
   );
   return (
     <PlannerCanvasFrame
@@ -88,11 +91,8 @@ export function PlannerCanvas({
         </ElementToolbar>
       )}
       inspect={(id, close) => {
-        const group = items.filter(
-          (item) =>
-            item.accountId === account.id && (item.seriesId ?? item._id) === id
-        );
-        return group.length ? (
+        const group = groups.get(id);
+        return group ? (
           <PlannerElementInspector
             items={group}
             accounts={accounts}

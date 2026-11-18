@@ -19,16 +19,7 @@ import type {
 import type { FinancialAccount } from "../types";
 import { MONEY_PATH, monthLink } from "../../routes";
 
-export type ActivityFilter = {
-  type?: "income" | "spending" | "savings" | "used" | "transfers";
-  categoryId?: string;
-  accountId?: string;
-  paymentGroup?: Readonly<{
-    id: string;
-    name: string;
-    paymentIds: readonly string[];
-  }>;
-};
+import type { ActivityFilter } from "./activity-panels";
 
 export function ActivitySummary({
   month,
