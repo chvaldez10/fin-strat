@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, ChevronDown } from "lucide-react";
+import { Building2, ChevronDown, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,10 +15,9 @@ import { cn } from "@/lib/utils";
 import type { MoneyFlowAccountWorkspace } from "../types";
 
 type AccountSwitcherProps = {
-  accounts: Pick<
-    MoneyFlowAccountWorkspace,
-    "id" | "name" | "institution" | "accountType"
-  >[];
+  accounts: (Pick<MoneyFlowAccountWorkspace, "id" | "name" | "institution"> & {
+    accountType: MoneyFlowAccountWorkspace["accountType"] | "credit";
+  })[];
   selectedAccountId: string;
   onAccountChange: (accountId: string) => void;
   ariaLabel?: string;
@@ -50,7 +49,10 @@ export function AccountSwitcher({
           aria-label={ariaLabel}
           disabled={disabled}
         >
-          <AccountMark institution={selectedAccount?.institution} />
+          <AccountMark
+            institution={selectedAccount?.institution}
+            credit={selectedAccount?.accountType === "credit"}
+          />
           <span className="min-w-0 flex-1 truncate text-left font-medium">
             {allSelected
               ? allAccounts.label
@@ -65,7 +67,7 @@ export function AccountSwitcher({
         className="w-(--radix-dropdown-menu-trigger-width) min-w-56 max-w-[calc(100vw-1rem)] p-1.5"
       >
         <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-          Bank accounts
+          Accounts
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup
@@ -83,13 +85,19 @@ export function AccountSwitcher({
               value={account.id}
               className="min-h-12 items-center py-2 pr-2 pl-8"
             >
-              <AccountMark institution={account.institution} />
+              <AccountMark
+                institution={account.institution}
+                credit={account.accountType === "credit"}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">
                   {account.name}
                 </span>
                 <span className="block text-xs capitalize text-muted-foreground">
-                  {account.accountType} / CAD
+                  {account.accountType === "credit"
+                    ? "Credit card"
+                    : account.accountType}{" "}
+                  / CAD
                 </span>
               </span>
             </DropdownMenuRadioItem>
@@ -100,7 +108,10 @@ export function AccountSwitcher({
   );
 }
 
-function AccountMark({ institution }: Readonly<{ institution?: string }>) {
+function AccountMark({
+  institution,
+  credit,
+}: Readonly<{ institution?: string; credit?: boolean }>) {
   const isScotiabank = institution?.toLowerCase().includes("scotia");
 
   return (
@@ -113,7 +124,11 @@ function AccountMark({ institution }: Readonly<{ institution?: string }>) {
       )}
       aria-hidden="true"
     >
-      <Building2 className="size-3.5" />
+      {credit ? (
+        <CreditCard className="size-3.5" />
+      ) : (
+        <Building2 className="size-3.5" />
+      )}
     </span>
   );
 }

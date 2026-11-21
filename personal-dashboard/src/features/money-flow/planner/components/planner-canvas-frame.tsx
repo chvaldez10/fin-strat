@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   ReactFlow,
+  BackgroundVariant,
   type ReactFlowInstance,
   type Viewport,
 } from "@xyflow/react";
@@ -40,13 +41,13 @@ import { CanvasLayoutStatus, CanvasMonthPicker } from "./canvas-layout-status";
 import type { FinancialAccount } from "../types";
 import { PlannerElementConnection } from "./planner-element-connection";
 
-const nodeTypes = {
+export const nodeTypes = {
   income: MoneyElement,
   expense: MoneyElement,
   chequing: MoneyElement,
   account: MoneyElement,
 };
-const edgeTypes = { planner: PlannerElementConnection };
+export const edgeTypes = { planner: PlannerElementConnection };
 const defaultViewport = { x: 0, y: 0, zoom: 0.8 };
 export type CanvasLayoutActions = Readonly<{
   place: (id: string, positionFor: CanvasPlacement, focusId?: string) => void;
@@ -87,9 +88,11 @@ export function PlannerCanvasFrame({
   onActivate,
   elementActions,
   inspect,
+  interactionHint,
 }: CanvasFrameState &
   Readonly<{
     scope?: "activity";
+    interactionHint?: string;
     viewKey?: string;
     layoutNamespace?: string;
     /** Return true when activating a node navigates instead of opening its inspector. */
@@ -132,13 +135,16 @@ export function PlannerCanvasFrame({
     useRef<ReactFlowInstance<MoneyCanvasNode, PlannerEdge>>(null);
   const cameraKey = layoutNamespace + viewKey;
   const activeView = useRef(cameraKey);
-  const viewports = useRef(new Map<string, Viewport>());
+  const viewports = useRef(
+    new Map<string, { viewport: Viewport; mobile: boolean }>()
+  );
+  const activeMobile = useRef(mobile);
   const [loadedLayout] = useState(() => layout);
   const viewportToSave = useCallback(
     (current: Viewport) =>
       activeView.current === "overview"
         ? current
-        : (viewports.current.get("overview") ??
+        : (viewports.current.get("overview")?.viewport ??
           loadedLayout?.viewport ??
           defaultViewport),
     [loadedLayout]
@@ -214,10 +220,15 @@ export function PlannerCanvasFrame({
   useEffect(() => {
     const flow = instance.current;
     if (!flow) return;
-    const changedView = activeView.current !== cameraKey;
+    const changedView =
+      activeView.current !== cameraKey || activeMobile.current !== mobile;
     if (changedView) {
-      viewports.current.set(activeView.current, flow.getViewport());
+      viewports.current.set(activeView.current, {
+        viewport: flow.getViewport(),
+        mobile: activeMobile.current,
+      });
       activeView.current = cameraKey;
+      activeMobile.current = mobile;
       setSelected(null);
       closeMenu();
     }
@@ -241,11 +252,15 @@ export function PlannerCanvasFrame({
     }
     if (changedView) {
       setFocusPlacement(null);
+      const cached = viewports.current.get(cameraKey);
       const viewport =
-        viewports.current.get(cameraKey) ??
-        (cameraKey === "overview" && loadedLayout?.revision
-          ? loadedLayout.viewport
-          : undefined);
+        cached?.mobile === mobile
+          ? cached.viewport
+          : scope !== "activity" &&
+              cameraKey === "overview" &&
+              loadedLayout?.revision
+            ? loadedLayout.viewport
+            : undefined;
       if (viewport) void flow.setViewport(viewport);
       else void flow.fitView({ padding: 0.2 });
     } else if (
@@ -262,6 +277,7 @@ export function PlannerCanvasFrame({
   }, [
     projection,
     cameraKey,
+    mobile,
     scope,
     captureViewport,
     focusPlacement,
@@ -335,12 +351,13 @@ export function PlannerCanvasFrame({
               })
             }
             onKeyDownCapture={
-              elementActions &&
+              (onActivate || elementActions) &&
               ((event) => {
                 const openActions =
                   event.key === "ContextMenu" ||
                   (event.shiftKey && event.key === "F10");
-                if (!openActions && event.key !== "Enter") return;
+                if (openActions ? !elementActions : event.key !== "Enter")
+                  return;
                 const target = event.target;
                 if (
                   !(target instanceof HTMLElement) ||
@@ -361,10 +378,16 @@ export function PlannerCanvasFrame({
             }
             onPaneClick={() => setSelected(null)}
             defaultViewport={
-              (!layoutNamespace && loadedLayout?.viewport) || defaultViewport
+              (scope !== "activity" &&
+                !layoutNamespace &&
+                loadedLayout?.viewport) ||
+              defaultViewport
             }
             fitView={
-              !!layoutNamespace || !loadedLayout || loadedLayout.revision === 0
+              scope === "activity" ||
+              !!layoutNamespace ||
+              !loadedLayout ||
+              loadedLayout.revision === 0
             }
             fitViewOptions={{ padding: 0.2 }}
             nodesConnectable={false}
@@ -379,13 +402,19 @@ export function PlannerCanvasFrame({
             zoomOnPinch
             zoomOnDoubleClick={!mobile}
             preventScrolling
-            minZoom={0.3}
+            minZoom={scope === "activity" ? 0.2 : 0.3}
             maxZoom={2}
             snapToGrid
             snapGrid={SNAP_GRID}
             onlyRenderVisibleElements
           >
-            {grid && <CanvasGridBackground />}
+            {grid && (
+              <CanvasGridBackground
+                variant={
+                  scope === "activity" ? BackgroundVariant.Dots : undefined
+                }
+              />
+            )}
             <CanvasViewControls
               inspectorOpen={!!selected}
               gridVisible={grid}
@@ -413,9 +442,10 @@ export function PlannerCanvasFrame({
           </ReactFlow>
           <p className="pointer-events-none absolute bottom-20 left-4 hidden max-w-[calc(100%-2rem)] rounded-lg border border-border bg-background/90 px-3 py-2 text-xs text-muted-foreground md:block">
             Drag empty space to pan.{" "}
-            {elementActions
-              ? "Right-click an element for actions."
-              : "Click an element to edit."}
+            {interactionHint ??
+              (elementActions
+                ? "Right-click an element for actions."
+                : "Click an element to edit.")}
           </p>
           {mobile && arranging && (
             <output className="pointer-events-none absolute bottom-24 left-4 rounded-lg border border-border bg-background/95 px-3 py-2 text-xs text-muted-foreground">

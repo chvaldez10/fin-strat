@@ -1,7 +1,4 @@
-"use client";
-
-import Link from "next/link";
-import { ArrowUpRight, ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,211 +6,164 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import { formatMoney } from "../../calculations";
-import type { ActivityData } from "../activity-data";
-import type {
-  ActivitySummary as Totals,
-  IncomeDisplay,
-} from "../activity-projection";
+import type { ActivityFilter } from "../activity-data";
+import type { ActivityWorkspaceData } from "../activity-workspace-data";
 import type { FinancialAccount } from "../types";
-import { MONEY_PATH, monthLink } from "../../routes";
-
-import type { ActivityFilter } from "./activity-panels";
 
 export function ActivitySummary({
-  month,
-  data,
-  totals,
-  income,
-  accounts,
+  workspace,
+  account,
   canLog,
-  onLog,
-  onIncome,
-  onEditIncome,
-  onPlan,
-  onReview,
+  hasAccounts,
+  onLogExpense,
+  onLogIncome,
+  onLogSavings,
   onActivity,
+  onReview,
   onImport,
   onScheduled,
-  onTransfers,
+  onPlan,
   onAccount,
+  onUpdateAccount,
 }: Readonly<{
-  month: string;
-  data: ActivityData;
-  totals: Totals;
-  income: IncomeDisplay;
-  accounts: FinancialAccount[];
+  workspace: ActivityWorkspaceData;
+  account?: FinancialAccount;
   canLog: boolean;
-  onLog?: () => void;
-  onIncome?: () => void;
-  onEditIncome: () => void;
-  onPlan: () => void;
-  onReview: () => void;
+  hasAccounts: boolean;
+  onLogExpense: () => void;
+  onLogIncome: () => void;
+  onLogSavings: () => void;
   onActivity: (filter?: ActivityFilter) => void;
+  onReview: () => void;
   onImport: () => void;
   onScheduled: () => void;
-  onTransfers: () => void;
+  onPlan: () => void;
   onAccount: () => void;
+  onUpdateAccount: () => void;
 }>) {
-  const limit = totals.limitRemaining;
-  const showingPlan = income.label !== "Income received";
-  const net =
-    income.amountCents === null ? null : income.amountCents - totals.used;
-  const stats = [
+  const { totals, moneyOut, activity, cardPaymentsTotal } = workspace;
+  const credit = account?.kind === "credit";
+  const stats: { label: string; amount: number; filter: ActivityFilter }[] = [
     {
-      label: "Income",
-      cents: income.amountCents,
-      detail: showingPlan
-        ? `${income.label} · ${income.detail}`
-        : income.detail,
-      open: onEditIncome,
+      label: "Total spent",
+      amount: totals.spent,
+      filter: { type: "spending" },
     },
     {
-      label: "Used",
-      cents: totals.used,
-      open: () => onActivity({ type: "used" }),
-      detail:
-        limit !== null && limit < 0
-          ? `${formatMoney(Math.abs(limit))} over spending limit`
-          : `${formatMoney(totals.spent)} expenses · ${formatMoney(totals.saved)} savings`,
-      warn: limit !== null && limit < 0,
+      label: credit ? "Payments received" : "Card payments",
+      amount: cardPaymentsTotal,
+      filter: { type: "cardPayment" },
     },
-    {
-      label: "Net",
-      cents: net,
-      detail: showingPlan
-        ? `Using ${income.label.toLowerCase()}`
-        : "Income − Used",
-      warn: net !== null && net < 0,
-    },
+    account && !credit
+      ? {
+          label: "Money out",
+          amount: moneyOut,
+          filter: { type: "outflow", accountId: account.id },
+        }
+      : {
+          label: "Income received",
+          amount: totals.income,
+          filter: { type: "income" },
+        },
   ];
   return (
     <section
       className="shrink-0 border-b border-border bg-background"
-      aria-label="Monthly activity overview"
+      aria-label="Monthly activity"
     >
-      <div className="grid grid-cols-3 divide-x divide-border">
-        {stats.map((item) => {
-          const Tile = item.open ? "button" : "div";
-          return (
-            <Tile
-              key={item.label}
-              type={item.open ? "button" : undefined}
-              onClick={item.open}
-              className={cn(
-                "min-w-0 border-b border-border px-3 py-2.5 text-left sm:px-6 sm:py-3",
-                item.open &&
-                  "hover:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-              )}
-            >
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                {item.label}
-                {item.open && (
-                  <ArrowUpRight
-                    className="size-3 shrink-0 opacity-60"
-                    aria-hidden="true"
-                  />
-                )}
-              </span>
-              <span
-                className={cn(
-                  "block wrap-anywhere text-lg font-semibold tracking-tight tabular-nums sm:text-2xl",
-                  item.warn && "text-destructive"
-                )}
+      {hasAccounts && (
+        <div
+          className={`grid divide-x divide-border border-b ${credit ? "grid-cols-2" : "grid-cols-3"}`}
+        >
+          {stats
+            .filter(({ label }) => !credit || label !== "Income received")
+            .map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => onActivity(item.filter)}
+                className="min-w-0 px-3 py-3 text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:px-6"
               >
-                {item.cents === null
-                  ? "Amount unknown"
-                  : formatMoney(item.cents)}
-              </span>
-              {item.detail && (
-                <span
-                  className={cn(
-                    "block text-xs text-muted-foreground",
-                    item.warn && "text-destructive"
-                  )}
-                >
-                  {item.detail}
+                <span className="block text-xs text-muted-foreground">
+                  {item.label}
                 </span>
-              )}
-            </Tile>
-          );
-        })}
-      </div>
+                <span className="block wrap-anywhere text-lg font-semibold tabular-nums sm:text-2xl">
+                  {formatMoney(item.amount)}
+                </span>
+              </button>
+            ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
-        {accounts.length ? (
-          onLog && (
-            <Button
-              size="sm"
-              className="min-h-9"
-              disabled={!canLog}
-              onClick={onLog}
-            >
+        {hasAccounts && (
+          <>
+            <Button size="sm" disabled={!canLog} onClick={onLogExpense}>
               <Plus aria-hidden="true" /> Log expense
             </Button>
-          )
-        ) : (
-          <Button size="sm" onClick={onAccount}>
-            <Plus aria-hidden="true" /> Add account
-          </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canLog}
+              onClick={onImport}
+            >
+              <Upload aria-hidden="true" /> Import statement
+            </Button>
+          </>
         )}
         <Button
           size="sm"
-          className="min-h-9"
-          variant="outline"
-          onClick={() => onActivity()}
+          variant={hasAccounts ? "outline" : "default"}
+          onClick={onAccount}
         >
-          Transactions
+          <Plus aria-hidden="true" /> Add account
         </Button>
-        {data.pending.length > 0 && (
-          <Button
-            size="sm"
-            className="min-h-9"
-            variant="outline"
-            onClick={onReview}
-          >
-            Review imports ({data.pending.length})
-          </Button>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" className="min-h-9" variant="ghost">
-              More <ChevronDown aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {onIncome && (
-              <DropdownMenuItem disabled={!canLog} onSelect={onIncome}>
-                Log income
+        {hasAccounts && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost">
+                More <ChevronDown aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onSelect={() => onActivity()}>
+                All transactions
               </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onSelect={onPlan}>
-              Monthly amounts
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onScheduled}>
-              Upcoming payments
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={!accounts.length || !canLog}
-              onSelect={onImport}
-            >
-              Import CSV
-            </DropdownMenuItem>
-            {data.pending.length === 0 && (
               <DropdownMenuItem onSelect={onReview}>
                 Review imports
               </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onSelect={onTransfers}>
-              Transfers
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={monthLink(`${MONEY_PATH}/upcoming`, month)}>
-                Scheduled canvas
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem
+                disabled={!canLog || credit}
+                onSelect={onLogIncome}
+              >
+                Log income
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!canLog || credit}
+                onSelect={onLogSavings}
+              >
+                Log savings
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onScheduled}>
+                Upcoming payments
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onPlan}>
+                Monthly amounts
+              </DropdownMenuItem>
+              {account && (
+                <DropdownMenuItem onSelect={onUpdateAccount}>
+                  Update account balance
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {activity.pending.length > 0 && (
+          <Button size="sm" variant="secondary" onClick={onReview}>
+            Review {activity.pending.length}{" "}
+            {activity.pending.length === 1 ? "import" : "imports"}
+          </Button>
+        )}
       </div>
     </section>
   );

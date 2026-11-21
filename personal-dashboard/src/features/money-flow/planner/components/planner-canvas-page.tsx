@@ -24,7 +24,9 @@ import { ActivityWorkspace } from "./activity-workspace";
 type Info = NonNullable<FunctionReturnType<typeof api.plannerCanvas.get>>;
 type ActivityView = Readonly<{
   data: ActivityData | undefined;
-  bank?: FinancialAccount;
+  account?: FinancialAccount;
+  openExpenses: boolean;
+  onAccountCreated: (id: string) => void;
 }>;
 export function PlannerCanvasPage({
   accountId,
@@ -133,8 +135,11 @@ function CanvasSession({
               data={activity.data}
               accounts={data.accounts}
               plans={data.entries}
-              bank={activity.bank}
+              schedules={data.scheduleVersions}
+              account={activity.account}
+              openExpenses={activity.openExpenses}
               accountControl={accountControl}
+              onAccountCreated={activity.onAccountCreated}
               frame={{
                 account: info.account,
                 root,

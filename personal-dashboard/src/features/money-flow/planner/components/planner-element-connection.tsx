@@ -15,6 +15,7 @@ export function PlannerElementConnection(
         color={ELEMENT_PRESENTATION[props.data?.kind ?? "chequing"].connection}
         id={props.id}
         data-testid={`money-flow-edge-${props.id}`}
+        showMotion={props.data?.showMotion}
         path={path}
       />
       {!props.data?.hideLabel && (

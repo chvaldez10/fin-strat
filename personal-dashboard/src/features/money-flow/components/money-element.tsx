@@ -22,6 +22,7 @@ export const MoneyElement = memo(function MoneyElement({
     ELEMENT_PRESENTATION[expenseAccount ? "expense" : data.kind];
   const Icon = creditCard ? CreditCard : presentation.icon;
   const tracked = data.kind === "chequing";
+  const compact = data.compact;
   // CSS centers the rendered box, including any fractional part of its height.
   const center = height
     ? canvasCardCenterY(positionAbsoluteY, height) - positionAbsoluteY
@@ -40,6 +41,7 @@ export const MoneyElement = memo(function MoneyElement({
         presentation.border,
         tracked &&
           "w-60 border-foreground/15 bg-foreground text-background shadow-lg shadow-black/10 md:w-72",
+        compact && "w-40 rounded-xl p-2.5 md:w-48 md:p-3",
         selected &&
           "ring-2 ring-ring ring-offset-4 ring-offset-background shadow-md"
       )}
@@ -58,6 +60,7 @@ export const MoneyElement = memo(function MoneyElement({
         <span
           className={cn(
             "flex size-8 shrink-0 items-center justify-center rounded-xl md:size-10",
+            compact && "size-7 rounded-lg md:size-8",
             tracked ? "bg-background/10 text-background" : presentation.accent
           )}
         >
@@ -81,10 +84,11 @@ export const MoneyElement = memo(function MoneyElement({
         </div>
       </div>
       {!tracked && (
-        <div className="mt-3 md:mt-5">
+        <div className={compact ? "mt-1.5" : "mt-3 md:mt-5"}>
           <p
             className={cn(
               "wrap-anywhere text-xl font-semibold tracking-tight tabular-nums md:text-2xl",
+              compact && "text-lg md:text-xl",
               typeof data.monthlyAmountCents !== "number" &&
                 "text-base text-muted-foreground"
             )}
@@ -108,7 +112,8 @@ export const MoneyElement = memo(function MoneyElement({
           {data.note}
         </p>
       )}
-      {!expenseAccount && (data.kind !== "expense" || data.showOutput) && (
+      {(tracked ||
+        (!expenseAccount && (data.kind !== "expense" || data.showOutput))) && (
         <Handle
           type="source"
           position={Position.Right}

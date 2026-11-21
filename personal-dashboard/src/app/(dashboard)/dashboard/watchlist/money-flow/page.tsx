@@ -7,6 +7,11 @@ export const metadata: Metadata = {
     "Monthly spending, savings and account activity across your bank and credit cards.",
 };
 
-export default function MoneyFlowPage() {
-  return <ActivityHomePage />;
+export default async function MoneyFlowPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ view?: string | string[] }>;
+}>) {
+  const { view } = await searchParams;
+  return <ActivityHomePage openExpenses={view === "expenses"} />;
 }

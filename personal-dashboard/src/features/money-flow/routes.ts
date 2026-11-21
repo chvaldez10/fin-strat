@@ -1,7 +1,7 @@
 export const MONEY_PATH = "/dashboard/watchlist/money-flow";
 
 export const moneyPages = [
-  { key: "canvas", label: "All accounts", suffix: "" },
+  { key: "canvas", label: "Activity", suffix: "" },
   { key: "month", label: "Monthly plan", suffix: "/planner" },
   { key: "recurring", label: "Recurring payments", suffix: "/recurring" },
   { key: "subscriptions", label: "Subscriptions", suffix: "/subscriptions" },

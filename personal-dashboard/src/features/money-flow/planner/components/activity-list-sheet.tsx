@@ -9,12 +9,13 @@ import { formatMoney } from "../../calculations";
 import {
   ACTIVITY_LABELS,
   categoryKind,
-  summarizeActivity,
+  HOUSEHOLD_CATEGORY,
   type ActivityKind,
 } from "../activity";
 import type {
   ActivityData,
   ActivityEntry,
+  ActivityFilter,
   ImportedActivity,
 } from "../activity-data";
 import type { FinancialAccount, Payment } from "../types";
@@ -22,16 +23,26 @@ import { ActivityDeleteButton } from "./activity-delete-confirmation";
 import { ActivitySelect } from "./activity-select";
 import { FormError, PlannerSheet, usePlannerAction } from "./planner-form";
 import { localToday } from "../../formatting";
-import type { ActivityFilter, ActivityListView } from "./activity-panels";
+import type { ActivityListView } from "./activity-panels";
 import { useCanvasWriteContext } from "./planner-write-context";
 
 function matchesFilter(kind: ActivityKind, type: ActivityFilter["type"]) {
-  if (type === "spending") return kind === "expense" || kind === "refund";
-  if (type === "used")
-    return kind === "expense" || kind === "refund" || kind === "savings";
-  if (type === "transfers")
-    return kind === "transfer" || kind === "cardPayment";
+  if (type === "spending" || type === "expenses")
+    return kind === "expense" || kind === "refund";
+  if (type === "outflow") return kind !== "income" && kind !== "refund";
   return !type || type === kind;
+}
+
+function matchesAccount(
+  account: string,
+  source: string | null,
+  destination: string | null,
+  direction?: ActivityFilter["direction"]
+) {
+  if (account === "all") return true;
+  if (direction === "in") return destination === account;
+  if (direction === "out") return source === account;
+  return source === account || destination === account;
 }
 const tabs = [
   { id: "recorded", title: "Recorded" },
@@ -97,10 +108,12 @@ export function ActivityListSheet({
   month,
   data,
   accounts,
+  scopeAccountId,
   scheduled,
   initialView,
   active,
   filter,
+  title: titleOverride,
   header,
   notice,
   canLog,
@@ -117,10 +130,12 @@ export function ActivityListSheet({
   month: string;
   data: ActivityData;
   accounts: FinancialAccount[];
+  scopeAccountId?: string;
   scheduled: Payment[];
   initialView: ActivityListView;
   active: boolean;
   filter?: ActivityFilter;
+  title?: string;
   header?: ReactNode;
   notice?: string;
   canLog: boolean;
@@ -137,30 +152,38 @@ export function ActivityListSheet({
   const [view, setView] = useState(initialView);
   const [account, setAccount] = useState(filter?.accountId ?? "all");
   const [limit, setLimit] = useState(30);
-  const paymentGroup = filter?.paymentGroup;
   const accountNames = useMemo(
     () => new Map(accounts.map((row) => [row.id, row.name])),
     [accounts]
   );
+  const categoryNames = useMemo(
+    () => new Map(data.categories.map((item) => [item.id, item.name])),
+    [data.categories]
+  );
+  const categoryId = filter?.categoryId;
+  const direction = filter?.type === "outflow" ? "out" : filter?.direction;
   const entries = useMemo(
     () =>
       data.entries
         .filter(
           (entry) =>
             matchesFilter(entry.kind, filter?.type) &&
-            (!filter?.categoryId || filter.categoryId === entry.categoryId) &&
-            (!paymentGroup ||
-              (entry.planId !== null &&
-                paymentGroup.paymentIds.includes(entry.planId))) &&
-            (account === "all" ||
-              entry.accountId === account ||
-              entry.destinationId === account)
+            (categoryId === undefined ||
+              (categoryId === null
+                ? !categoryNames.has(entry.categoryId ?? "")
+                : categoryId === entry.categoryId)) &&
+            matchesAccount(
+              account,
+              entry.accountId,
+              entry.destinationId,
+              direction
+            )
         )
         .sort(
           (a, b) =>
             b.date.localeCompare(a.date) || b._creationTime - a._creationTime
         ),
-    [data.entries, filter, account, paymentGroup]
+    [data.entries, filter?.type, account, categoryId, categoryNames, direction]
   );
   const pending = data.pending
     .filter((row) => account === "all" || row.accountId === account)
@@ -168,12 +191,8 @@ export function ActivityListSheet({
   const plans = scheduled
     .filter(
       (row) =>
-        (!paymentGroup || paymentGroup.paymentIds.includes(row._id)) &&
-        (matchesFilter(row.kind, filter?.type) ||
-          (filter?.type === "spending" && row.kind === "cardPayment")) &&
-        (account === "all" ||
-          row.accountId === account ||
-          row.counterpartyId === account)
+        matchesFilter(row.kind, filter?.type) &&
+        matchesAccount(account, row.accountId, row.counterpartyId, direction)
     )
     .toSorted((a, b) => a.dueDate.localeCompare(b.dueDate));
   const category = data.categories.find((row) => row.id === filter?.categoryId);
@@ -181,35 +200,43 @@ export function ActivityListSheet({
     income: "Income received",
     savings: "Savings activity",
     spending: "Spending activity",
-    used: "Expenses and savings",
-    transfers: "Transfers",
+    expenses: "Expenses",
+    transfer:
+      direction === "in"
+        ? "Transfers received"
+        : direction === "out"
+          ? "Transfers sent"
+          : "Bank transfers",
+    cardPayment: "Credit card payments",
+    outflow: "Money out",
   };
   const accountName = filter?.accountId
     ? accountNames.get(filter.accountId)
     : undefined;
   const title =
-    paymentGroup?.name ??
-    accountName ??
+    titleOverride ??
     category?.name ??
-    (filter?.type ? labels[filter.type] : "Monthly activity");
-  const categoryNames = new Map(
-    data.categories.map((item) => [item.id, item.name])
-  );
+    (categoryId === null
+      ? filter?.type === "savings"
+        ? "Uncategorized savings"
+        : "Uncategorized expenses"
+      : filter?.type === "outflow" || filter?.type === "transfer"
+        ? labels[filter.type]
+        : (accountName ??
+          (filter?.type ? labels[filter.type] : "Monthly activity")));
   const rowCount = {
     recorded: entries.length,
     review: pending.length,
     scheduled: plans.length,
   }[view];
-  const used =
-    filter?.type === "used" && view === "recorded"
-      ? summarizeActivity(entries, [], {}, null)
-      : null;
   const rowClass =
     "flex w-full min-w-0 items-start justify-between gap-3 rounded-lg border p-3 text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring";
   return (
     <PlannerSheet
       title={title}
-      description={month}
+      description={[month, scopeAccountId && accountNames.get(scopeAccountId)]
+        .filter(Boolean)
+        .join(" · ")}
       onClose={onClose}
       active={active}
     >
@@ -217,7 +244,15 @@ export function ActivityListSheet({
         {header}
         <div className="flex flex-wrap gap-1.5">
           {tabs
-            .filter((tab) => !paymentGroup || tab.id !== "review")
+            .filter(
+              (tab) =>
+                (!filter?.type && categoryId === undefined) ||
+                tab.id === "recorded" ||
+                (tab.id === "scheduled" &&
+                  (filter?.type === "cardPayment" ||
+                    filter?.type === "expenses" ||
+                    filter?.type === "spending"))
+            )
             .map((tab) => (
               <Button
                 key={tab.id}
@@ -239,7 +274,7 @@ export function ActivityListSheet({
               </Button>
             ))}
         </div>
-        {!filter?.accountId && (
+        {!filter?.accountId && !scopeAccountId && (
           <ActivitySelect
             label="Account"
             value={account}
@@ -252,22 +287,13 @@ export function ActivityListSheet({
         )}
         {view === "recorded" && (
           <>
-            {used && (
-              <div className="rounded-xl border px-3 py-2.5">
-                <p className="font-medium tabular-nums">
-                  {formatMoney(used.used)} used
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {formatMoney(used.spent)} expenses · {formatMoney(used.saved)}{" "}
-                  savings
-                </p>
-              </div>
-            )}
-            {filter?.type !== "transfers" && !paymentGroup && (
-              <Button size="sm" onClick={onLog} disabled={!canLog}>
-                Log activity
-              </Button>
-            )}
+            <Button size="sm" onClick={onLog} disabled={!canLog}>
+              {filter?.type === "cardPayment"
+                ? "Log card payment"
+                : categoryId === HOUSEHOLD_CATEGORY.id
+                  ? "Log bill"
+                  : "Log activity"}
+            </Button>
             {entries.length === 0 && (
               <p className="text-sm text-muted-foreground">
                 No recorded transactions here yet.
@@ -295,7 +321,10 @@ export function ActivityListSheet({
                           : ""}
                       </span>
                       <span className="block text-xs text-muted-foreground">
-                        {ACTIVITY_LABELS[row.kind]}
+                        {row.kind === "expense" &&
+                        row.categoryId === HOUSEHOLD_CATEGORY.id
+                          ? "Household bill"
+                          : ACTIVITY_LABELS[row.kind]}
                         {row.eTransfer ? " · e-transfer" : ""}
                       </span>
                       {categoryKind(row.kind) && (

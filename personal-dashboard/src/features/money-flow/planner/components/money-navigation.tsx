@@ -22,18 +22,15 @@ import {
 export function MoneyNavigation({
   page,
   month,
-  workspaceName,
   account,
 }: Readonly<{
   page: MoneyPage;
   month: string;
-  workspaceName: string;
   account?: string;
 }>) {
   const pathname = usePathname();
   const destinations = moneyPages.map((item) => ({
     ...item,
-    label: item.key === "canvas" ? workspaceName : item.label,
     href: monthLink(`${MONEY_PATH}${item.suffix}`, month, account),
   }));
   return (

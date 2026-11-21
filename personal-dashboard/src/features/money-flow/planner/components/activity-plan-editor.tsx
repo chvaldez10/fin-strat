@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "../../calculations";
 import type { ActivityData } from "../activity-data";
-import type { ActivitySummary } from "../activity-projection";
+import type { ActivityWorkspaceData } from "../activity-workspace-data";
 import {
   DEFAULT_CATEGORIES,
   type ActivityCategory,
@@ -41,7 +41,7 @@ export function ActivityPlanEditor({
 }: Readonly<{
   month: string;
   data: ActivityData;
-  bucket?: ActivitySummary["buckets"][number];
+  bucket?: ActivityWorkspaceData["totals"]["buckets"][number];
   add?: Readonly<{
     kind?: CategoryKind;
     onPlace: (category: ActivityCategory) => void;

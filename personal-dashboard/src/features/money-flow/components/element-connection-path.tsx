@@ -11,9 +11,13 @@ import styles from "./element-connection-path.module.css";
 /** Motion follows the source-to-target path; the end marker remains visible. */
 export function ElementConnectionPath({
   color,
+  showMotion = true,
   ...props
 }: Readonly<
-  Omit<ComponentProps<typeof BaseEdge>, "markerEnd"> & { color: string }
+  Omit<ComponentProps<typeof BaseEdge>, "markerEnd"> & {
+    color: string;
+    showMotion?: boolean;
+  }
 >) {
   const markerId = useId();
   return (
@@ -48,29 +52,30 @@ export function ElementConnectionPath({
           stroke: color,
         }}
       />
-      {Array.from({ length: config.arrowCount }, (_, index) => (
-        <path
-          key={index}
-          aria-hidden="true"
-          className={styles.flow}
-          style={
-            {
-              offsetPath: `path("${props.path}")`,
-              "--flow-duration": `${config.durationSeconds}s`,
-              "--flow-reduced-duration": `${config.reducedMotionDurationSeconds}s`,
-              "--flow-delay-ratio": -index / config.arrowCount,
-              "--flow-opacity": config.arrowOpacity,
-              "--flow-end-gap": `${END_ARROW_CLEARANCE}px`,
-            } as CSSProperties
-          }
-          d={`M ${-config.arrowSize / 2} ${-config.arrowSize * 0.375} L 0 0 L ${-config.arrowSize / 2} ${config.arrowSize * 0.375}`}
-          fill="none"
-          stroke={color}
-          strokeWidth={config.arrowStrokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ))}
+      {showMotion &&
+        Array.from({ length: config.arrowCount }, (_, index) => (
+          <path
+            key={index}
+            aria-hidden="true"
+            className={styles.flow}
+            style={
+              {
+                offsetPath: `path("${props.path}")`,
+                "--flow-duration": `${config.durationSeconds}s`,
+                "--flow-reduced-duration": `${config.reducedMotionDurationSeconds}s`,
+                "--flow-delay-ratio": -index / config.arrowCount,
+                "--flow-opacity": config.arrowOpacity,
+                "--flow-end-gap": `${END_ARROW_CLEARANCE}px`,
+              } as CSSProperties
+            }
+            d={`M ${-config.arrowSize / 2} ${-config.arrowSize * 0.375} L 0 0 L ${-config.arrowSize / 2} ${config.arrowSize * 0.375}`}
+            fill="none"
+            stroke={color}
+            strokeWidth={config.arrowStrokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
     </>
   );
 }

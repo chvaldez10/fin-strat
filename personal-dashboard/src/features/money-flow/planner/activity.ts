@@ -13,12 +13,34 @@ export const ACTIVITY_LABELS = {
   refund: "Refund",
 } as const satisfies Record<ActivityKind, string>;
 
+export const HOUSEHOLD_CATEGORY = {
+  id: "household",
+  name: "Household bills",
+  kind: "expense",
+} as const satisfies ActivityCategory;
+export const SUBSCRIPTIONS_CATEGORY_ID = "subscriptions";
+
+export function householdBillName(name: string) {
+  const words = name.toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  if (/\bmortgage\b/.test(words)) return "Mortgage";
+  if (
+    /\b(?:home|home owners?|homeowners?|house|property) insurance\b/.test(words)
+  )
+    return "Home insurance";
+  return null;
+}
+
+export function suggestedExpenseCategory(name: string, isSubscription = false) {
+  if (isSubscription) return SUBSCRIPTIONS_CATEGORY_ID;
+  return householdBillName(name) ? HOUSEHOLD_CATEGORY.id : null;
+}
+
 export const DEFAULT_CATEGORIES: readonly ActivityCategory[] = [
   { id: "giving", name: "Giving & tithes", kind: "expense" },
   { id: "groceries", name: "Groceries", kind: "expense" },
   { id: "dining", name: "Eating out", kind: "expense" },
-  { id: "household", name: "Household bills", kind: "expense" },
-  { id: "subscriptions", name: "Subscriptions", kind: "expense" },
+  HOUSEHOLD_CATEGORY,
+  { id: SUBSCRIPTIONS_CATEGORY_ID, name: "Subscriptions", kind: "expense" },
   { id: "transport", name: "Transportation", kind: "expense" },
   { id: "shopping", name: "Shopping", kind: "expense" },
   { id: "other-expense", name: "Other spending", kind: "expense" },

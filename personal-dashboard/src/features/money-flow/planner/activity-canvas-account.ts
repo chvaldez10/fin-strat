@@ -2,33 +2,31 @@ import type { FinancialAccount } from "./types";
 
 export const ALL_ACCOUNTS = "all";
 
-export function activityCanvasBanks(accounts: readonly FinancialAccount[]) {
-  return accounts.filter(
-    (account) => account.kind !== "credit" && account.legacyAccountId
-  );
+export function activityAccountKey(account: FinancialAccount) {
+  return account.legacyAccountId ?? account.id;
 }
 
-export function activityCanvasBank(
-  banks: readonly FinancialAccount[],
+export function activityCanvasAccount(
+  accounts: readonly FinancialAccount[],
   selection: string,
   preferred?: string
 ) {
   if (selection === ALL_ACCOUNTS) return undefined;
   return (
-    banks.find(
-      (account) => account.legacyAccountId === (selection || preferred)
+    accounts.find(
+      (account) => activityAccountKey(account) === (selection || preferred)
     ) ??
-    banks.find((account) => account.kind === "chequing") ??
-    banks[0]
+    accounts.find((account) => account.kind === "chequing") ??
+    accounts[0]
   );
 }
 
-export function bankWorkspaceName(
-  bank?: Pick<FinancialAccount, "name" | "institution">
+export function activityAccountName(
+  account?: Pick<FinancialAccount, "name" | "institution">
 ) {
-  if (!bank) return "All accounts";
-  return bank.institution &&
-    !bank.name.toLowerCase().includes(bank.institution.toLowerCase())
-    ? `${bank.name} (${bank.institution})`
-    : bank.name;
+  if (!account) return "All accounts";
+  return account.institution &&
+    !account.name.toLowerCase().includes(account.institution.toLowerCase())
+    ? `${account.name} (${account.institution})`
+    : account.name;
 }

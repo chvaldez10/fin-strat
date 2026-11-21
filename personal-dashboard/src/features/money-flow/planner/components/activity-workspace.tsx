@@ -1,19 +1,19 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { MonthPicker } from "@/components/ui/month-picker";
 import { localToday } from "../../formatting";
 import { MONEY_PATH, monthLink } from "../../routes";
-import { ALL_ACCOUNTS, bankWorkspaceName } from "../activity-canvas-account";
-import type { ActivityData } from "../activity-data";
+import { ALL_ACCOUNTS, activityAccountKey } from "../activity-canvas-account";
+import { HOUSEHOLD_CATEGORY } from "../activity";
+import type { ActivityData, ActivityFilter } from "../activity-data";
 import { deriveActivityWorkspace } from "../activity-workspace-data";
-import type { FinancialAccount, Payment } from "../types";
+import type { FinancialAccount, Payment, Schedule } from "../types";
 import { ActivityCanvas } from "./activity-canvas";
 import {
   reviewList,
   type ActivityDraft,
-  type ActivityFilter,
   type ActivityListPanel,
+  type ActivityListView,
   type ActivityPanel,
 } from "./activity-panels";
 import { ActivitySummary } from "./activity-summary";
@@ -26,121 +26,108 @@ export function ActivityWorkspace({
   data,
   accounts,
   plans,
+  schedules,
   frame,
-  bank,
+  account,
+  openExpenses,
   accountControl,
+  onAccountCreated,
 }: Readonly<{
   month: string;
   onMonthChange: (month: string) => void;
   data: ActivityData;
   accounts: FinancialAccount[];
   plans: Payment[];
+  schedules: Schedule[];
   frame?: CanvasFrameState;
-  bank?: FinancialAccount;
+  account?: FinancialAccount;
+  openExpenses: boolean;
   accountControl?: ReactNode;
+  onAccountCreated?: (id: string) => void;
 }>) {
   const [selection, setSelection] = useState<{
     month: string;
-    bankId: string | undefined;
+    accountId: string | undefined;
     panel: ActivityPanel;
   } | null>(null);
-  const bankId = bank?.id;
-  const accountDetailsLink = (accountId: string) =>
+  const accountId = account?.id;
+  const accountDetailsLink = (id: string) =>
     monthLink(
-      `${MONEY_PATH}/accounts/${encodeURIComponent(accountId)}`,
+      `${MONEY_PATH}/accounts/${encodeURIComponent(id)}`,
       month,
-      bank?.legacyAccountId ?? ALL_ACCOUNTS
+      account ? activityAccountKey(account) : ALL_ACCOUNTS
     );
   const panel =
-    selection?.month === month && selection.bankId === bankId
+    selection?.month === month && selection.accountId === accountId
       ? selection.panel
       : null;
   const show = (next: ActivityPanel | null) =>
-    setSelection(next ? { month, bankId, panel: next } : null);
+    setSelection(next ? { month, accountId, panel: next } : null);
+  const today = localToday();
+  const asOf = month === today.slice(0, 7) ? today : month + "-31";
   const workspace = useMemo(
-    () => deriveActivityWorkspace(data, accounts, plans, bankId),
-    [data, accounts, plans, bankId]
+    () =>
+      deriveActivityWorkspace(data, accounts, plans, schedules, asOf, account),
+    [data, accounts, plans, schedules, asOf, account]
   );
-  const canLog = accounts.length > 0 && month <= localToday().slice(0, 7);
+  const canLog = accounts.length > 0 && month <= today.slice(0, 7);
   const log = (draft: ActivityDraft, back?: ActivityListPanel) => {
     if (!accounts.length) show({ kind: "account" });
     else if (canLog)
       show({
         kind: "entry",
-        draft: { ...draft, accountId: draft.accountId ?? bankId },
+        draft: { ...draft, accountId: draft.accountId ?? accountId },
         back,
       });
   };
-  const showActivity = (filter?: ActivityFilter) =>
-    show({ kind: "list", view: "recorded", filter });
-  const summary = (
-    <ActivitySummary
-      month={month}
-      data={workspace.activity}
-      totals={workspace.totals}
-      income={workspace.income}
-      accounts={workspace.workspaceAccounts}
-      canLog={canLog}
-      onLog={frame ? undefined : () => log({ kind: "expense" })}
-      onIncome={frame ? undefined : () => log({ kind: "income" })}
-      onEditIncome={() => show({ kind: "income" })}
-      onActivity={showActivity}
-      onReview={() => show(reviewList)}
-      onPlan={() => show({ kind: "plan" })}
-      onImport={() => show({ kind: "import" })}
-      onScheduled={() => show({ kind: "list", view: "scheduled" })}
-      onTransfers={() =>
-        show({ kind: "list", view: "recorded", filter: { type: "transfers" } })
-      }
-      onAccount={() => show({ kind: "account" })}
-    />
-  );
+  const showActivity = (
+    filter?: ActivityFilter,
+    view: ActivityListView = "recorded"
+  ) => show({ kind: "list", view, filter });
   return (
     <>
-      {frame ? (
-        <ActivityCanvas
-          frame={frame}
-          data={data}
-          accounts={accounts}
-          workspace={workspace}
-          bank={bank}
-          accountControl={accountControl}
-          summary={summary}
-          canLog={canLog}
-          adding={panel?.kind === "add-element"}
-          canInspect={
-            !panel ||
-            panel.kind === "hide-card" ||
-            panel.kind === "remove-category"
-          }
-          accountDetailsLink={accountDetailsLink}
-          onShow={show}
-          onLog={log}
-        />
-      ) : (
-        <div>
-          <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-6">
-            <h1 className="mr-2 text-sm font-semibold">
-              {bankWorkspaceName(bank)}
-            </h1>
-            <MonthPicker
-              aria-label="Activity month"
-              value={month}
-              onValueChange={onMonthChange}
-            />
-          </div>
-          {summary}
-        </div>
-      )}
+      <ActivityCanvas
+        frame={frame}
+        month={month}
+        onMonthChange={onMonthChange}
+        account={account}
+        openExpenses={openExpenses}
+        accountControl={accountControl}
+        hasAccounts={accounts.length > 0}
+        workspace={workspace}
+        onActivity={showActivity}
+        onLogBill={
+          canLog ? () => log({ category: HOUSEHOLD_CATEGORY }) : undefined
+        }
+        summary={
+          <ActivitySummary
+            workspace={workspace}
+            account={account}
+            canLog={canLog}
+            hasAccounts={accounts.length > 0}
+            onLogExpense={() => log({ kind: "expense" })}
+            onLogIncome={() => log({ kind: "income" })}
+            onLogSavings={() => log({ kind: "savings" })}
+            onActivity={showActivity}
+            onReview={() => show(reviewList)}
+            onPlan={() => show({ kind: "plan" })}
+            onImport={() => show({ kind: "import" })}
+            onScheduled={() => show({ kind: "list", view: "scheduled" })}
+            onAccount={() => show({ kind: "account" })}
+            onUpdateAccount={() => show({ kind: "account", accountId })}
+          />
+        }
+      />
       <ActivityWorkspaceSheets
         panel={panel}
         month={month}
         data={data}
         accounts={accounts}
         workspace={workspace}
-        bankId={bankId}
+        accountId={accountId}
         canLog={canLog}
         accountDetailsLink={accountDetailsLink}
+        onAccountCreated={onAccountCreated}
         onShow={show}
         onLog={log}
       />

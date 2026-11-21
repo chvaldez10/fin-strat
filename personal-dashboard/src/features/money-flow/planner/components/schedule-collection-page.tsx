@@ -9,6 +9,8 @@ import { PlannerShell, PlannerLoading } from "./planner-shell";
 import { ScheduleEditor } from "./schedule-editor";
 import { ScheduleCollectionList } from "./schedule-collection-list";
 import { localToday } from "../../formatting";
+import { MONEY_PATH, monthLink } from "../../routes";
+import { ALL_ACCOUNTS, activityAccountKey } from "../activity-canvas-account";
 import type { Payment } from "../types";
 import {
   Select,
@@ -55,7 +57,7 @@ export function ScheduleCollectionPage({
   const [editor, setEditor] = useState<
       PlannerData["schedules"][number] | "new" | null
     >(null),
-    [status, setStatus] = useState("active");
+    [status, setStatus] = useState(subscription ? "all" : "active");
   const today = localToday();
   const asOf = month === today.slice(0, 7) ? today : `${month}-31`;
   const schedules = (data?.schedules ?? [])
@@ -154,6 +156,15 @@ export function ScheduleCollectionPage({
             {visibleSchedules.length === 0 ? (
               <div className="p-8 text-center">
                 <h2 className="font-semibold">{copy.empty}</h2>
+                {schedules.length > 0 && status !== "all" && (
+                  <Button
+                    className="mt-3"
+                    variant="outline"
+                    onClick={() => setStatus("all")}
+                  >
+                    Show all statuses
+                  </Button>
+                )}
               </div>
             ) : (
               <ScheduleCollectionList
@@ -163,6 +174,12 @@ export function ScheduleCollectionPage({
                 month={month}
                 nextLabel={copy.next}
                 editLabel={copy.edit}
+                canvasLink={
+                  subscription
+                    ? (account) =>
+                        `${monthLink(MONEY_PATH, month, account ? activityAccountKey(account) : ALL_ACCOUNTS)}&view=expenses`
+                    : undefined
+                }
                 onEdit={setEditor}
               />
             )}

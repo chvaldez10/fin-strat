@@ -17,15 +17,23 @@ import { useCanvasWriteContext } from "./planner-write-context";
 export function ActivityImportEditor({
   month,
   accounts,
+  defaultAccountId,
   onClose,
   onImported,
 }: Readonly<{
   month: string;
   accounts: FinancialAccount[];
+  defaultAccountId?: string;
   onClose: () => void;
-  onImported: (result: { added: number; duplicates: number }) => void;
+  onImported: (result: {
+    accountId: string;
+    added: number;
+    duplicates: number;
+  }) => void;
 }>) {
-  const [accountId, setAccount] = useState(accounts[0]?.id ?? "");
+  const [accountId, setAccount] = useState(
+    defaultAccountId ?? accounts[0]?.id ?? ""
+  );
   const [outflowSign, setSign] = useState<"negative" | "positive">("negative");
   const [csv, setCsv] = useState("");
   const [fileError, setFileError] = useState("");
@@ -60,9 +68,15 @@ export function ActivityImportEditor({
           const rows = preview?.parsed?.rows;
           if (!rows || !accountId) return;
           void action.run(async () =>
-            onImported(
-              await save({ accountId, month, rows, canvas: canvas?.identity })
-            )
+            onImported({
+              ...(await save({
+                accountId,
+                month,
+                rows,
+                canvas: canvas?.identity,
+              })),
+              accountId,
+            })
           );
         }}
       >

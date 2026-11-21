@@ -12,8 +12,10 @@ import { daysInCalendarMonth } from "@/lib/date-only";
 import { formatMoney } from "../../calculations";
 import {
   ACTIVITY_LABELS,
+  HOUSEHOLD_CATEGORY,
   categoryKind,
   matchesScheduledActivity,
+  suggestedExpenseCategory,
   type ActivityCategory,
   type ActivityKind,
 } from "../activity";
@@ -117,12 +119,14 @@ export function ActivityEntryEditor({
       ""
   );
   const [destinationId, setDestination] = useState(
-    entry?.destinationId ?? planned?.counterpartyId ?? ""
+    entry?.destinationId ?? planned?.counterpartyId ?? draft.destinationId ?? ""
   );
   const [categoryId, setCategory] = useState(
     entry?.categoryId ??
       draft.category?.id ??
-      (planned?.isSubscription ? "subscriptions" : "")
+      (planned?.kind === "expense"
+        ? (suggestedExpenseCategory(planned.name, planned.isSubscription) ?? "")
+        : "")
   );
   const [eTransfer, setETransfer] = useState(
     entry?.eTransfer ??
@@ -225,6 +229,9 @@ export function ActivityEntryEditor({
 
   const Container = presentation === "canvas" ? CanvasInspector : PlannerSheet;
   let title = entry ? "Edit transaction" : "Log activity";
+  const householdBill =
+    kind === "expense" && categoryId === HOUSEHOLD_CATEGORY.id;
+  if (householdBill) title = entry ? "Edit bill" : "Log bill";
   if (kind === "income") title = entry ? "Edit income" : "Log income";
   return (
     <Container
@@ -285,15 +292,16 @@ export function ActivityEntryEditor({
               {importAccount?.name} on {imported.date}
             </p>
           )}
-          {(presentation !== "canvas" || kind !== "income") && (
-            <ActivitySelect
-              label="Type"
-              value={kind}
-              options={choices}
-              disabled={!!planId}
-              onChange={(value) => changeKind(value as ActivityKind)}
-            />
-          )}
+          {!(householdBill && !entry && !imported) &&
+            (presentation !== "canvas" || kind !== "income") && (
+              <ActivitySelect
+                label="Type"
+                value={kind}
+                options={choices}
+                disabled={!!planId}
+                onChange={(value) => changeKind(value as ActivityKind)}
+              />
+            )}
           <Field label="Description">
             <Input
               aria-label="Description"

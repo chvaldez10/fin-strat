@@ -1,109 +1,58 @@
 # How the monthly money planner works
 
-Money opens to the selected bank workspace. The workspace switcher also offers
-**All accounts** for combined activity across bank and credit accounts.
-The header shows Income, Used and Net. **Used** opens the recorded expenses,
-refunds and savings contributions included in that total. **Net** subtracts
-Used from the Income shown. When Income falls back to scheduled pay, Net is
-labeled with that basis. The scheduled canvas and **Monthly plan** retain cash
-planning, with the yearly view in Monthly plan.
-
-The overview places individual income cards, Expenses and Savings around the
-selected bank. The workspace name and the selected month travel in the URL.
-Bank workspaces show activity on that account. Card repayments paid from the
-bank are available under **More → Upcoming payments**. Credit card purchases are included in the
-combined workspace. The floating toolbar logs income,
-expenses and savings directly from the canvas. Choose **Add element** to
-name your own category or choose one from **Your categories** or **Common
-categories** in the same picker. A fresh Expenses or Savings
-canvas starts without preset category cards. A category appears when you add
-it or record activity against it. Savings categories also appear when you set
-aside a monthly amount. On Overview,
-added categories connect to Expenses or Savings. Placement is saved with the
-canvas layout.
-Press Enter on a focused element to open it. Right-click or press Shift+F10
-for quick actions.
-**Remove from canvas…** appears in the menu and the category editor. It removes
-the category card from that workspace and keeps its monthly amounts and
-transactions. Use **Add element** to restore it.
-**Expenses** opens a canvas with spending categories and recurring payments.
-**All accounts** also shows spending by bank account and credit card. In a
-bank workspace, the selected bank appears on Overview and its purchases
-remain in the Expenses total and transaction list.
-Account and category cards show recorded spending. **Accounts** shows card
-balances and statement payments. Each recurring bill or subscription has one
-Expenses card for the selected month's occurrences. A bank workspace includes
-recurring charges on the credit cards it pays that month. Click a recurring
-card to see each scheduled charge or its linked recorded transaction. Scheduled
-amounts stay separate from the recorded spending total.
-**Hide card…** in an account card's menu or activity panel
-removes the card from Expenses and keeps the account, its activity and monthly
-totals. Use **Add element → Restore hidden cards** in Expenses to restore an
-account or recurring payment card.
-Choose **View transactions** in Expenses or Savings to see that month's
-transactions even when the cards are hidden. **Used** shows expenses and
-savings together and breaks down its total above the recorded transactions.
-The activity sheet stays open when you open a transaction or confirm a
-deletion. Returning to the list keeps its tab, account filter and scroll position.
-Click an account to see its transactions and scheduled charges. Click a recorded expense to
-change its category tag, or create a category such as **Groceries (necessity)**
-under **More → Monthly amounts**. To delete an individual transaction, choose
-**View transactions** and use **Delete** next to the entry. The confirmation
-shows the amount and date. Deleting an entry updates the monthly totals and
-returns any matched import to **Needs review**. **Savings** opens the savings categories.
-**More → Transfers** lists bank transfers and card repayments.
-
-Each view restores its camera when you return during the session. Bank
-workspaces save their positions and card visibility under separate keys in the
-activity layout. The combined overview keeps its saved camera and existing
-positions. A reserved layout key records each hidden card, so restoring one
-also recovers its previous position.
+Money Flow opens to Activity, a graph of the selected month's recorded
+transactions. Each bank or credit account has its own view. **All accounts**
+shows combined spending. The scheduled canvas and **Monthly plan** handle
+planning and keep the optional yearly view.
 
 This guide describes the running architecture. The
 [refactor plan](../plans/monthly-money-planner.md) records the product decisions;
 the [Convex integration record](../plans/money-flow-convex-integration.md) covers
 authentication and deployment configuration.
 
-## Record what happened
+## Explore a month
 
-Use **Log expense** or **Log savings** on the toolbar for purchases, tithes,
-e-transfers and contributions.
-Choose the account, posted date, amount and category. **Log income**
-on the toolbar records money received. Clicking a category on the canvas opens its recorded
-activity and amount set aside. **More → Monthly amounts** sets the optional
-overall spending limit or a category amount. Category names carry across months;
-each month owns its amounts.
+Choose an account and month in **Activity**. Bank and credit accounts share the
+same switcher. **Add account** opens the account editor and selects the newly
+created account once it appears in the live query.
 
-Each receipt or scheduled income occurrence has its own card. Use **Log
-income** for a paycheque, gift or other receipt and choose the receiving bank.
-Click a card to edit that entry. The Income total uses scheduled pay when
-there are no receipts. **Delete scheduled income…** skips the selected occurrence and keeps
-future occurrences scheduled. Use **Log as received** when the money arrives. The unallocated
-income calculation uses recorded receipts.
+**Household bills** and **Expenses** each open a canvas from the account
+overview. Household bills has separate cards for mortgage, home insurance,
+and other payments in that category. **Log bill** preselects the Household
+bills category. The Expenses canvas groups groceries, subscriptions, and
+other spending. Select a card to see its recorded and scheduled payments, or
+select **Overview** to go back.
 
-| Transaction                                                  | Effect on the activity overview                                           |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Card or debit purchase, including a tithe sent by e-transfer | Adds to the spending category in the posted month.                        |
-| Refund                                                       | Reduces spending in the selected expense category.                        |
-| TFSA contribution                                            | Adds to savings contributed and uses that category's allocation.          |
-| Card repayment or transfer between bank accounts             | Records the movement between accounts. Spending was recorded at purchase. |
+Each subscription has its own card under **Subscriptions** on the Expenses
+canvas. Active subscriptions can show **No charge this month**. From the
+Subscriptions page, **View on canvas** opens Expenses for the paying account
+or **All accounts** when a payment account is unassigned. The subscription
+schedule list opens with all statuses visible.
 
-```text
-unallocated = recorded income - net spending - savings contributed
-              - remaining category allocations
-spending limit remaining = optional monthly spending limit - net spending
-```
+**Total spent** includes recorded household bills and everyday expenses,
+with refunds deducted. Scheduled charges and credit-card payments show their
+planned amounts separately from recorded amounts. Uncategorized expenses have
+their own branch.
 
-The scheduled outflow total is a separate view of recorded plans. In **Scheduled
-payments**, **Log transaction** uses the payment as a starting point, with a
-posted date and actual amount. Imported and manual entries can also be linked
-from their editor. Linked occurrences leave the list of scheduled items still
-to record. Account balances are the manual snapshots from Accounts, with
-balance dates on the account pages.
+| View         | Recorded amounts shown                                                                                                             |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Bank account | Purchases net of refunds, card payments, and money out. Money out also includes outgoing bank transfers and savings contributions. |
+| Credit card  | Purchases net of refunds and payments received.                                                                                    |
+| All accounts | Combined purchases net of refunds, card payments shown separately, and income received.                                            |
+
+Purchases are attributed to the account that paid the merchant. A bank-to-card
+payment shows up as money leaving the bank and as a payment received on the
+card. The combined spending amount counts the original purchase once.
+
+Use **Log expense** or **Import statement** to add actual activity. **More**
+includes upcoming payments, monthly amounts, and other recording actions. In
+**Upcoming payments**, **Log transaction** pre-fills a posted amount and date
+from the schedule. Once recorded, the occurrence leaves the scheduled list.
+Account balances are manual snapshots with balance dates on the account pages.
 
 ### Review bank and card activity
 
-Choose **More → Import CSV** for a single account. The CSV needs Date,
+Choose **Import statement** for a single account. The CSV needs Date,
 Description and Amount columns, YYYY-MM-DD dates, and signed CAD amounts. Pick
 the sign used for money out and verify the preview. The import includes up to
 500 rows from the selected month and reports rows from other months. Review each
@@ -141,7 +90,7 @@ All paths below start with `/dashboard/watchlist/money-flow`.
 
 | Path                    | What the page does                                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `/`                     | Monthly activity canvas across all accounts, with spending and allocations.                                         |
+| `/`                     | Monthly activity canvas for a bank account, credit card, or all accounts.                                           |
 | `/upcoming`             | Scheduled bank canvas with account switching and salary coverage.                                                   |
 | `/planner`              | Scheduled monthly amounts, confirmed cash carryover and optional year view.                                         |
 | `/recurring`            | Manage household bills such as mortgage, insurance and car payments.                                                |
@@ -243,9 +192,9 @@ folder. Shared route, amount and formatting helpers live at the feature root.
 Restoring loaded positions affects layout only.
 
 Both canvases draw connections through `PlannerElementConnection` and
-`ElementConnectionPath`. A static line and end arrow show direction, with small
-moving arrowheads travelling from source to
-target and rotating around bends. The background, drag snapping and connection
+`ElementConnectionPath`. A static line and end arrow show direction. The
+scheduled canvas also animates small arrowheads along each connection.
+The background, drag snapping and connection
 routes share the 24-pixel grid in graph coordinates. Connected cards are drawn
 with their vertical midpoints on the nearest grid row. The handles stay centered
 and the connections use that same row. The final segment
@@ -281,16 +230,16 @@ lineWidth: 2,                    // thicker connection
 ```
 
 On phones, a one-finger swipe over empty space or a card pans the canvas. Tap a
-card to edit it; enable **Move elements** in the add toolbar to drag cards instead.
+card to see its transactions on the activity canvas or edit it on the scheduled canvas. Enable **Move elements** to drag cards.
 Pinch zoom remains available. Desktop keeps direct card dragging and empty-space
 panning. Phone cards use smaller widths and spacing, with wrapping labels and
 amounts. React Flow measures their rendered sizes and updates connections when
 the viewport crosses a layout breakpoint; zoom scales the whole graph.
 
-Both canvases use `ElementToolbar` for income, expenses and savings. Each passes
-its actions through the `tools` prop and adds view-specific controls as children.
-The scheduled canvas adds a credit-card payment button. The activity canvas adds
-the **Add element** menu.
+The activity canvas fits the month’s branches on entry. Dragging still saves
+card positions, and the view controls can fit the current canvas again.
+The scheduled canvas uses `ElementToolbar` for income, expenses, savings, and
+credit-card payments.
 
 `CanvasElementEditor` presets the selected bank and requested payment type.
 The credit-card action creates `kind: "cardPayment"`, with the bank as source,

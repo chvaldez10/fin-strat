@@ -6,3 +6,19 @@ export type ActivityData = FunctionReturnType<
 >;
 export type ActivityEntry = ActivityData["entries"][number];
 export type ImportedActivity = ActivityData["pending"][number];
+
+export type ActivityFilter = {
+  type?:
+    | "income"
+    | "spending"
+    | "expenses"
+    | "savings"
+    | "transfer"
+    | "cardPayment"
+    | "outflow";
+  categoryId?: string | null;
+  billId?: string;
+  subscriptionId?: string;
+  accountId?: string;
+  direction?: "in" | "out";
+};

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "../../calculations";
 import { addMonths } from "../../months";
@@ -23,6 +24,7 @@ type ScheduleListProps = Readonly<{
   month: string;
   nextLabel: string;
   editLabel: string;
+  canvasLink?: (account?: FinancialAccount) => string;
   onEdit: (item: ScheduleRecord) => void;
 }>;
 
@@ -64,6 +66,7 @@ function ScheduleCollectionRow({
   month,
   nextLabel,
   editLabel,
+  canvasLink,
   onEdit,
 }: Readonly<
   Omit<ScheduleListProps, "items" | "chargesBySeries"> & {
@@ -76,6 +79,16 @@ function ScheduleCollectionRow({
   );
   const next = ordered.length === 0 ? nextPaymentDate(item, month) : undefined;
   const account = accounts.find((value) => value.id === item.accountId);
+  const chargeAccounts = new Set(ordered.map((charge) => charge.accountId));
+  const payingAccount =
+    chargeAccounts.size === 0
+      ? account
+      : chargeAccounts.size === 1
+        ? accounts.find((value) => chargeAccounts.has(value.id))
+        : undefined;
+  const href =
+    (item.status === "active" || ordered.length > 0) &&
+    canvasLink?.(payingAccount);
   return (
     <div className="flex flex-wrap items-center justify-between gap-5 p-5">
       <div className="min-w-0">
@@ -128,9 +141,18 @@ function ScheduleCollectionRow({
             <p className="text-xs text-muted-foreground">Estimated</p>
           )}
         </div>
-        <Button variant="outline" onClick={() => onEdit(item.current)}>
-          {editLabel}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {href && (
+            <Button variant="ghost" asChild>
+              <Link href={href} aria-label={`View ${item.name} on canvas`}>
+                View on canvas
+              </Link>
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => onEdit(item.current)}>
+            {editLabel}
+          </Button>
+        </div>
       </div>
     </div>
   );

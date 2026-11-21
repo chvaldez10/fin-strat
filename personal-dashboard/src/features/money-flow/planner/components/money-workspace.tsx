@@ -3,13 +3,8 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { usePlanner, usePlannerMetadata } from "../use-planner";
+import { usePlanner } from "../use-planner";
 import { useCanvasAccount } from "../use-canvas-account";
-import {
-  activityCanvasBank,
-  activityCanvasBanks,
-  bankWorkspaceName,
-} from "../activity-canvas-account";
 import { moneyPageForPathname } from "../../routes";
 import { MoneyNavigation } from "./money-navigation";
 
@@ -18,14 +13,8 @@ export function MoneyWorkspace({
   children,
 }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
-  const { month, data } = usePlanner();
-  const { root } = usePlannerMetadata();
+  const { month } = usePlanner();
   const { accountId } = useCanvasAccount();
-  const bank = activityCanvasBank(
-    activityCanvasBanks(data?.accounts ?? []),
-    accountId,
-    root?.view.selectedAccountId
-  );
   const page = moneyPageForPathname(pathname);
   return (
     <div
@@ -34,12 +23,7 @@ export function MoneyWorkspace({
         page === "canvas" && "h-[calc(100dvh-4rem)] flex-none"
       )}
     >
-      <MoneyNavigation
-        page={page}
-        month={month}
-        workspaceName={bankWorkspaceName(bank)}
-        account={accountId}
-      />
+      <MoneyNavigation page={page} month={month} account={accountId} />
       <div
         className={cn(
           "min-w-0",
